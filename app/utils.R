@@ -304,6 +304,22 @@ getPPRace <- function(race, ethnicity){
   return(pp.race)
 }
 
+#' Combine AJ and Italian Ancestry into PanelPRO Ancestry categories
+#' 
+#' @param aj.anc logical, Ashkenazi Jewish ancestry
+#' @param it.anc logical, Italian ancestry
+#' @returns a string with the PanelPRO Ancestry category which is one of 
+#' `PanelPRO:::ANCESTRY_TYPES`
+getPPAncestry <- function(aj.anc, it.anc){
+  if(aj.anc){
+    return("AJ")
+  } else if(it.anc){
+    return("Italian")
+  } else if(!aj.anc & !it.anc){
+    return("nonAJ")
+  }
+}
+
 
 #' Populate Data of Modify Data for a Person in a Pedigree
 #' 
@@ -314,9 +330,10 @@ getPPRace <- function(race, ethnicity){
 #' Default is `FALSE`.
 #' @param cur.age number, the person's current age, if alive, or age of death
 #' @param is.dead binary indicating if person is dead, 0 if alive, 1 if dead.
-#' @param rc string, race, one of `c()`.
-#' @param et string, ethnicity, one of `c()`.
-#' @param an string, ancestry, one of `c()`.
+#' @param rc string, race, one of `rc.choices`.
+#' @param et string, ethnicity, one of `et.choices`.
+#' @param an.aj logical, Ashkenazi Jewish Ancestry.
+#' @param an.it logical, Italian Ancestry.
 #' @param m.id number, mother's pedigree ID.
 #' @param f.id number, father's pedigree ID.
 #' @param twin number, twin pair number.
@@ -354,7 +371,8 @@ popPersonData <- function(tmp.ped,
                           is.dead = NULL, 
                           rc = NULL, 
                           et = NULL, 
-                          an = NULL,  
+                          an.aj = NULL,
+                          an.it = NULL,
                           riskmods.and.ages = NULL,
                           t.markers = NULL,
                           cancers.and.ages = NULL,
@@ -377,7 +395,7 @@ popPersonData <- function(tmp.ped,
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ tmp.ped$isDead[which(tmp.ped$ID == id)] <- is.dead }
   if(!is.null(rc) & !is.null(et)){ tmp.ped$race[which(tmp.ped$ID == id)] <- getPPRace(rc, et) }
-  if(!is.null(an)){ tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- an }
+  if(!is.null(an.aj) & !is.null(an.it)){ tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- getPPAncestry(an.aj, an.it) }
   if(!is.null(riskmods.and.ages)){
     tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
     tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
@@ -415,41 +433,13 @@ popPersonData <- function(tmp.ped,
 #' 
 #' @param pedigree.id string, pedigree ID
 #' @param pb.sex binary, proband's sex, `0` for female and `1` for male
-#' @param pb.cur.age number, the person's current age, if alive, or age of death
-#' @param pb.rc string, race, one of values from `rc.choices`.
-#' @param pb.et string, ethnicity, one of the values from `et.choices`.
-#' @param pb.an string, ancestry, one of the values from `an.choices`.
-#' @param pb.riskmods.and.ages list of prophylactic surgery intervention statuses 
-#' and ages formatted per the documentation for the `riskmods.and.ages` argument 
-#' of the `popPersonData` function.
-#' @param pb.riskmods.and.ages list of prophylactic surgery intervention statuses 
-#' and ages formatted per the documentation for the `riskmods.and.ages` argument 
-#' of the `popPersonData` function.
-#' @param pb.t.markers vector of tumor marker results formatted per the documentation 
-#' for the `t.markers` argument of the `popPersonData` function.
-#' @param pb.cancers.and.ages list of cancer affection statues and diagnosis ages 
-#' formatted per the documentation for the `cancers.and.ages` argument of the 
-#' `popPersonData` function.
-#' @returns an initial 3 person pedigree with proband and proband's parents. The 
-#' data provided for the proband will be populated in the pedigree, except the 
-#' proband's gene test results. The parents will only have the basic data and 
-#' defaults as assigned by the `formatNewPerson` 
-#' function.
-initPed <- function(pedigree.id, pb.sex, pb.cur.age, pb.rc, pb.et, pb.an, 
-                    pb.cancers.and.ages, pb.riskmods.and.ages, pb.t.markers){
-  
-  # create minimal pedigree
+#' @returns an initial 3 person pedigree with proband and proband's parents containing 
+#' the PedigreeID, proband's CurAge, Sex, race, and Ancestry and the proband's parents with 
+#' Sex, race, and Ancestry.
+initPed <- function(pedigree.id, pb.sex){
   t.ped <- formatNewPerson(relation = "proband", ped.id = pedigree.id, sx = pb.sex)
   t.ped <- formatNewPerson(relation = "mother", tmp.ped = t.ped)
   t.ped <- formatNewPerson(relation = "father", tmp.ped = t.ped)
-  
-  # populate proband's data
-  t.ped <- popPersonData(tmp.ped = t.ped, is.proband = TRUE, cur.age = pb.cur.age, 
-                         rc = pb.rc, et = pb.et, an = pb.an, 
-                         riskmods.and.ages = pb.riskmods.and.ages, 
-                         t.markers = pb.t.markers, 
-                         cancers.and.ages = pb.cancers.and.ages)
-  
   return(t.ped)
 } 
 

@@ -54,13 +54,6 @@ ui <- fixedPage(
     ##### Create/Modify Pedigree ####
     tabPanel("Create/Modify Pedigree",
       tabsetPanel(id = "pedTabs", type = "pills",
-        # tags$style(HTML(" .tabbable > .nav > li > 
-        #                 a[data-value='Demographics'], a[data-value='Surgical Hx'],
-        #                 a[data-value='Tumor Markers'], a[data-value='Cancer Hx'], 
-        #                 a[data-value='Genes'], a[data-value='Initialize Pedigree'],
-        #                 a[data-value='Family Tree and Relative Information'] {
-        #                 margin-top:-10px;margin-bottom:-10px
-        #                 }")),
         
         ##### Proband Info #### 
         
@@ -89,30 +82,32 @@ ui <- fixedPage(
                           choices = rc.choices,
                           selected = "Other or Unreported",
                           width = "95%"),
-              selectInput("pbEthM", label = h5("Mother's Ethnicity:"),
+              selectInput("pbEthM", label = h5("Mother's Hispanic Ethnicity:"),
                           choices = et.choices,
                           selected = "Other or Unreported",
                           width = "95%"),
-              selectInput("pbAncM", label = h5("Mother's Ancestry:"),
-                          choices = an.choices,
-                          selected = "Other or Unreported",
-                          width = "95%")
+              h5("Mother's Ancestry (check all that apply):"),
+              div(style = "margin-left:25px",
+                checkboxInput("pbAncAJM", label = "Ashkenazi Jewish"),
+                checkboxInput("pbAncItM", label = "Italian")
+              )
             ),
             
             # paternal race, ethnicity, ancestry column
             column(width = 3,
-              selectInput("pbRaceP", label = h5("Father's Race:"),
+              selectInput("pbRaceF", label = h5("Father's Race:"),
                           choices = rc.choices,
                           selected = "Other or Unreported",
                           width = "95%"),
-              selectInput("pbEthP", label = h5("Father's Ethnicity:"),
+              selectInput("pbEthF", label = h5("Father's Hispanic Ethnicity:"),
                           choices = et.choices,
                           selected = "Other or Unreported",
                           width = "95%"),
-              selectInput("pbAncP", label = h5("Father's Ancestry:"),
-                          choices = an.choices,
-                          selected = "Other or Unreported",
-                          width = "95%")
+              h5("Father's Ancestry (check all that apply):"),
+              div(style = "margin-left:25px",
+                checkboxInput("pbAncAJF", label = "Ashkenazi Jewish"),
+                checkboxInput("pbAncItF", label = "Italian")
+              )
             ),
           )
         ), # end of proband demographics tab
@@ -421,29 +416,9 @@ ui <- fixedPage(
 #### Server ####
 server <- function(input, output, session) {
   
-  #### Tab switching ####
-  
-  # check if the minimum information is populated for the proband's demographics
-  pbMinInfo <- reactiveVal(FALSE)
-  observeEvent(list(input$pedID, input$pbSex, input$pbAge, dupMarkers()), {
-    if(input$pedID != "" & input$pbSex != " " & !is.na(input$pbAge) & !dupMarkers()){
-      pbMinInfo(TRUE)
-    } else {
-      pbMinInfo(FALSE)
-    }
-  })
-  output$pbMinInfo <- reactive({ pbMinInfo() })
-  outputOptions(output, 'pbMinInfo', suspendWhenHidden = FALSE)
-  
   #### Proband Data ####
   
-  # storage for proband's surgery, tumor marker, cancers, and gene data
-  pb.lists <- reactiveValues(rmods = init.riskmods.and.ages,
-                             tmarks = init.t.markers,
-                             cans = init.cancers.and.ages,
-                             genes = init.gene.results)
-  
-  # proband's sex
+  # proband's sex, convert to binary
   pb.Sex <- reactiveVal(NA)
   observeEvent(input$pbSex, {
     if(input$pbSex == "Female"){
@@ -538,10 +513,9 @@ server <- function(input, output, session) {
     )
   )
   
-  ###### Temp. Storage ####
+  ###### Storage ####
   
   # store proband tumor marker inputs in the order they are entered
-  # this is a temporary storage container useful for preserving the order inputs are entered
   markReactive <- reactiveValues(df = tmark.inputs.store)
   
   # store tumor marker results in the order they are entered
@@ -575,25 +549,6 @@ server <- function(input, output, session) {
   observeEvent(input$removePbMark, {
     markReactive$df$Mark[pbMarkCnt()+1] <- "No marker selected"
     markReactive$df$Result[pbMarkCnt()+1] <- "Not Tested"
-  }, ignoreInit = TRUE)
-  
-  ###### Persistent Storage ####
-  
-  # register proband's tumor marker results from the temporary storage to the persistent storage
-  # the persistent storage has a consistent structure which is good for populating the pedigree
-  observeEvent(markReactive$df, {
-    t.df <- 
-      markReactive$df %>%
-      filter(Mark != "No marker selected") %>%
-      mutate(Result = na_if(Result, "Not Tested")) %>%
-      mutate(Result = recode(Result,
-                             "Positive" = "1",
-                             "Negative" = "0")) %>%
-      mutate(Result = as.numeric(Result))
-    for(row in 1:nrow(t.df)){
-      pb.lists$tmarks[which(names(pb.lists$tmarks) == t.df$Mark[row])] <- t.df$Result[row]
-    }
-    pb.lists$tmarks[!names(pb.lists$tmarks) %in% t.df$Mark] <- NA
   }, ignoreInit = TRUE)
   
   
@@ -663,10 +618,9 @@ server <- function(input, output, session) {
   outputOptions(output, 'dupCancers', suspendWhenHidden = FALSE)
   
   
-  ###### Temp. Storage ####
+  ###### Storage ####
   
   # store proband cancer inputs in the order they are entered
-  # this is a temporary storage container useful for preserving the order inputs are entered
   canReactive <- reactiveValues(df = cancer.inputs.store)
   
   # store cancer names in the order they are entered
@@ -730,22 +684,6 @@ server <- function(input, output, session) {
     canReactive$df$Other[pbCanCnt()+1]  <- ""
   }, ignoreInit = TRUE)
   
-  ###### Persistent Storage ####
-  
-  # register proband's cancer history to persistent storage from temporary storage
-  # the persistent storage has a consistent structure which is good for populating the pedigree
-  observeEvent(canReactive$df, {
-    c.df <- 
-      canReactive$df %>%
-      filter(!Cancer %in% c("No cancer selected","Other"))
-    for(row in 1:nrow(c.df)){
-      c.short <- CANCER.CHOICES$short[which(CANCER.CHOICES$long == c.df$Cancer[row])]
-      pb.lists$cans[["isAff"]][which(names(pb.lists$cans[["isAff"]]) == c.short)] <- 1
-      pb.lists$cans[["Age"]]  [which(names(pb.lists$cans[["Age"]])   == c.short)] <- c.df$Age[row]
-    }
-    pb.lists$cans[["isAff"]][!names(pb.lists$cans[["isAff"]]) %in% c.df$Cancer] <- 0
-    pb.lists$cans[["Age"]]  [!names(pb.lists$cans[["Age"]])   %in% c.df$Cancer] <- NA
-  }, ignoreInit = TRUE)
   
   ##### Genes ####
   
@@ -1078,7 +1016,7 @@ server <- function(input, output, session) {
   })
   
   
-  ###### Temp Storage ####
+  ###### Storage ####
   
   ## store gene names in the order they are entered
   # PLP
@@ -1368,7 +1306,7 @@ server <- function(input, output, session) {
     geneReactive$blb.df$Zygosity[pbBLBCnt()+1]  <- "Unk"
   }, ignoreInit = TRUE)
   
-  ### temp store variant/protein/homo-hetero information by result type
+  ### store variant/protein/homo-hetero information by result type
   # PLP
   observe(
     if(length(input$pbPLPGenes) > 0 & !(all(input$pbPLPGenes == ""))){
@@ -1484,25 +1422,106 @@ server <- function(input, output, session) {
   )
   
   
-  ###### Persistent Storage ####
-  
-  
   #### Initial Pedigree ####
   
-  # initialize the pedigree when user continues on from proband info tab
-  PED <- reactiveVal(NULL)
-  observeEvent(list(input$goNumTypeRelsTab1, input$goGResultsTab), { 
-    
-    # initialize new pedigree with proband and parents
-    ped <- initPed(pedigree.id = input$pedID, pb.sex = pb.Sex(), pb.cur.age = input$pbAge, 
-                   pb.rc = input$pbRace, pb.et = input$pbEth, pb.an = input$pbAnc, 
-                   pb.riskmods.and.ages = pb.lists$rmods,
-                   pb.t.markers = pb.lists$tmarks,
-                   pb.cancers.and.ages = init.cancers.and.ages)
-    PED(ped)
-    
-    View(PED())
+  # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
+  pbMinInfo <- reactiveVal(FALSE)
+  observeEvent(list(input$pedID, input$pbSex, input$pbAge), {
+    if(input$pedID != "" & input$pbSex != " " & !is.na(input$pbAge)){
+      pbMinInfo(TRUE)
+    } else {
+      pbMinInfo(FALSE)
+    }
+  })
+  output$pbMinInfo <- reactive({ pbMinInfo() })
+  outputOptions(output, 'pbMinInfo', suspendWhenHidden = FALSE)
   
+  # hide/show tabs if on the demogrpahics tab based on if minimum information to create
+  # a pedigree is present or not
+  observeEvent(list(input$navbarTabs, pbMinInfo()), {
+    if(input$pedTabs == "Demographics"){
+      if(!pbMinInfo()){
+        hideTab("pedTabs", "Surgical Hx", session)
+        hideTab("pedTabs", "Tumor Markers", session)
+        hideTab("pedTabs", "Cancer Hx", session)
+        hideTab("pedTabs", "Genes", session)
+        hideTab("pedTabs", "Initialize Pedigree", session)
+        hideTab("pedTabs", "Family Tree and Relative Information", session)
+      } else if(pbMinInfo()){
+        showTab("pedTabs", "Surgical Hx", select = FALSE, session)
+        showTab("pedTabs", "Tumor Markers", select = FALSE, session)
+        showTab("pedTabs", "Cancer Hx", select = FALSE, session)
+        showTab("pedTabs", "Genes", select = FALSE, session)
+        showTab("pedTabs", "Initialize Pedigree", select = FALSE, session)
+        showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
+      }
+    }
+  })
+  
+  # initialize the pedigree when user leave the proband demographics tab
+  PED <- reactiveVal(NULL)
+  onPbDemoTab <- reactiveVal(TRUE)
+  observeEvent(input$pedTabs, {
+    
+    # execute if the previous tab was the proband demographics tab and the current tab is different
+    if(onPbDemoTab() & input$pedTabs != "Demographics" & pbMinInfo()){
+      
+      # initialize new pedigree with proband and parents if no pedigree exists
+      if(is.null(PED())){
+        PED(initPed(pedigree.id = input$pedID, pb.sex = pb.Sex()))
+      }
+      # combine proband's mother and father race, ethnicity, and ancestry information
+      if(input$pbRaceM != input$pbRaceF){
+        pb.rc <- "All_Races"
+      } else if(input$pbRaceM == input$pbRaceF){
+        pb.rc <- input$pbRaceM
+      }
+      if(input$pbEthM != input$pbEthF){
+        pb.et <- "Other_Ethnicity"
+      } else if(input$pbEthM == input$pbEthF){
+        pb.et <- input$pbEthM
+      }
+      if(input$pbAncAJM | input$pbAncAJF){
+        pb.an.aj <- TRUE
+      } else {
+        pb.an.aj <- FALSE
+      }
+      if(input$pbAncItM | input$pbAncItF){
+        pb.an.it <- TRUE
+      } else {
+        pb.an.it <- FALSE
+      }
+      
+      # populate proband's demographics data and PedigreeID
+      t.ped <- PED()
+      t.ped <- popPersonData(tmp.ped = t.ped, is.proband = TRUE, cur.age = input$pbAge, 
+                             rc = pb.rc, et = pb.et, an.aj = pb.an.aj, an.it = pb.an.it)
+      
+      # populate mother's race and Ancestry information
+      t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
+                             rc = input$pbRaceM, et = input$pbEthM, 
+                             an.aj = input$pbAncAJM, an.it = input$pbAncItM)
+      
+      # populate father's race and Ancestry information
+      t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$FatherID[which(t.ped$isProband == 1)], 
+                             rc = input$pbRaceF, et = input$pbEthF, 
+                             an.aj = input$pbAncAJF, an.it = input$pbAncItF)
+      PED(t.ped)
+      
+      
+      
+      View(PED())
+        
+        
+        
+    }
+    
+    # update the reactive value to detect if the current tab is the demographics tab
+    if(input$pedTabs == "Demographics"){
+      onPbDemoTab(TRUE)
+    } else {
+      onPbDemoTab(FALSE)
+    }
   }, ignoreInit = TRUE)
   
   #### Family Tree and Rel Info ####

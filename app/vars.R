@@ -23,30 +23,22 @@ max.age <- 89
 min.age <- 1
 
 # race choices (different from PanelPRO's race choices)
-rc.choices <- c("Other or Unreported" = "All_Races1",
-                "Mixed Race" = "All_Races2",
+rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",
                 "American Indian/Alaskan Native" = "AIAN",
                 "Asian/Pacific Islander" = "Asian",
                 "Black" = "Black",
                 "White" = "White")
 # ethnicity choices
-et.choices <- c("Other or Unreported" = "Other_Ethnicity1",
-                "Mixed Ethnicity" = "Other_Ethnicity2",
+et.choices <- c("Unreported/Both" = "Other_Ethnicity",
                 "Hispanic" = "Hispanic", 
                 "Non-Hispanic" = "Non-Hispanic")
-
-# ancestry choices
-an.choices <- c("Other or Unreported" = "nonAJ1",
-                "Not Ashkenazi Jewish or Italian" = "nonAJ2",
-                "Ashkenazi Jewish" = "AJ", 
-                "Italian" = "Italian")
 
 #### Surgeries ####
 RISKMOD.TYPES <- c("mast","hyst","ooph")
 
 # template list of prophylactic surgery statuses and ages
-init.riskmods.and.ages <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
-                               interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
+tmark.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
+                           interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
 
 #### Tumor Markers ####
 MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
@@ -54,12 +46,9 @@ MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
 # result choices
 marker.result.choices <- c("Not Tested" = "Not Tested", "Positive" = "Positive", "Negative" = "Negative")
 
-# template data frame of tumor markers, temporary storage
-tmark.inputs.store <- data.frame(Mark = rep("No marker selected", length(MARKER.TYPES)-1),
-                                 Result = rep("Not Tested", length(MARKER.TYPES)-1))
-
-# template vector of tumor markers, persistent storage
-init.t.markers <- setNames(object = rep(NA, length(MARKER.TYPES)-1), nm = setdiff(MARKER.TYPES, "No marker selected"))
+# template data frame for storing tumor marker inputs
+riskmods.inputs.store <- data.frame(Mark = rep("No marker selected", length(MARKER.TYPES)-1),
+                                    Result = rep("Not Tested", length(MARKER.TYPES)-1))
 
 #### Cancers ####
 # cancer choices from PanelPRO
@@ -69,25 +58,14 @@ CANCER.CHOICES$long <- c("No cancer selected", CANCER.CHOICES$long, "Other")
 
 # see the non-PanelPRO cancers loaded as a csv at the top of this file
 
-# template data frame of cancers, temporary storage
+# template data frame for storing cancer history
 cancer.inputs.store <- data.frame(Cancer = rep("No cancer selected", 100),
                                   Age = rep(NA, 100),
                                   Other = rep("", 100))
 
-# template list of cancer affection statuses and diagnosis ages, permanent storage
-init.cancers.and.ages <- list(isAff = setNames(rep(0, length(PanelPRO:::CANCER_NAME_MAP$short)), PanelPRO:::CANCER_NAME_MAP$short),
-                              Age = setNames(rep(NA, length(PanelPRO:::CANCER_NAME_MAP$short)), PanelPRO:::CANCER_NAME_MAP$short))
-
 #### Genes ####
-# template vector of gene results, permanent storage (good for populating the pedigree)
-# only contains PanelPRO genes
-init.gene.results <- list(Result      = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES),
-                          Variants    = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES),
-                          Proteins    = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES),
-                          Zygosity = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES))
 
-
-# template data frame of gene results, temporary storage (hold both PanelPRO and other genes)
+# template data frame for storing gene results
 gene.inputs.store <- data.frame(Gene        = rep("", 1000),
                                 Variants     = rep("", 1000),
                                 Proteins     = rep("", 1000),
