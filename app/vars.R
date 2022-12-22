@@ -14,6 +14,7 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
+              "OtherCancers",
               PanelPRO:::GENE_TYPES, 
               "NPP.isAffX.AgeX", "NPP.gene.results")
 
@@ -37,8 +38,8 @@ et.choices <- c("Unreported/Both" = "Other_Ethnicity",
 RISKMOD.TYPES <- c("mast","hyst","ooph")
 
 # template list of prophylactic surgery statuses and ages
-tmark.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
-                           interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
+riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
+                              interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
 
 #### Tumor Markers ####
 MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
@@ -47,8 +48,8 @@ MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
 marker.result.choices <- c("Not Tested" = "Not Tested", "Positive" = "Positive", "Negative" = "Negative")
 
 # template data frame for storing tumor marker inputs
-riskmods.inputs.store <- data.frame(Mark = rep("No marker selected", length(MARKER.TYPES)-1),
-                                    Result = rep("Not Tested", length(MARKER.TYPES)-1))
+tmark.inputs.store <- data.frame(Mark = rep("No marker selected", length(MARKER.TYPES)-1),
+                                 Result = rep("Not Tested", length(MARKER.TYPES)-1))
 
 #### Cancers ####
 # cancer choices from PanelPRO

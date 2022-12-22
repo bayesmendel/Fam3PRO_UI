@@ -391,40 +391,89 @@ popPersonData <- function(tmp.ped,
       id <- tmp.ped$ID[which(tmp.ped$isProband == 1)]
     }
   }
-
+  
+  # demographics
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ tmp.ped$isDead[which(tmp.ped$ID == id)] <- is.dead }
   if(!is.null(rc) & !is.null(et)){ tmp.ped$race[which(tmp.ped$ID == id)] <- getPPRace(rc, et) }
   if(!is.null(an.aj) & !is.null(an.it)){ tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- getPPAncestry(an.aj, an.it) }
+  
+  # surgical hx
   if(!is.null(riskmods.and.ages)){
-    tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
-    tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
-    tmp.ped$riskmodOoph[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "ooph")]
-    tmp.ped$interAgeMast[which(tmp.ped$ID == id)] <- riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "mast")]
-    tmp.ped$interAgeHyst[which(tmp.ped$ID == id)] <- riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
-    tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
+    
+    # surgery status
+    tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
+    tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
+    tmp.ped$riskmodOoph[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "ooph")]
+    
+    # surgery age
+    tmp.ped$interAgeMast[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "mast")]
+    tmp.ped$interAgeHyst[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
+    tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
   }
+  
+  # tumor markers
   if(!is.null(t.markers)){
-    tmp.ped$ER[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "ER")]
-    tmp.ped$PR[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "PR")]
-    tmp.ped$CK14[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "CK14")]
-    tmp.ped$CK5.6[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "CK5.6")]
-    tmp.ped$HER2[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "HER2")]
-    tmp.ped$MSI[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "MSI")]
-  }
-  if(!is.null(cancers.and.ages)){
-    for(cnum in 1:length(PanelPRO:::CANCER_NAME_MAP$short)){
-      c.short <- PanelPRO:::CANCER_NAME_MAP$short[cnum]
-      tmp.ped[[paste0("isAff", c.short)]][which(tmp.ped$ID == id)] <- cancers.and.ages$isAff[[which(names(cancers.and.ages$isAff) == c.short)]]
-      tmp.ped[[paste0("Age", c.short)]][which(tmp.ped$ID == id)] <- cancers.and.ages$Age[[which(names(cancers.and.ages$Age) == c.short)]]
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
+    
+    # subset storage to only populated values
+    v.t.markers <- t.markers[which(t.markers$Mark != "No marker selected" & t.markers$Result != "Not Tested"),]
+    if(nrow(v.t.markers) > 0){
+      for(row in 1:nrow(v.t.markers)){
+        tmp.ped[which(tmp.ped$ID == id), v.t.markers$Mark[row]] <- 
+          ifelse(v.t.markers$Result[row] == "Negative", 0, 
+                 ifelse(v.t.markers$Result[row] == "Positive", 1, NA))
+      }
     }
   }
+  
+  # cancer hx
+  if(!is.null(cancers.and.ages)){
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)] <- 0
+    tmp.ped[which(tmp.ped$ID == id), paste0("Age", PanelPRO:::CANCER_NAME_MAP$short)] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "OtherCancers"] <- NA
+    
+    # separate PanelPRO cancers form non-PanelPRO cancers
+    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected", "Other")),]
+    other.can.df <- cancers.and.ages[which(cancers.and.ages$Cancer == "Other"),]
+    
+    # iterate through PanelPRO cancers
+    if(nrow(pp.cans.df) > 0){
+      for(row in 1:nrow(pp.cans.df)){
+        c.short <- CANCER.CHOICES$short[which(CANCER.CHOICES$long == pp.cans.df$Cancer[row])]
+        tmp.ped[which(tmp.ped$ID == id), paste0("isAff", c.short)] <- 1
+        tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- pp.cans.df$Age[row]
+      }
+    }
+    
+    # make a json string for the other cancers
+    if(nrow(other.can.df)){
+      other.can.df <-
+        other.can.df %>%
+        mutate(String = paste0("'", ifelse(Other == "", "UnkType", Other), "':'", Age,"'"))
+      other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
+      tmp.ped$OtherCancers[which(tmp.ped$ID == id)] <- other.cans
+    }
+  }
+  
+  # gene results
   if(!is.null(gene.results)){
     for(gnum in 1:length(PanelPRO:::GENE_TYPES)){
       g.name <- PanelPRO:::GENE_TYPES[gnum]
       tmp.ped[[g.name]][which(tmp.ped$ID == id)] <- gene.results[which(names(gene.results) == g.name)]
     }
   }
+  
   return(tmp.ped)
 }
 
@@ -577,4 +626,22 @@ modLinkInfo <- function(tmp.ped, id, is.proband = FALSE, new.id = NULL,
                         side.of.fam = NULL, rel.to.proband = NULL, sex = NULL, 
                         m.id = NULL, f.id = NULL){
   return(tmp.ped)
+}
+
+# validate age values are between min.age and m
+validAge <- function(in.age, cur.age){
+  if(!is.na(in.age)){
+    isNum <- is.numeric(in.age)
+    need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+    if(isNum){
+      inRange <- (in.age >= min.age & in.age <= max.age)
+      isInt <- in.age %% 1 == 0
+      noConflict <- in.age <= cur.age
+      if(!noConflict){
+        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age))
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ",max.age,"."))
+      }
+    }
+  }
 }
