@@ -2,6 +2,7 @@
 library(shiny)
 library(shinyBS) # shiny tool tips
 library(shinyjs) # java script tools
+library(kinship2) # draws pedigrees (this is temporary only)
 library(PanelPRO)
 
 # data manipulation
@@ -54,13 +55,26 @@ ui <- fixedPage(
     ##### Create/Modify Pedigree ####
     tabPanel("Create/Modify Pedigree",
              
-      # # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
-      # fluidRow(
-      #   column(width = 6,
-      #          
-      #   ),
-      #   
-      #   column(width = 6,
+      # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
+      fluidRow(
+        
+        # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
+        conditionalPanel("input.visPed",
+          column(width = 6,
+            plotOutput("drawPed")
+          )
+        ),
+        
+        # column for pedigree data entry, full width at first, then 1/2 width once pedigree is visualized
+        column(width = 12, class = "tosix",
+               
+          # select which relative is being edited, only show after pedigree is visualized
+          conditionalPanel("input.visPed",
+            selectInput("relSelect", label = h5("Select a relative to edit:"),
+                        choices = c(1),
+                        width = "150px")
+          ),
+               
           tabsetPanel(id = "pedTabs", type = "pills",
             
             ###### Demographics ####
@@ -68,9 +82,14 @@ ui <- fixedPage(
               h3("Demographics"),
               p("Enter the person's demographic information below. Inputs with an 
                 astrick(*) require a response to continue to the next screen."),
-              textInput("pedID", label = h5("*Non-Personally Identifiable ID:"),
+              textInput("pedID", label = h5("*Unique Proband or Pedigree ID:"),
                         value = "",
-                        width = "200px"),
+                        width = "225px"),
+              conditionalPanel("!input.visPed",
+                h5("The ID number above must not contain any identifying information. 
+                   It also cannot be the proband's MRN.",
+                   style = "color:red")
+              ),
               selectInput("pbSex", label = h5("*Sex assigned at birth:"),
                           choices = c(" "=" ","Female"="Female","Male"="Male"),
                           width = "150px"),
@@ -82,41 +101,62 @@ ui <- fixedPage(
               tags$head(tags$style("#validPbAge{color: red;}")),
               
               # create maternal and paternal race, ethnicity, and ancestry columns
-              fluidRow(
-                
-                # maternal race, ethnicity, ancestry column
-                column(width = 3,
-                  selectInput("pbRaceM", label = h5("Mother's Race:"),
-                              choices = rc.choices,
-                              selected = "Other or Unreported",
-                              width = "95%"),
-                  selectInput("pbEthM", label = h5("Mother's Hispanic Ethnicity:"),
-                              choices = et.choices,
-                              selected = "Other or Unreported",
-                              width = "95%"),
-                  h5("Mother's Ancestry (check all that apply):"),
-                  div(style = "margin-left:25px",
-                    checkboxInput("pbAncAJM", label = "Ashkenazi Jewish"),
-                    checkboxInput("pbAncItM", label = "Italian")
-                  )
-                ),
-                
-                # paternal race, ethnicity, ancestry column
-                column(width = 3,
-                  selectInput("pbRaceF", label = h5("Father's Race:"),
-                              choices = rc.choices,
-                              selected = "Other or Unreported",
-                              width = "95%"),
-                  selectInput("pbEthF", label = h5("Father's Hispanic Ethnicity:"),
-                              choices = et.choices,
-                              selected = "Other or Unreported",
-                              width = "95%"),
-                  h5("Father's Ancestry (check all that apply):"),
-                  div(style = "margin-left:25px",
-                    checkboxInput("pbAncAJF", label = "Ashkenazi Jewish"),
-                    checkboxInput("pbAncItF", label = "Italian")
-                  )
-                ),
+              # for the proband (before pedigree is visualized)
+              conditionalPanel("!input.visPed",
+                fluidRow(
+                  
+                  # maternal race, ethnicity, ancestry column
+                  column(width = 3, class = "tosix",
+                    selectInput("pbRaceM", label = h5("Mother's Race:"),
+                                choices = rc.choices,
+                                selected = "Other or Unreported",
+                                width = "95%"),
+                    selectInput("pbEthM", label = h5("Mother's Hispanic Ethnicity:"),
+                                choices = et.choices,
+                                selected = "Other or Unreported",
+                                width = "95%"),
+                    h5("Mother's Ancestry (check all that apply):"),
+                    div(style = "margin-left:25px",
+                      checkboxInput("pbAncAJM", label = "Ashkenazi Jewish"),
+                      checkboxInput("pbAncItM", label = "Italian")
+                    )
+                  ),
+                  
+                  # paternal race, ethnicity, ancestry column
+                  column(width = 3, class = "tosix",
+                    selectInput("pbRaceF", label = h5("Father's Race:"),
+                                choices = rc.choices,
+                                selected = "Other or Unreported",
+                                width = "95%"),
+                    selectInput("pbEthF", label = h5("Father's Hispanic Ethnicity:"),
+                                choices = et.choices,
+                                selected = "Other or Unreported",
+                                width = "95%"),
+                    h5("Father's Ancestry (check all that apply):"),
+                    div(style = "margin-left:25px",
+                      checkboxInput("pbAncAJF", label = "Ashkenazi Jewish"),
+                      checkboxInput("pbAncItF", label = "Italian")
+                    )
+                  ),
+                ) # end of fluidRow for race and ancestry
+              ), # end of conditionalPanel for when pedigree is not visualized
+              
+              # create subject's individual race, ethnicity, and ancestry inputs
+              # after pedigree is visualized this is for all relatives and the proband
+              conditionalPanel("input.visPed",
+                selectInput("race", label = h5("Race:"),
+                            choices = rc.choices,
+                            selected = "Other or Unreported",
+                            width = "45%"),
+                selectInput("eth", label = h5("Hispanic Ethnicity:"),
+                            choices = et.choices,
+                            selected = "Other or Unreported",
+                            width = "45%"),
+                h5("Ancestry (check all that apply):"),
+                div(style = "margin-left:25px",
+                  checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
+                  checkboxInput("ancIt", label = "Italian")
+                )
               )
             ), # end of demographics tab
             
@@ -132,54 +172,66 @@ ui <- fixedPage(
               # for females
               conditionalPanel("input.pbSex == 'Female'",
                 p("Check each surgery the person has had and enter the age at surgery."),
+                
+                # mastecomties
                 fluidRow(
-                  column(width = 2,
-                         checkboxInput("pbMast", label = "Bilateral Mastectomy",
-                                       width = "150px")
+                  column(width = 3, class = "tosix",
+                    checkboxInput("pbMast", label = "Bilateral Mastectomy",
+                                  width = "150px")
                   ),
-                  column(width = 2,
-                         checkboxInput("pbHyst", label = "Hysterectomy",
-                                       width = "150px")
-                  ),
-                  column(width = 3,
-                         checkboxInput("pbOoph", label = "Bilateral Oophorectomy",
-                                       width = "250px")
-                  )
-                ), # end of fluidRow for female proph. surg conditionalPanel
-               
-                # prophylactic surgery ages
-                fluidRow(
-                  column(width = 2,
+                  column(width = 3, class = "tosix",
                     conditionalPanel("input.pbMast",
-                      numericInput("pbMastAge",
-                                   label = h5("Age at Mastectomy:"),
-                                   value = NA, min = min.age, max = max.age, step = 1,
-                                   width = "150px"),
-                      textOutput("validpbMastAge"),
-                      tags$head(tags$style("#validpbMastAge{color: red;}")),
+                      div(style = "margin-left:-75px",
+                        numericInput("pbMastAge",
+                                     label = h5("Age at Mastectomy:"),
+                                     value = NA, min = min.age, max = max.age, step = 1,
+                                     width = "150px"),
+                        textOutput("validpbMastAge"),
+                        tags$head(tags$style("#validpbMastAge{color: red;}"))
+                      )
                     )
                   ),
-                  column(width = 2,
+                ),
+                
+                # hysterectomies
+                fluidRow(
+                  column(width = 3, class = "tosix",
+                    checkboxInput("pbHyst", label = "Hysterectomy",
+                                  width = "150px")
+                  ),
+                  column(width = 3, class = "tosix",
                     conditionalPanel("input.pbHyst",
-                      numericInput("pbHystAge",
-                                   label = h5("Age at Hysterectomy:"),
-                                   value = NA, min = min.age, max = max.age, step = 1,
-                                   width = "150px"),
-                      textOutput("validpbHystAge"),
-                      tags$head(tags$style("#validpbHystAge{color: red;}")),
+                      div(style = "margin-left:-75px",
+                        numericInput("pbHystAge",
+                                     label = h5("Age at Hysterectomy:"),
+                                     value = NA, min = min.age, max = max.age, step = 1,
+                                     width = "150px"),
+                        textOutput("validpbHystAge"),
+                        tags$head(tags$style("#validpbHystAge{color: red;}"))
+                      )
                     )
                   ),
-                  column(width = 2,
+                ),
+                
+                # oophorectomies
+                fluidRow(
+                  column(width = 3, class = "tosix",
+                    checkboxInput("pbOoph", label = "Bilateral Oophorectomy",
+                                  width = "250px")
+                  ),
+                  column(width = 3, class = "tosix",
                     conditionalPanel("input.pbOoph",
-                      numericInput("pbOophAge",
-                                   label = h5("Age at Oophorectomy:"),
-                                   value = NA, min = min.age, max = max.age, step = 1,
-                                   width = "150px"),
-                      textOutput("validpbOophAge"),
-                      tags$head(tags$style("#validpbOophAge{color: red;}")),
+                      div(style = "margin-left:-75px",
+                        numericInput("pbOophAge",
+                                     label = h5("Age at Oophorectomy:"),
+                                     value = NA, min = min.age, max = max.age, step = 1,
+                                     width = "150px"),
+                        textOutput("validpbOophAge"),
+                        tags$head(tags$style("#validpbOophAge{color: red;}"))
+                      )
                     )
                   )
-                ) # end of fluidRow for female proph. surg AGE
+                )
               ) # end of female conditionalPanel for surgical history information
             ), # end of surgery tab
             
@@ -237,7 +289,7 @@ ui <- fixedPage(
               tabsetPanel(id = "geneTabs",
                 
                 tabPanel(title = "1. Select Panel & Enter Results",
-                  fluidRow(column(width = 6,
+                  fluidRow(column(width = 6, class = "totwelve",
                        
                     # select existing panel
                     h4("Step 1a: Specify the Panel of Genes Tested"),
@@ -468,8 +520,29 @@ ui <- fixedPage(
               
             ) # end of number and type of rels tab
           ) # end of tabsetPanel for data entry
-      #   ) # end of column for data entry
-      # ) # end of fluidRow for create/modify pedigree tab
+        ), # end of column for data entry
+        
+        # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
+        tags$script(
+          type = "text/javascript",
+          "
+            const btn = document.getElementById('visPed');
+            btn.addEventListener('click', function(event) {
+
+                // update class
+                const columns = document.querySelectorAll('.tosix');
+                const columns1 = document.querySelectorAll('.totwelve');
+                columns.forEach(function(column) {
+                    column.className = 'col-sm-' + 6 + ' tosix';
+                });
+                columns1.forEach(function(column) {
+                    column.className = 'col-sm-' + 12 + ' totwelve';
+                });
+            })
+          "
+        ),
+        
+      ) # end of fluidRow for create/modify pedigree tab
     ), # end of tab for create/modify pedigree
     
     ##### Run PanelPRO ####
@@ -537,7 +610,7 @@ server <- function(input, output, session) {
   })
   output$validpbCanAges <- renderText({ validpbCanAges() })
   
-  #### Proband Data ####
+  #### Subject Entry ####
   
   ##### Demographics / Create Pedigree ####
   
@@ -733,19 +806,23 @@ server <- function(input, output, session) {
   
   # tumor marker UI for proband
   output$pbMarkInputs <- renderUI({
+    
+    # dynamically change columns widths when pedigree is/is not displayed
+    col.widths <- ifelse(input$visPed, 6, 3)
+    
     lapply(if(pbMarkCnt() > 0){1:pbMarkCnt()}else{1}, function(pbMarkNum){
       fluidRow(
-        column(width = 3,
+        column(width = col.widths, 
             selectInput(paste0('pbMark', pbMarkNum), h5(paste0('Marker ', pbMarkNum,':')),
                         choices = MARKER.TYPES,
                         width = "65%")
         ),
         conditionalPanel(paste0("input.pbMark", pbMarkNum, " != 'No marker selected'"),
-          column(width = 2,
+          column(width = col.widths, 
             div(
               selectInput(paste0('pbMarkResult', pbMarkNum), h5("Test Result:"),
                           choices = marker.result.choices,
-                          width = "45%"),
+                          width = "125px"),
               style = "margin-left:-100px",
             )
           )
@@ -860,32 +937,36 @@ server <- function(input, output, session) {
   
   # cancer history UI for proband
   output$pbCanInputs <- renderUI({
+    
+    # dynamically change columns widths when pedigree is/is not displayed
+    col.widths <- ifelse(input$visPed, 6, 3)
+    
     lapply(if(pbCanCnt() > 0){1:pbCanCnt()}else{1}, function(pbCanNum){
       fluidRow(
-        column(width = 5,
+        column(width = col.widths, 
           selectInput(paste0('pbCan', pbCanNum), h5(paste0('Cancer ', pbCanNum,':')),
                       choices = CANCER.CHOICES$long,
-                      width = "40%"),
+                      width = "200px"),
           conditionalPanel(paste0('input.pbCan', pbCanNum, " == 'Other'"),
             fluidRow(
-              column(4, h5("Other cancer:", style = "margin-left:17px")),
-              column(8, 
+              column(6, h5("Other cancer:", style = "margin-left:25px")),
+              column(6, 
                 div(selectizeInput(paste0('pbCanOther', pbCanNum), label = NULL,
                                    choices = c("", non.pp.cancers), selected = "",
                                    multiple = FALSE, options = list(create=TRUE),
-                                   width = "57%"),
-                    style = "margin-left:-40px"
+                                   width = "225px"),
+                    style = "margin-left:-25px;margin-right:-100px"
                 )
               )
             )
           )
         ),
         conditionalPanel(paste0("input.pbCan", pbCanNum, " != 'No cancer selected'"),
-          column(width = 2,
+          column(width = col.widths,
             div(numericInput(paste0('pbCanAge', pbCanNum), h5("Diagnosis Age:"),
                              min = min.age, max = max.age, step = 1, value = NA,
-                             width = "22%"),
-                style = "margin-left:-280px"
+                             width = "100px"),
+                style = "margin-left:-50px"
             ),
           )
         )
@@ -896,7 +977,7 @@ server <- function(input, output, session) {
   # check for cancer duplicate entries
   dupCancers <- reactiveVal(FALSE)
   observeEvent(canReactive$df, {
-    cs <- canReactive$df$Cancer[which(canReactive$df$Cancer != "No cancer selected")]
+    cs <- canReactive$df$Cancer[which(!canReactive$df$Cancer %in% c("Other","No cancer selected"))]
     if(length(cs) > 1){
       if(any(table(cs) > 1)){
         dupCancers(TRUE)
@@ -952,7 +1033,7 @@ server <- function(input, output, session) {
   observeEvent(list(input$addPbCan, input$removePbCan), {
     for(cc in 1:pbCanCnt()){
       if(cc > 1){
-        u.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% setdiff(canReactive$df$Cancer[1:(cc-1)], "No cancer selected"))]
+        u.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% setdiff(canReactive$df$Cancer[1:(cc-1)], c("Other", "No cancer selected")))]
       } else {
         u.choices <- CANCER.CHOICES$long
       }
@@ -1754,6 +1835,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   #### Add Children, Siblings, Aunts/Uncles ####
+  
   # add relatives to the pedigree when the user click the button at bottom of screen
   observeEvent(input$visPed, {
     
@@ -1841,6 +1923,19 @@ server <- function(input, output, session) {
       }
     }
     
+    # # disable pedigree ID field
+    ## NOT WORKING
+    # shinyjs::disable("pedID")
+    
+    # update relative selector with all relatives in the pedigree
+    updateSelectInput(session = session, inputId = "relSelect", 
+                      choices = PED()$ID, selected = PED()$ID[which(PED()$isProband == 1)])
+    
+    # hide initialize pedigree tab
+    hideTab("pedTabs", target = "Initialize Pedigree", session = session)
+    
+    
+    
     
     
     View(PED())
@@ -1848,6 +1943,23 @@ server <- function(input, output, session) {
     
     
   }, ignoreInit = TRUE)
+  
+  ##### Visualize Pedigree ####
+  
+  # temporarily draw pedigree in kinship2
+  output$drawPed <- renderPlot({
+    plot_fam <-
+      PED() %>%
+      mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
+      mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
+      select(PedigreeID, ID, MotherID, FatherID, Sex)
+    dped <- pedigree(id = plot_fam$ID,
+                     momid = plot_fam$MotherID,
+                     dadid = plot_fam$FatherID,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID)
+    plot(dped[paste0(input$pedID)])
+  })
   
   #### PanelPRO ####
   
