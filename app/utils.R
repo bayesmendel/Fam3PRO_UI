@@ -441,7 +441,7 @@ popPersonData <- function(tmp.ped,
     # clear existing values
     tmp.ped[which(tmp.ped$ID == id), paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)] <- 0
     tmp.ped[which(tmp.ped$ID == id), paste0("Age", PanelPRO:::CANCER_NAME_MAP$short)] <- NA
-    tmp.ped[which(tmp.ped$ID == id), "OtherCancers"] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "NPP.isAffX.AgeX"] <- NA
     
     # separate PanelPRO cancers form non-PanelPRO cancers
     pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected", "Other")),]
@@ -462,15 +462,113 @@ popPersonData <- function(tmp.ped,
         other.can.df %>%
         mutate(String = paste0("'", ifelse(Other == "", "UnkType", Other), "':'", Age,"'"))
       other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
-      tmp.ped$OtherCancers[which(tmp.ped$ID == id)] <- other.cans
+      tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
     }
   }
   
   # gene results
   if(!is.null(gene.results)){
-    for(gnum in 1:length(PanelPRO:::GENE_TYPES)){
-      g.name <- PanelPRO:::GENE_TYPES[gnum]
-      tmp.ped[[g.name]][which(tmp.ped$ID == id)] <- gene.results[which(names(gene.results) == g.name)]
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), PanelPRO:::GENE_TYPES] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "PP.gene.info"] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "NPP.gene.info"] <- NA
+    
+    # remove slash from result codings and add json string column by result type
+    gene.results <-
+      gene.results %>%
+      mutate(Result = ifelse(Result == "P/LP", "PLP",
+                             ifelse(Result == "B/LP", "BLP", Result))) %>%
+      mutate(Var.Prot.Zyg = paste0(Result, ":{",
+                                   "var:'", Variants, "',",
+                                   "prot:'", Proteins, "',",
+                                   "zyg:'", Zygosity, "'}"))
+      
+    # combine duplicate entries of the gene with different result types
+    # only retain most severe result type for each gene
+    if(any(table(gene.results$Gene) > 1)){
+      dups <- names(table(gene.results$Gene)[which(table(gene.results$Gene) > 1)])
+      for(d in dups){
+        tmp.df <- gene.results %>% filter(Gene == d)
+        tmp.vpz <- paste0(tmp.df$Var.Prot.Zyg, collapse = ",")
+        gene.results$Var.Prot.Zyg[which(gene.results$Gene == d)] <- tmp.vpz
+        result.types <- unique(tmp.df$Result)
+        if(any(result.types == "PLP")){
+          gene.results <- gene.results[which(!(gene.results$Gene == d & gene.results$Result != "PLP")),]
+        } else if(any(result.types == "VUS")) {
+          gene.results <- gene.results[which(!which(gene.results$Gene == d & gene.results$Result != "VUS")),]
+        } else if(any(result.types == "BLB")) {
+          gene.results <- gene.results[which(!which(gene.results$Gene == d & gene.results$Result != "BLB")),]
+        }
+      }
+    }
+    
+    # add json string column by gene
+    gene.results <-
+      gene.results %>%
+      mutate(Gene.JSON = paste0(Gene, ":{", Var.Prot.Zyg, "}"))
+    
+    # separate PanelPRO genes from non-PanelPRO genes
+    pp.genes.df <- gene.results[which(gene.results$Gene %in% PanelPRO:::GENE_TYPES),]
+    npp.genes.df <- gene.results[which(gene.results$Gene %in% non.pp.genes),]
+      
+    # PanelPRO genes
+    if(nrow(pp.genes.df) > 0){
+      
+      # iterate through PanelPRO genes to assign results status (1 or 0 only)
+      # in PanelPRO gene columns
+      for(row in 1:nrow(pp.genes.df)){
+        for.PP <- TRUE
+        if(pp.genes.df$Result[row] == "PLP"){
+          
+          ### check for P/LP genes that have variants, proteins, or zygosity not handled by PanelPRO
+          ### assume missing values are compatible with the PanelPRO
+          ## Genes where the variant type matters
+          # CHEK2
+          if(pp.genes.df$Gene[row] == "CHEK2"){
+            tmp.vars <- tolower(strsplit(pp.genes.df$Variants[row], split = ", ")[[1]])
+            if(all(!tmp.vars %in% c("",tolower(varCHEK2plp)))){ for.PP <- FALSE }
+            
+            # NBN
+          } else if(pp.genes.df$Gene[row] == "NBN"){
+            tmp.vars <- tolower(strsplit(pp.genes.df$Variants[row], split = ", ")[[1]])
+            if(all(!tmp.vars %in% c("",tolower(varNBNplp)))){ for.PP <- FALSE }
+              
+            ## genes where the protein matters
+            #CDKN2A
+          } else if(pp.genes.df$Gene[row] == "CDKN2A"){
+            tmp.vars <- tolower(strsplit(pp.genes.df$Proteins[row], split = ", ")[[1]])
+            if(all(!tmp.vars %in% c("",tolower(varNBNplp)))){ for.PP <- FALSE }
+            
+            ## genes where the zygosity matters
+            # MUTYH
+          } else if(pp.genes.df$Gene[row] == "MUTYH"){
+            if(!pp.genes.df$Zygosity[row] %in% c("Unk",zygMUTYHplp)){ for.PP <- FALSE }
+          }
+          
+          # mark PanelPRO gene columns in pedigree with results
+          if(for.PP){
+            tmp.ped[which(tmp.ped$ID == id), pp.genes.df$Gene[row]] <- 1
+          } else {
+            tmp.ped[which(tmp.ped$ID == id), pp.genes.df$Gene[row]] <- 0
+          }
+          
+          # for PanelPRO, mark all VUS, B/LB, and negative as negative
+        } else {
+          tmp.ped[which(tmp.ped$ID == id), pp.genes.df$Gene[row]] <- 0
+        }
+      }
+      
+      # record all PanelPRO gene information in JSON string by gene and result type 
+      # (VUS, B/LB, and Neg are differentiated in this data structure)
+      pp.gene.json <- paste0("{",paste0(pp.genes.df$Gene.JSON, collapse = ","),"}")
+      tmp.ped$PP.gene.info[which(tmp.ped$ID == id)] <- pp.gene.json
+    }
+    
+    # record all non-PanelPRO gene information in JSON string by gene and result type 
+    if(nrow(npp.genes.df)){
+      npp.gene.json <- paste0("{",paste0(npp.genes.df$Gene.JSON, collapse = ","),"}")
+      tmp.ped$NPP.gene.info[which(tmp.ped$ID == id)] <- npp.gene.json
     }
   }
   

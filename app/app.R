@@ -53,351 +53,424 @@ ui <- fixedPage(
     
     ##### Create/Modify Pedigree ####
     tabPanel("Create/Modify Pedigree",
-      tabsetPanel(id = "pedTabs", type = "pills",
-        
-        ##### Proband Info #### 
-        
-        ###### Demographics ####
-        tabPanel("Demographics",
-          h3("Proband Demographics"),
-          p("Enter the proband's demographic information below. Inputs with an 
-            astrick(*) require a response to continue to the next screen."),
-          textInput("pedID", label = h5("*Non-Personally Identifiable ID:"),
-                    value = "",
-                    width = "200px"),
-          selectInput("pbSex", label = h5("*Sex assigned at birth:"),
-                      choices = c(" "=" ","Female"="Female","Male"="Male"),
-                      width = "150px"),
-          numericInput("pbAge",
-                       label = h5("*Current Age (1 to 89):"),
-                       value = NA, min = min.age, max = max.age, step = 1,
-                       width = "150px"),
-          textOutput("validPbAge"),
-          tags$head(tags$style("#validPbAge{color: red;}")),
-          
-          # create maternal and paternal race, ethnicity, and ancestry columns
-          fluidRow(
+             
+      # # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
+      # fluidRow(
+      #   column(width = 6,
+      #          
+      #   ),
+      #   
+      #   column(width = 6,
+          tabsetPanel(id = "pedTabs", type = "pills",
             
-            # maternal race, ethnicity, ancestry column
-            column(width = 3,
-              selectInput("pbRaceM", label = h5("Mother's Race:"),
-                          choices = rc.choices,
-                          selected = "Other or Unreported",
-                          width = "95%"),
-              selectInput("pbEthM", label = h5("Mother's Hispanic Ethnicity:"),
-                          choices = et.choices,
-                          selected = "Other or Unreported",
-                          width = "95%"),
-              h5("Mother's Ancestry (check all that apply):"),
-              div(style = "margin-left:25px",
-                checkboxInput("pbAncAJM", label = "Ashkenazi Jewish"),
-                checkboxInput("pbAncItM", label = "Italian")
-              )
-            ),
-            
-            # paternal race, ethnicity, ancestry column
-            column(width = 3,
-              selectInput("pbRaceF", label = h5("Father's Race:"),
-                          choices = rc.choices,
-                          selected = "Other or Unreported",
-                          width = "95%"),
-              selectInput("pbEthF", label = h5("Father's Hispanic Ethnicity:"),
-                          choices = et.choices,
-                          selected = "Other or Unreported",
-                          width = "95%"),
-              h5("Father's Ancestry (check all that apply):"),
-              div(style = "margin-left:25px",
-                checkboxInput("pbAncAJF", label = "Ashkenazi Jewish"),
-                checkboxInput("pbAncItF", label = "Italian")
-              )
-            ),
-          )
-        ), # end of proband demographics tab
-        
-        ####### Surgical Hx ####
-        tabPanel("Surgical Hx",
-          h3("Prophylactic Surgical History"),
-          
-          # message for proph surgery is Female sex is not selected
-          conditionalPanel("input.pbSex != 'Female'",
-            h5("Prophylactic surgery information is only required for females.")
-          ),
-          
-          # for females
-          conditionalPanel("input.pbSex == 'Female'",
-            p("Check each surgery the proband has had and enter the age at surgery."),
-            fluidRow(
-              column(width = 2,
-                     checkboxInput("pbMast", label = "Bilateral Mastectomy",
-                                   width = "150px")
-              ),
-              column(width = 2,
-                     checkboxInput("pbHyst", label = "Hysterectomy",
-                                   width = "150px")
-              ),
-              column(width = 3,
-                     checkboxInput("pbOoph", label = "Bilateral Oophorectomy",
-                                   width = "250px")
-              )
-            ), # end of fluidRow for female proph. surg conditionalPanel
-           
-            # prophylactic surgery ages
-            fluidRow(
-              column(width = 2,
-                conditionalPanel("input.pbMast",
-                  numericInput("pbMastAge",
-                               label = h5("Age at Mastectomy:"),
-                               value = NA, min = min.age, max = max.age, step = 1,
-                               width = "150px"),
-                  textOutput("validpbMastAge"),
-                  tags$head(tags$style("#validpbMastAge{color: red;}")),
-                )
-              ),
-              column(width = 2,
-                conditionalPanel("input.pbHyst",
-                  numericInput("pbHystAge",
-                               label = h5("Age at Hysterectomy:"),
-                               value = NA, min = min.age, max = max.age, step = 1,
-                               width = "150px"),
-                  textOutput("validpbHystAge"),
-                  tags$head(tags$style("#validpbHystAge{color: red;}")),
-                )
-              ),
-              column(width = 2,
-                conditionalPanel("input.pbOoph",
-                  numericInput("pbOophAge",
-                               label = h5("Age at Oophorectomy:"),
-                               value = NA, min = min.age, max = max.age, step = 1,
-                               width = "150px"),
-                  textOutput("validpbOophAge"),
-                  tags$head(tags$style("#validpbOophAge{color: red;}")),
-                )
-              )
-            ) # end of fluidRow for female proph. surg AGE
-          ) # end of female conditionalPanel for surgical history information
-        ), # end of proband surgery tab
-        
-        ###### Tumor Markers ####
-        tabPanel("Tumor Markers",
-          h3("Tumor Markers"),
-          p("If the proband was tested for any of tumor markers options below, report the results."),
-          conditionalPanel("output.dupMarkers",
-            h5("You have the same tumor marker listed more than once, please fix this.", style = "color:red")
-          ),
-          uiOutput("pbMarkInputs"),
-          actionButton("addPbMark", label = "Add Marker",
-                       icon = icon('plus'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
-          actionButton("removePbMark", label = "Remove Last Marker",
-                       icon = icon('trash'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
-        ), # end or proband tumor marker tab
-        
-        ###### Cancer Hx ####
-        tabPanel("Cancer Hx",
-          h3("Cancer History"),
-          p("List all primary cancers the proband has or had with the age of diagnosis. If a cancer reoccurred in the same 
-            organ, list that cancer only once and only provide the first diagnosis age. However, if the patient was diagnosed with 
-            contralateral breast cancer (CBC) then enter two cancers: one as 'Breast' with the first 
-            diagnosis age and a second as 'Contralateral' with the CBC diagnosis age."),
-          
-          # issue warning if the same cancer is listed more than once
-          conditionalPanel("output.dupCancers",
-            h5("You have the same cancer listed more than once, please fix this.", style = "color:red")
-          ),
-          
-          # issue warning if any cancer age is not valid
-          textOutput("validpbCanAges"),
-          tags$head(tags$style("#validpbCanAges{color: red;}")),
-          
-          # enter cancers
-          uiOutput("pbCanInputs"),
-          actionButton("addPbCan", label = "Add Cancer",
-                       icon = icon('plus'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
-          actionButton("removePbCan", label = "Remove Last Cancer",
-                       icon = icon('trash'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
-        ), # end of proband cancers tab
-        
-        ###### Genes ####
-        tabPanel("Genes",
-          h3("Gene Testing Results"),
-          p("First, specify the panel of genes tested and then enter the test results by type. All data is 
-            entered on the left and a summary is displayed on the right.", 
-            style = "margin-bottom:10px"),
-          
-          # create two columns, one for entering data (left) and one for displaying a data frame summary (right)
-          fluidRow(
-            
-            #left column
-            column(width = 7,
-                   
-              # select existing panel
-              h4("1. Specify the Panel of Genes Tested"),
-              p("You can select an existing panel of genes from the drop down. If you need to create a 
-                custom panel select 'Create new'."),
-              selectInput("existingPanels", label = NULL,
-                          choices = all.panel.names, selected = "No panel selected",
-                          width = "300px"),
+            ###### Demographics ####
+            tabPanel("Demographics",
+              h3("Demographics"),
+              p("Enter the person's demographic information below. Inputs with an 
+                astrick(*) require a response to continue to the next screen."),
+              textInput("pedID", label = h5("*Non-Personally Identifiable ID:"),
+                        value = "",
+                        width = "200px"),
+              selectInput("pbSex", label = h5("*Sex assigned at birth:"),
+                          choices = c(" "=" ","Female"="Female","Male"="Male"),
+                          width = "150px"),
+              numericInput("pbAge",
+                           label = h5("*Current Age (1 to 89):"),
+                           value = NA, min = min.age, max = max.age, step = 1,
+                           width = "150px"),
+              textOutput("validPbAge"),
+              tags$head(tags$style("#validPbAge{color: red;}")),
               
-              # create new panel
-              conditionalPanel("input.existingPanels == 'Create new'",
-                p("Enter the genes in your panel below. 
-                  When you start typing, the dropdown will filter to genes for you to select. 
-                  You can also add genes that are not in the dropdown. When done, select the 
-                  'Create Panel' button."),
-                textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
-                selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
-                               choices = all.genes, multiple = TRUE,
-                               width = "500px"),
-                actionButton("createPanel", label = "Create Panel",
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
-              ),
-              
-              # enter results by type
-              conditionalPanel("input.existingPanels != 'No panel selected' & input.existingPanels != 'Create new'",
-                h4("2. Enter Results by Type"),
-                p("Enter the gene results by selecting the three different tabs for ",
-                  HTML("<b>pathogenic/likely pathogenic (P/LP), unknown significance (VUS),</b> or <b>
-                  benign/likely benign (B/LP)</b>.")," Any genes not specified as P/LP, VUS, or B/LB
-                  will be recorded as negative.", 
-                  style = "margin-bottom:25px"),
-                conditionalPanel("output.dupResultGene",
-                  h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
-                     Check for errors in the information you entered for gene results.", style = "color:red")
+              # create maternal and paternal race, ethnicity, and ancestry columns
+              fluidRow(
+                
+                # maternal race, ethnicity, ancestry column
+                column(width = 3,
+                  selectInput("pbRaceM", label = h5("Mother's Race:"),
+                              choices = rc.choices,
+                              selected = "Other or Unreported",
+                              width = "95%"),
+                  selectInput("pbEthM", label = h5("Mother's Hispanic Ethnicity:"),
+                              choices = et.choices,
+                              selected = "Other or Unreported",
+                              width = "95%"),
+                  h5("Mother's Ancestry (check all that apply):"),
+                  div(style = "margin-left:25px",
+                    checkboxInput("pbAncAJM", label = "Ashkenazi Jewish"),
+                    checkboxInput("pbAncItM", label = "Italian")
+                  )
                 ),
                 
-                # create a tab for each result type to save space
-                tabsetPanel(id = "pbGeneResultTabs",
-                
-                  # P/LP
-                  tabPanel("P/LP",
-                    wellPanel(style = "background:MistyRose",
-                      h4(HTML("<b>Pathogenic/Likely Pathogenic (P/LP) genes</b>"), style = "color:black"),
-                      fluidRow(
-                        column(width = 3,
-                               h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3, 
-                               h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3,
-                               h5(HTML("<b>Proteins</b>"), style = "margin-left:-45px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3,
-                               h5(HTML("<b>Homo- or Heterozygous</b>"), style = "margin-left:-60px;margin-bottom:10px;margin-top:0px")
-                        ),
-                      ),
-                      uiOutput("plpGeneInfo"),
-                      actionButton("addPbPLP", label = "Add P/LP Gene",
-                                   icon = icon('plus'),
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                      actionButton("removePbPLP", label = "Remove Last P/LP Gene",
-                                   icon = icon('trash'),
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                # paternal race, ethnicity, ancestry column
+                column(width = 3,
+                  selectInput("pbRaceF", label = h5("Father's Race:"),
+                              choices = rc.choices,
+                              selected = "Other or Unreported",
+                              width = "95%"),
+                  selectInput("pbEthF", label = h5("Father's Hispanic Ethnicity:"),
+                              choices = et.choices,
+                              selected = "Other or Unreported",
+                              width = "95%"),
+                  h5("Father's Ancestry (check all that apply):"),
+                  div(style = "margin-left:25px",
+                    checkboxInput("pbAncAJF", label = "Ashkenazi Jewish"),
+                    checkboxInput("pbAncItF", label = "Italian")
+                  )
+                ),
+              )
+            ), # end of demographics tab
+            
+            ###### Surgical Hx ####
+            tabPanel("Surgical Hx",
+              h3("Prophylactic Surgical History"),
+              
+              # message for proph surgery is Female sex is not selected
+              conditionalPanel("input.pbSex != 'Female'",
+                h5("Prophylactic surgery information is only required for females.")
+              ),
+              
+              # for females
+              conditionalPanel("input.pbSex == 'Female'",
+                p("Check each surgery the person has had and enter the age at surgery."),
+                fluidRow(
+                  column(width = 2,
+                         checkboxInput("pbMast", label = "Bilateral Mastectomy",
+                                       width = "150px")
+                  ),
+                  column(width = 2,
+                         checkboxInput("pbHyst", label = "Hysterectomy",
+                                       width = "150px")
+                  ),
+                  column(width = 3,
+                         checkboxInput("pbOoph", label = "Bilateral Oophorectomy",
+                                       width = "250px")
+                  )
+                ), # end of fluidRow for female proph. surg conditionalPanel
+               
+                # prophylactic surgery ages
+                fluidRow(
+                  column(width = 2,
+                    conditionalPanel("input.pbMast",
+                      numericInput("pbMastAge",
+                                   label = h5("Age at Mastectomy:"),
+                                   value = NA, min = min.age, max = max.age, step = 1,
+                                   width = "150px"),
+                      textOutput("validpbMastAge"),
+                      tags$head(tags$style("#validpbMastAge{color: red;}")),
                     )
                   ),
-                
-                  # VUS
-                  tabPanel("VUS",
-                    wellPanel(style = "background:LightGreen",
-                      h4(HTML("<b>Variant of Unknown Significance (VUS) genes</b>"), style = "color:black"),
-                      fluidRow(
-                        column(width = 3,
-                               h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3, 
-                               h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3,
-                               h5(HTML("<b>Proteins</b>"), style = "margin-left:-45px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3,
-                               h5(HTML("<b>Homo- or Heterozygous</b>"), style = "margin-left:-60px;margin-bottom:10px;margin-top:0px")
-                        ),
-                      ),
-                      uiOutput("vusGeneInfo"),
-                      actionButton("addPbVUS", label = "Add VUS Gene",
-                                   icon = icon('plus'),
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                      actionButton("removePbVUS", label = "Remove Last VUS Gene",
-                                   icon = icon('trash'),
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                  column(width = 2,
+                    conditionalPanel("input.pbHyst",
+                      numericInput("pbHystAge",
+                                   label = h5("Age at Hysterectomy:"),
+                                   value = NA, min = min.age, max = max.age, step = 1,
+                                   width = "150px"),
+                      textOutput("validpbHystAge"),
+                      tags$head(tags$style("#validpbHystAge{color: red;}")),
                     )
                   ),
-                
-                  # B/LP
-                  tabPanel("B/LB",
-                    wellPanel(style = "background:AliceBlue",
-                      h4(HTML("<b>Benign/Likely Benign (B/LB) genes</b>"), style = "color:black"),
-                      fluidRow(
-                        column(width = 3,
-                               h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3, 
-                               h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3,
-                               h5(HTML("<b>Proteins</b>"), style = "margin-left:-45px;margin-bottom:10px;margin-top:0px")
-                        ),
-                        column(width = 3,
-                               h5(HTML("<b>Homo- or Heterozygous</b>"), style = "margin-left:-60px;margin-bottom:10px;margin-top:0px")
-                        ),
-                      ),
-                      uiOutput("blbGeneInfo"),
-                      actionButton("addPbBLB", label = "Add B/LB Gene",
-                                   icon = icon('plus'),
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                      actionButton("removePbBLB", label = "Remove Last BLB Gene",
-                                   icon = icon('trash'),
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                  column(width = 2,
+                    conditionalPanel("input.pbOoph",
+                      numericInput("pbOophAge",
+                                   label = h5("Age at Oophorectomy:"),
+                                   value = NA, min = min.age, max = max.age, step = 1,
+                                   width = "150px"),
+                      textOutput("validpbOophAge"),
+                      tags$head(tags$style("#validpbOophAge{color: red;}")),
                     )
                   )
-                ) # end of tabsetPanel for proband's gene results by type
-              ) # end of conditionalPanel for entering gene results by type
-            ), # end of left column
+                ) # end of fluidRow for female proph. surg AGE
+              ) # end of female conditionalPanel for surgical history information
+            ), # end of surgery tab
             
-            # right column
-            column(width = 5,
-              h4("Review Panel Results"),
-              conditionalPanel("input.existingPanels == 'No panel selected' | input.existingPanels == 'Create new'",
-                h5("Select a panel or create a new one to display the panel genes.")
+            ###### Tumor Markers ####
+            tabPanel("Tumor Markers",
+              h3("Tumor Markers"),
+              p("If the person was tested for any of tumor markers options below, report the results."),
+              conditionalPanel("output.dupMarkers",
+                h5("You have the same tumor marker listed more than once, please fix this.", style = "color:red")
               ),
-              conditionalPanel("input.existingPanels != 'No panel selected' & input.existingPanels != 'Create new'",
-                h5("The table below is a summary of the result you have entered so far. In only lists the 
-                   genes in the panel you specified. Genes are marked a negative until they are recorded as 
-                   P/LP, VUS, or B/LP on the left."),
+              uiOutput("pbMarkInputs"),
+              actionButton("addPbMark", label = "Add Marker",
+                           icon = icon('plus'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
+              actionButton("removePbMark", label = "Remove Last Marker",
+                           icon = icon('trash'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+            ), # end of tumor marker tab
+            
+            ###### Cancer Hx ####
+            tabPanel("Cancer Hx",
+              h3("Cancer History"),
+              p("List all primary cancers the person has or had with the age of diagnosis. If a cancer reoccurred in the same 
+                organ, list that cancer only once and only provide the first diagnosis age. However, if the patient was diagnosed with 
+                contralateral breast cancer (CBC) then enter two cancers: one as 'Breast' with the first 
+                diagnosis age and a second as 'Contralateral' with the CBC diagnosis age."),
+              
+              # issue warning if the same cancer is listed more than once
+              conditionalPanel("output.dupCancers",
+                h5("You have the same cancer listed more than once, please fix this.", style = "color:red")
+              ),
+              
+              # issue warning if any cancer age is not valid
+              textOutput("validpbCanAges"),
+              tags$head(tags$style("#validpbCanAges{color: red;}")),
+              
+              # enter cancers
+              uiOutput("pbCanInputs"),
+              actionButton("addPbCan", label = "Add Cancer",
+                           icon = icon('plus'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
+              actionButton("removePbCan", label = "Remove Last Cancer",
+                           icon = icon('trash'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+            ), # end of cancers tab
+            
+            ###### Genes ####
+            tabPanel("Genes",
+              h3("Gene Testing Results"),
+              p("First, specify the panel of genes tested and then enter the test results by type. All data is 
+                entered on the first tab and a summary is displayed on the second tab.", 
+                style = "margin-bottom:10px"),
+              
+              # create two tabs, one for entering data and one for displaying a data frame summary
+              tabsetPanel(id = "geneTabs",
                 
-                # data frame with panel summary information
-                dataTableOutput("panelSum")
-              )
-            ) # end of right column
-          ) # end of fluidRow for gene results tab
-        ), # end of gene results tab
-        
-        ##### Create Pedigree ####
-        
-        ###### Num/Type Rels ####
-        tabPanel("Initialize Pedigree",
-          h3("Number and Types of Relatives"),
-          p("Begin creating the proband's pedigree by entering the number of 
-            each relative type below. Relative types not listed on this screen 
-            can be added on the next screen."),
-          
-          
-        ), # end of number and type of rels tab
-        
-        ###### Rel Info/Family Tree ####
-        tabPanel("Family Tree and Relative Information",
-          h3("Relative Information and Family Tree"),
-          p("Use this screen to add health history and other data for each family member in the family tree. 
-            You can also add additional family members to the tree as needed."),
-          
-          
-        ) # end of relative info/family tree tab
-      ) # end of tabsetPanel
-    ), # end of tab
+                tabPanel(title = "1. Select Panel & Enter Results",
+                  fluidRow(column(width = 6,
+                       
+                    # select existing panel
+                    h4("Step 1a: Specify the Panel of Genes Tested"),
+                    p("You can select an existing panel of genes from the drop down. If you need to create a 
+                      custom panel select 'Create new'."),
+                    selectInput("existingPanels", label = NULL,
+                                choices = all.panel.names, selected = "No panel selected",
+                                width = "300px"),
+                    
+                    # create new panel
+                    conditionalPanel("input.existingPanels == 'Create new'",
+                      p("Enter the genes in your panel below. 
+                        When you start typing, the dropdown will filter to genes for you to select. 
+                        You can also add genes that are not in the dropdown. When done, select the 
+                        'Create Panel' button."),
+                      textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
+                      selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
+                                     choices = all.genes, multiple = TRUE,
+                                     width = "500px"),
+                      actionButton("createPanel", label = "Create Panel",
+                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                    ),
+                    
+                    # enter results by type
+                    conditionalPanel("input.existingPanels != 'No panel selected' & input.existingPanels != 'Create new'",
+                      h4("Step 1b: Enter Results by Type"),
+                      p("Enter the gene results by selecting the three different tabs for ",
+                        HTML("<b>pathogenic/likely pathogenic (P/LP), unknown significance (VUS),</b> or <b>
+                        benign/likely benign (B/LP)</b>.")," Any genes not specified as P/LP, VUS, or B/LB
+                        will be recorded as negative.", 
+                        style = "margin-bottom:25px"),
+                      conditionalPanel("output.dupResultGene",
+                        h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
+                           Check for errors in the information you entered for gene results.", style = "color:red")
+                      ),
+                      
+                      # create a tab for each result type to save space
+                      tabsetPanel(id = "pbGeneResultTabs",
+                      
+                        # P/LP
+                        tabPanel("P/LP",
+                          wellPanel(style = "background:MistyRose",
+                            h4(HTML("<b>Pathogenic/Likely Pathogenic (P/LP) genes</b>"), style = "color:black"),
+                            fluidRow(
+                              column(width = 3,
+                                     h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3, 
+                                     h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3,
+                                     h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3,
+                                     h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                            ),
+                            uiOutput("plpGeneInfo"),
+                            actionButton("addPbPLP", label = "Add P/LP Gene",
+                                         icon = icon('plus'),
+                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
+                            actionButton("removePbPLP", label = "Remove Last P/LP Gene",
+                                         icon = icon('trash'),
+                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                          )
+                        ),
+                      
+                        # VUS
+                        tabPanel("VUS",
+                          wellPanel(style = "background:LightGreen",
+                            h4(HTML("<b>Variant of Unknown Significance (VUS) genes</b>"), style = "color:black"),
+                            fluidRow(
+                              column(width = 3,
+                                     h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3, 
+                                     h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3,
+                                     h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3,
+                                     h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                            ),
+                            uiOutput("vusGeneInfo"),
+                            actionButton("addPbVUS", label = "Add VUS Gene",
+                                         icon = icon('plus'),
+                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
+                            actionButton("removePbVUS", label = "Remove Last VUS Gene",
+                                         icon = icon('trash'),
+                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                          )
+                        ),
+                      
+                        # B/LP
+                        tabPanel("B/LB",
+                          wellPanel(style = "background:AliceBlue",
+                            h4(HTML("<b>Benign/Likely Benign (B/LB) genes</b>"), style = "color:black"),
+                            fluidRow(
+                              column(width = 3,
+                                     h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3, 
+                                     h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3,
+                                     h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                              column(width = 3,
+                                     h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                              ),
+                            ),
+                            uiOutput("blbGeneInfo"),
+                            actionButton("addPbBLB", label = "Add B/LB Gene",
+                                         icon = icon('plus'),
+                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
+                            actionButton("removePbBLB", label = "Remove Last BLB Gene",
+                                         icon = icon('trash'),
+                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                          )
+                        )
+                      ) # end of tabsetPanel for gene results by type
+                    ) # end of conditionalPanel for entering gene results by type
+                  )), # end of column and fluidRow
+                ), # end of tab for gene results entry and panel selection 
+                
+                # tab for review panel results
+                tabPanel(title = "2. Panel Summary",
+                  h4("Step 2: Review Panel Results"),
+                  conditionalPanel("input.existingPanels == 'No panel selected' | input.existingPanels == 'Create new'",
+                    h5("Select a panel or create a new one to display the panel genes.")
+                  ),
+                  conditionalPanel("input.existingPanels != 'No panel selected' & input.existingPanels != 'Create new'",
+                    h5("The table below is a summary of the result you have entered so far. In only lists the 
+                       genes in the panel you specified. Genes are marked a negative until they are recorded as 
+                       P/LP, VUS, or B/LP on the left."),
+                    
+                    # data frame with panel summary information
+                    dataTableOutput("panelSum")
+                  )
+                ) # end of tab for gene results summary
+              ) # end tabsetPanel for gene results screen
+            ), # end of gene results tab
+            
+            ###### Num/Type Rels ####
+            tabPanel("Initialize Pedigree",
+              h3("Number and Types of Relatives"),
+              p("Begin creating the proband's pedigree by entering the number of 
+                each relative type below. Relative types not listed on this screen 
+                can be added later on."),
+              
+              fluidRow(
+                column(width = 3,
+                  wellPanel(
+                    h4("Children"),
+                    numericInput("numDau",
+                                 label = h5("Daughters:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px"),
+                    numericInput("numSon",
+                                 label = h5("Sons:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px")
+                  ),
+                  
+                  wellPanel(
+                    h4("Siblings"),
+                    numericInput("numSis",
+                                 label = h5("Sisters:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px"),
+                    numericInput("numBro",
+                                 label = h5("Brothers:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px")
+                  )
+                ), # end of column for siblings and children
+                
+                column(width = 3,
+                  wellPanel(
+                    h4("Maternal Relatives"),
+                    numericInput("numMAunt",
+                                 label = h5("Maternal Aunts:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px"),
+                    numericInput("numMUnc",
+                                 label = h5("Maternal Uncles:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px")
+                  ),
+                  
+                  wellPanel(
+                    h4("Paternal Relatives"),
+                    numericInput("numPAunt",
+                                 label = h5("Paternal Aunts:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px"),
+                    numericInput("numPUnc",
+                                 label = h5("Paternal Uncles:"),
+                                 value = 0,
+                                 min = 0,
+                                 step = 1, 
+                                 width = "125px")
+                  )
+                ) # end of column for aunts and uncles
+              ), # end of fluidRow for the entire num/type rel tab
+              
+              # button to create visual pedigree
+              h4("To Continue"),
+              h5("Press the button below to create the proband's pedigree."),
+              actionButton("visPed", label = "Create Pedigree", icon = icon('play'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B")
+              
+            ) # end of number and type of rels tab
+          ) # end of tabsetPanel for data entry
+      #   ) # end of column for data entry
+      # ) # end of fluidRow for create/modify pedigree tab
+    ), # end of tab for create/modify pedigree
     
     ##### Run PanelPRO ####
     tabPanel("Run PanelPRO",
@@ -1006,7 +1079,7 @@ server <- function(input, output, session) {
                    )
             ),
             column(width = 3,
-                   div(style = "margin-left:-45px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
+                   div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
                        selectizeInput(paste0('pbPLPProtInfo', plpNum),
                                       label = NULL,
                                       choices = "",
@@ -1017,12 +1090,12 @@ server <- function(input, output, session) {
                    )
             ),
             column(width = 3,
-                   div(style = "margin-left:-60px;margin-right:-50px;margin-top:5px;margin-bottom:-10px",
-                       radioButtons(paste0('pbPLPZygInfo', plpNum),
-                                    label = NULL,
-                                    choices = zyg.choices,
-                                    selected = "Unk",
-                                    inline = TRUE)
+                   div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
+                       selectInput(paste0('pbPLPZygInfo', plpNum),
+                                   label = NULL,
+                                   choices = zyg.choices,
+                                   selected = "Unk",
+                                   width = "100px")
                    )
             )
           )
@@ -1057,7 +1130,7 @@ server <- function(input, output, session) {
                                 )
                          ),
                          column(width = 3,
-                                div(style = "margin-left:-45px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
+                                div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
                                     selectizeInput(paste0('pbVUSProtInfo', vusNum),
                                                    label = NULL,
                                                    choices = "",
@@ -1068,12 +1141,12 @@ server <- function(input, output, session) {
                                 )
                          ),
                          column(width = 3,
-                                div(style = "margin-left:-60px;margin-right:-50px;margin-top:5px;margin-bottom:-10px",
-                                    radioButtons(paste0('pbVUSZygInfo', vusNum),
-                                                 label = NULL,
-                                                 choices = zyg.choices,
-                                                 selected = "Unk",
-                                                 inline = TRUE)
+                                div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
+                                    selectInput(paste0('pbVUSZygInfo', vusNum),
+                                                label = NULL,
+                                                choices = zyg.choices,
+                                                selected = "Unk",
+                                                width = "100px")
                                 )
                          )
         )
@@ -1108,7 +1181,7 @@ server <- function(input, output, session) {
                                 )
                          ),
                          column(width = 3,
-                                div(style = "margin-left:-45px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
+                                div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
                                     selectizeInput(paste0('pbBLBProtInfo', blbNum),
                                                    label = NULL,
                                                    choices = "",
@@ -1119,12 +1192,12 @@ server <- function(input, output, session) {
                                 )
                          ),
                          column(width = 3,
-                                div(style = "margin-left:-60px;margin-right:-50px;margin-top:5px;margin-bottom:-10px",
-                                    radioButtons(paste0('pbBLBZygInfo', blbNum),
-                                                 label = NULL,
-                                                 choices = zyg.choices,
-                                                 selected = "Unk",
-                                                 inline = TRUE)
+                                div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
+                                    selectInput(paste0('pbBLBZygInfo', blbNum),
+                                                label = NULL,
+                                                choices = zyg.choices,
+                                                selected = "Unk",
+                                                width = "100px")
                                 )
                          )
         )
@@ -1136,7 +1209,7 @@ server <- function(input, output, session) {
   # PLP
   dupPLP <- reactiveVal(FALSE)
   observeEvent(geneReactive$plp.df, {
-    gs <- geneReactive$plp.df$Gene[which(geneReactive$df$Gene != "No cancer selected")]
+    gs <- geneReactive$plp.df$Gene[which(geneReactive$plp.df$Gene != "No cancer selected")]
     if(length(gs) > 1){
       if(any(table(gs) > 1)){
         dupPLP(TRUE)
@@ -1151,7 +1224,7 @@ server <- function(input, output, session) {
   # VUS
   dupVUS <- reactiveVal(FALSE)
   observeEvent(geneReactive$vus.df, {
-    gs <- geneReactive$vus.df$Gene[which(geneReactive$df$Gene != "No cancer selected")]
+    gs <- geneReactive$vus.df$Gene[which(geneReactive$vus.df$Gene != "No cancer selected")]
     if(length(gs) > 1){
       if(any(table(gs) > 1)){
         dupVUS(TRUE)
@@ -1166,7 +1239,7 @@ server <- function(input, output, session) {
   # BLB
   dupBLB <- reactiveVal(FALSE)
   observeEvent(geneReactive$blb.df, {
-    gs <- geneReactive$blb.df$Gene[which(geneReactive$df$Gene != "No cancer selected")]
+    gs <- geneReactive$blb.df$Gene[which(geneReactive$blb.df$Gene != "No cancer selected")]
     if(length(gs) > 1){
       if(any(table(gs) > 1)){
         dupBLB(TRUE)
@@ -1199,7 +1272,7 @@ server <- function(input, output, session) {
   
   
   # panel summary table
-  output$panelSum <- renderDataTable({
+  panelSum <- reactive({
     tmp.plp <- 
       geneReactive$plp.df[which(geneReactive$plp.df$Gene != ""),] %>%
       mutate(Result = "P/LP", .after = "Gene") %>%
@@ -1240,9 +1313,12 @@ server <- function(input, output, session) {
         sum.df <- sum.df[c(1:(d.rows[1]), move.rows, other.rows),]
       }
     }
-    
-    # return data table colored by result type
-    datatable(sum.df) %>%
+    sum.df
+  })
+  
+  # output formatted data table colored by result type
+  output$panelSum <- renderDataTable({
+    datatable(panelSum()) %>%
       formatStyle('Result',
                   backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
                                                c("MistyRose","LightGreen","AliceBlue","white")),
@@ -1394,7 +1470,7 @@ server <- function(input, output, session) {
     )
   )
   
-  ## repopulate gene inputs when a cancer is added or deleted and remove previously selected genes from dropdown choices
+  ## repopulate gene inputs when a gene is added or deleted and remove previously selected genes from dropdown choices
   # PLP
   observeEvent(list(input$addPbPLP, input$removePbPLP), {
     if(pbPLPCnt() > 0){
@@ -1515,7 +1591,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  ## remove cancer from temporary storage which the input is deleted
+  ## remove gene from temporary storage when the input is deleted
   # PLP
   observeEvent(input$removePbPLP, {
     geneReactive$plp.df$Gene[pbPLPCnt()+1] <- ""
@@ -1555,7 +1631,7 @@ server <- function(input, output, session) {
                  } else {
                    tmp.var <- input[[paste0('pbPLPVarInfo', plpNum)]]
                  }
-                 geneReactive$df$Variants[which(geneReactive$df$Gene == plp.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$plp.df$Variants[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
                    paste0(unique(tmp.var), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
@@ -1566,13 +1642,13 @@ server <- function(input, output, session) {
                  } else {
                    tmp.prot <- input[[paste0('pbPLPProtInfo', plpNum)]]
                  }
-                 geneReactive$df$Proteins[which(geneReactive$df$Gene == plp.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$plp.df$Proteins[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
                    paste0(unique(tmp.prot), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # homo/hetero
                observeEvent(input[[paste0('pbPLPZygInfo', plpNum)]], {
-                 geneReactive$df$Zygosity[which(geneReactive$df$Gene == plp.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$plp.df$Zygosity[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
                    paste0(input[[paste0('pbPLPZygInfo', plpNum)]], collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
              })
@@ -1593,7 +1669,7 @@ server <- function(input, output, session) {
                  } else {
                    tmp.var <- input[[paste0('pbVUSVarInfo', vusNum)]]
                  }
-                 geneReactive$df$Variants[which(geneReactive$df$Gene == vus.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$vus.df$Variants[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
                    paste0(unique(tmp.var), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
@@ -1604,13 +1680,13 @@ server <- function(input, output, session) {
                  } else {
                    tmp.prot <- input[[paste0('pbVUSProtInfo', vusNum)]]
                  }
-                 geneReactive$df$Proteins[which(geneReactive$df$Gene == vus.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$vus.df$Proteins[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
                    paste0(unique(tmp.prot), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # homo/hetero
                observeEvent(input[[paste0('pbVUSZygInfo', vusNum)]], {
-                 geneReactive$df$Zygosity[which(geneReactive$df$Gene == vus.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$vus.df$Zygosity[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
                    paste0(input[[paste0('pbVUSZygInfo', vusNum)]], collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
              })
@@ -1631,7 +1707,7 @@ server <- function(input, output, session) {
                  } else {
                    tmp.var <- input[[paste0('pbBLBVarInfo', blbNum)]]
                  }
-                 geneReactive$df$Variants[which(geneReactive$df$Gene == blb.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$blb.df$Variants[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
                    paste0(unique(tmp.var), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
@@ -1642,13 +1718,13 @@ server <- function(input, output, session) {
                  } else {
                    tmp.prot <- input[[paste0('pbBLBProtInfo', blbNum)]]
                  }
-                 geneReactive$df$Proteins[which(geneReactive$df$Gene == blb.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$blb.df$Proteins[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
                    paste0(unique(tmp.prot), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # homo/hetero
                observeEvent(input[[paste0('pbBLBZygInfo', blbNum)]], {
-                 geneReactive$df$Zygosity[which(geneReactive$df$Gene == blb.g.name & geneReactive$df$Result == 1)] <- 
+                 geneReactive$blb.df$Zygosity[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
                    paste0(input[[paste0('pbBLBZygInfo', blbNum)]], collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
              })
@@ -1659,7 +1735,7 @@ server <- function(input, output, session) {
   onPbGeneTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
     if(onPbGeneTab() & input$pedTabs != "Genes"){
-      PED(popPersonData(tmp.ped = PED(), is.proband = TRUE, gene.results = geneReactive$df))
+      PED(popPersonData(tmp.ped = PED(), is.proband = TRUE, gene.results = panelSum()))
       
       
       
@@ -1677,7 +1753,101 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### Family Tree and Rel Info ####
+  #### Add Children, Siblings, Aunts/Uncles ####
+  # add relatives to the pedigree when the user click the button at bottom of screen
+  observeEvent(input$visPed, {
+    
+    # add children
+    if(input$numDau > 0 | input$numSon > 0){
+      
+      # first, add partner to pedigree
+      PED(formatNewPerson(relation = "partner", tmp.ped = PED()))
+      parnter.id <- PED()$ID[nrow(PED())]
+      
+      # add daughters iteratively
+      if(input$numDau > 0){
+        for(i in 1:input$numDau){
+          if(PED()$Sex[which(PED()$isProband == 1)] == 0){
+            PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), f.id = parnter.id))
+          } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
+            PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), m.id = parnter.id))
+          }
+        }
+      }
+      # add sons iteratively
+      if(input$numSon > 0){
+        for(i in 1:input$numSon){
+          if(PED()$Sex[which(PED()$isProband == 1)] == 0){
+            PED(formatNewPerson(relation = "son", tmp.ped = PED(), f.id = parnter.id))
+          } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
+            PED(formatNewPerson(relation = "son", tmp.ped = PED(), m.id = parnter.id))
+          }
+        }
+      }
+    }
+    
+    # add sisters iteratively
+    if(input$numSis > 0){
+      for(i in 1:input$numDau){
+        PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
+      }
+    }
+    # add brothers iteratively
+    if(input$numBro > 0){
+      for(i in 1:input$numBro){
+        PED(formatNewPerson(relation = "brother", tmp.ped = PED()))
+      }
+    }
+    
+    # add maternal aunts and uncles
+    if(input$numMAunt > 0 | input$numMUnc > 0){
+      
+      # first, create maternal grandparents
+      PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "m"))
+      PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "m"))
+      
+      # add maternal aunts iteratively
+      if(input$numMAunt > 0){
+        for(i in 1:input$numMAunt){
+          PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "m"))
+        }
+      }
+      # add maternal uncles iteratively
+      if(input$numMUnc > 0){
+        for(i in 1:input$numMUnc){
+          PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "m"))
+        }
+      }
+    }
+    
+    # add paternal aunts and uncles
+    if(input$numPAunt > 0 | input$numPUnc > 0){
+      
+      # first, create paternal grandparents
+      PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "p"))
+      PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "p"))
+      
+      # add paternal aunts iteratively
+      if(input$numPAunt > 0){
+        for(i in 1:input$numPAunt){
+          PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "p"))
+        }
+      }
+      # add paternal uncles iteratively
+      if(input$numPUnc > 0){
+        for(i in 1:input$numPUnc){
+          PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "p"))
+        }
+      }
+    }
+    
+    
+    
+    View(PED())
+    
+    
+    
+  }, ignoreInit = TRUE)
   
   #### PanelPRO ####
   

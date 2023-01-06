@@ -14,9 +14,9 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
-              "OtherCancers",
-              PanelPRO:::GENE_TYPES, 
-              "NPP.isAffX.AgeX", "NPP.gene.results")
+              "NPP.isAffX.AgeX",
+              PanelPRO:::GENE_TYPES,"PP.gene.info", "NPP.gene.info"
+              )
 
 #### Demographics ####
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
@@ -61,15 +61,15 @@ CANCER.CHOICES$long <- c("No cancer selected", CANCER.CHOICES$long, "Other")
 
 # template data frame for storing cancer history
 cancer.inputs.store <- data.frame(Cancer = rep("No cancer selected", 100),
-                                  Age = rep(NA, 100),
-                                  Other = rep("", 100))
+                                  Age    = rep(NA, 100),
+                                  Other  = rep("", 100))
 
 #### Genes ####
 
 # template data frame for storing gene results
-gene.inputs.store <- data.frame(Gene        = rep("", 1000),
-                                Variants     = rep("", 1000),
-                                Proteins     = rep("", 1000),
+gene.inputs.store <- data.frame(Gene     = rep(""   , 1000),
+                                Variants = rep(""   , 1000),
+                                Proteins = rep(""   , 1000),
                                 Zygosity = rep("Unk", 1000))
 
 # master genes lists
@@ -86,7 +86,6 @@ all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMP
                'TSC2', 'VHL', 'WRN', 'WT1')
 hboc.genes <- c("ATM","BRCA1","BRCA2","CDH1","CHEK2","PALB2","PTEN")
 lynch.genes <- c("MLH1","MSH2","MSH6","PMS2","EPCAM")
-pp.genes <- PanelPRO:::GENE_TYPES
 non.pp.genes <- setdiff(all.genes, PanelPRO:::GENE_TYPES)
 
 # master panel list
@@ -102,10 +101,10 @@ varNBNplp <- "657del5"
 # genes with specific proteins
 protCDKN2Aplp <- "p16"
 
-# gene where zygousity matters
-zygMUTYH <- c("homozygous","heterozygous")
+# genes where zygosity matters
+zygMUTYHplp <- "Hetero"
 
-# zygous choices
+# zygosity choices
 zyg.choices <- c("Unk","Homo","Hetero")
 
 
