@@ -70,7 +70,7 @@ ui <- fixedPage(
                
           # select which relative is being edited, only show after pedigree is visualized
           conditionalPanel("input.visPed",
-            selectInput("relSelect", label = h5("Select a relative to edit:"),
+            selectInput("relSelect", label = h4("Select a relative to edit:"),
                         choices = c(1),
                         width = "150px")
           ),
@@ -610,9 +610,7 @@ server <- function(input, output, session) {
   })
   output$validpbCanAges <- renderText({ validpbCanAges() })
   
-  #### Subject Entry ####
-  
-  ##### Demographics / Create Pedigree ####
+  #### Demographics / Create Pedigree ####
   
   # proband's sex, convert to binary
   pb.Sex <- reactiveVal(NA)
@@ -678,10 +676,12 @@ server <- function(input, output, session) {
       } else if(input$pbRaceM == input$pbRaceF){
         pb.rc <- input$pbRaceM
       }
-      if(input$pbEthM != input$pbEthF){
-        pb.et <- "Other_Ethnicity"
-      } else if(input$pbEthM == input$pbEthF){
+      if(input$pbEthM == input$pbEthF){
         pb.et <- input$pbEthM
+      } else if(all(c(input$pbEthM, input$pbEthP) != "Other_Ethnicity")){
+        pb.et <- "Hispanic"
+      } else {
+        pb.et <- "Other_Ethnicity"
       }
       if(input$pbAncAJM | input$pbAncAJF){
         pb.an.aj <- TRUE
@@ -726,7 +726,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  ##### Surgical History ####
+  #### Surgical History ####
   
   # store for prophylactic surgeries
   surgReactive <- reactiveValues(lst = riskmods.inputs.store)
@@ -787,9 +787,9 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  ##### Tumor Markers ####
+  #### Tumor Markers ####
   
-  ###### UI ####
+  ##### UI ####
   
   # count number of markers
   pbMarkCnt <- reactiveVal(1)
@@ -859,7 +859,7 @@ server <- function(input, output, session) {
     )
   )
   
-  ###### Storage ####
+  ##### Storage ####
   
   # store proband tumor marker inputs in the order they are entered
   markReactive <- reactiveValues(df = tmark.inputs.store)
@@ -920,9 +920,9 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  ##### Cancer History ####
+  #### Cancer History ####
   
-  ###### UI ####
+  ##### UI ####
   
   # count number of cancers
   pbCanCnt <- reactiveVal(1)
@@ -990,7 +990,7 @@ server <- function(input, output, session) {
   outputOptions(output, 'dupCancers', suspendWhenHidden = FALSE)
   
   
-  ###### Storage ####
+  ##### Storage ####
   
   # store proband cancer inputs in the order they are entered
   canReactive <- reactiveValues(df = cancer.inputs.store)
@@ -1073,7 +1073,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  ##### Genes ####
+  #### Genes ####
   
   # create storage for each result type and for the genes in the selected panel
   geneReactive <- reactiveValues(plp.df = gene.inputs.store,
@@ -1081,7 +1081,7 @@ server <- function(input, output, session) {
                                  blb.df = gene.inputs.store,
                                  panel.genes = as.character())
   
-  ###### Panel ####
+  ##### Panel ####
   
   ### existing panel
   # reset storage contains when the panel changes
@@ -1096,7 +1096,7 @@ server <- function(input, output, session) {
   ### create new panel (PLACEHOLDER)
   
   
-  ###### UI ####
+  ##### UI ####
   
   ## count number of genes by result type
   # PLP
@@ -1407,7 +1407,7 @@ server <- function(input, output, session) {
   })
   
   
-  ###### Storage ####
+  ##### Storage ####
   
   ## store gene names in the order they are entered
   # PLP
@@ -1837,7 +1837,12 @@ server <- function(input, output, session) {
   #### Add Children, Siblings, Aunts/Uncles ####
   
   # add relatives to the pedigree when the user click the button at bottom of screen
+  # populate assumed races and ancestries based on proband's mother and father info
+  visPed <- reactiveVal(FALSE)
   observeEvent(input$visPed, {
+    
+    # update reactive value
+    visPed(TRUE)
     
     # add children
     if(input$numDau > 0 | input$numSon > 0){
@@ -1845,6 +1850,9 @@ server <- function(input, output, session) {
       # first, add partner to pedigree
       PED(formatNewPerson(relation = "partner", tmp.ped = PED()))
       parnter.id <- PED()$ID[nrow(PED())]
+      
+      # assume, initially, that partner's race/eth/ancestry match the proband's
+      PED(assumeBackground(PED()))
       
       # add daughters iteratively
       if(input$numDau > 0){
@@ -1854,6 +1862,9 @@ server <- function(input, output, session) {
           } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
             PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), m.id = parnter.id))
           }
+          
+          # assume, initially, daughter's race/eth/ancestry match the proband's
+          PED(assumeBackground(PED()))
         }
       }
       # add sons iteratively
@@ -1864,6 +1875,9 @@ server <- function(input, output, session) {
           } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
             PED(formatNewPerson(relation = "son", tmp.ped = PED(), m.id = parnter.id))
           }
+          
+          # assume, initially, son's race/eth/ancestry match the proband's
+          PED(assumeBackground(PED()))
         }
       }
     }
@@ -1872,6 +1886,9 @@ server <- function(input, output, session) {
     if(input$numSis > 0){
       for(i in 1:input$numDau){
         PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
+        
+        # assume, initially, sister's race/eth/ancestry match the proband's
+        PED(assumeBackground(PED()))
       }
     }
     # add brothers iteratively
@@ -1879,25 +1896,37 @@ server <- function(input, output, session) {
       for(i in 1:input$numBro){
         PED(formatNewPerson(relation = "brother", tmp.ped = PED()))
       }
+      
+      # assume, initially, brother's race/eth/ancestry match the proband's
+      PED(assumeBackground(PED()))
     }
     
     # add maternal aunts and uncles
     if(input$numMAunt > 0 | input$numMUnc > 0){
       
       # first, create maternal grandparents
+      # assume, initially, race/eth/ancestry match the proband's mother
       PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "m"))
+      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
       PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "m"))
+      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
       
       # add maternal aunts iteratively
       if(input$numMAunt > 0){
         for(i in 1:input$numMAunt){
           PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "m"))
+          
+          # assume, initially, aunt's race/eth/ancestry match the proband's mother
+          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
         }
       }
       # add maternal uncles iteratively
       if(input$numMUnc > 0){
         for(i in 1:input$numMUnc){
           PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "m"))
+          
+          # assume, initially, uncle's race/eth/ancestry match the proband's mother
+          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
         }
       }
     }
@@ -1906,26 +1935,31 @@ server <- function(input, output, session) {
     if(input$numPAunt > 0 | input$numPUnc > 0){
       
       # first, create paternal grandparents
+      # assume, initially, race/eth/ancestry match the proband's father
       PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "p"))
+      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
       PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "p"))
+      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
       
       # add paternal aunts iteratively
       if(input$numPAunt > 0){
         for(i in 1:input$numPAunt){
           PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "p"))
+          
+          # assume, initially, aunt's race/eth/ancestry match the proband's father
+          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
         }
       }
       # add paternal uncles iteratively
       if(input$numPUnc > 0){
         for(i in 1:input$numPUnc){
           PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "p"))
+          
+          # assume, initially, uncle's race/eth/ancestry match the proband's father
+          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
         }
       }
     }
-    
-    # # disable pedigree ID field
-    ## NOT WORKING
-    # shinyjs::disable("pedID")
     
     # update relative selector with all relatives in the pedigree
     updateSelectInput(session = session, inputId = "relSelect", 
@@ -1936,17 +1970,15 @@ server <- function(input, output, session) {
     
     
     
-    
-    
     View(PED())
     
     
     
   }, ignoreInit = TRUE)
   
-  ##### Visualize Pedigree ####
-  
-  # temporarily draw pedigree in kinship2
+  #### Visualize Pedigree ####
+  # temporarily: draw pedigree in kinship2
+  # replace with pedigreejs
   output$drawPed <- renderPlot({
     plot_fam <-
       PED() %>%

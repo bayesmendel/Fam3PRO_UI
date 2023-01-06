@@ -161,7 +161,7 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
   tmp.person <-
     tmp.person %>%
     mutate(across(everything(), ~is.numeric(.))) %>%
-    mutate(across(.cols = c(race, Ancestry), ~is.character(.))) %>%
+    mutate(across(.cols = c(race, Ancestry, NPP.race, NPP.eth), ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
     mutate(ID = tmp.id) %>%
     mutate(relationship = ifelse(relation == "rel.partner", paste0("partner.of.",partner.of), relation)) %>%
@@ -169,7 +169,9 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
                          ifelse(!is.null(m.or.p.side), m.or.p.side, side))) %>%
     mutate(race = "All_Races") %>%
     mutate(Ancestry = "nonAJ") %>%
-    mutate(across(.cols = c(isProband, isDead, Twins, 
+    mutate(NPP.race = "All_Races") %>%
+    mutate(NPP.eth = "Other_Ethnicity") %>%
+    mutate(across(.cols = c(isProband, isDead, Twins, NPP.AJ, NPP.It,
                             starts_with("riskmod"), starts_with("isAff")), 
                   ~ 0)) %>%
     mutate(across(.cols = where(is.logical), ~as.numeric(NA)))
@@ -304,6 +306,39 @@ getPPRace <- function(race, ethnicity){
   return(pp.race)
 }
 
+#' Combine PanelPRO race categories of parents to get child's race
+#' 
+#' @param r1 string, parent 1's PanelPRO race categories. 
+#' One of `PanelPRO:::RACE_TYPES`. If `NULL`, `"All_Races"` is assumed.
+#' @param r2 string, parent 2's PanelPRO race categories. 
+#' One of `PanelPRO:::RACE_TYPES`. If `NULL`, `"All_Races"` is assumed.
+#' 
+#' @returns a string with the combined PanelPRO race categories. One of `PanelPRO:::RACE_TYPES`.
+combinePPrace <- function(r1 = NULL, r2 = NULL){
+  
+  # assume All_Races if inputs are NULL
+  if(is.null(r1)){
+    r1 <- "All_Races"
+  }
+  if(is.null(r2)){
+    r2 <- "All_Races"
+  }
+  
+  # special case
+  hisp.white.cats <- c("Hispanic", "White", "WNH", "WH")
+  
+  # determine combination
+  if(r1 == r2){
+    return(r1)
+  } else if(r1 == "All_Races" | r2 == "All_Races"){
+    return("All_Races")
+  } else if(r1 %in% hisp.white.cats & r2 %in% hisp.white.cats){
+    return("WH")
+  } else {
+    return("All_Races")
+  }
+}
+
 #' Combine AJ and Italian Ancestry into PanelPRO Ancestry categories
 #' 
 #' @param aj.anc logical, Ashkenazi Jewish ancestry
@@ -395,8 +430,16 @@ popPersonData <- function(tmp.ped,
   # demographics
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ tmp.ped$isDead[which(tmp.ped$ID == id)] <- is.dead }
-  if(!is.null(rc) & !is.null(et)){ tmp.ped$race[which(tmp.ped$ID == id)] <- getPPRace(rc, et) }
-  if(!is.null(an.aj) & !is.null(an.it)){ tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- getPPAncestry(an.aj, an.it) }
+  if(!is.null(rc) & !is.null(et)){ 
+    tmp.ped$race[which(tmp.ped$ID == id)] <- getPPRace(rc, et) 
+    tmp.ped$NPP.race[which(tmp.ped$ID == id)] <- rc
+    tmp.ped$NPP.eth[which(tmp.ped$ID == id)] <- et
+  }
+  if(!is.null(an.aj) & !is.null(an.it)){ 
+    tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- getPPAncestry(an.aj, an.it) 
+    tmp.ped$NPP.AJ[which(tmp.ped$ID == id)] <- an.aj
+    tmp.ped$NPP.It[which(tmp.ped$ID == id)] <- an.it
+  }
   
   # surgical hx
   if(!is.null(riskmods.and.ages)){
@@ -573,6 +616,44 @@ popPersonData <- function(tmp.ped,
   }
   
   return(tmp.ped)
+}
+
+#' Populate race, ethnicity, and ancestry data for individual using another 
+#' relative's information
+#' 
+#' @param tmp.ped data frame, the pedigree to modify
+#' @param assume.from number, the ID number of the person in the pedigree for which 
+#' the race, ethnicity, and ancestry information should be referenced. If `NULL` 
+#' the proband is referenced.
+#' @param id number, the ID number of the subject to populated the information for. 
+#' If `NULL` the the last row of the pedigree is the one that is updated.
+#' 
+#' @returns a modified version of `tmp.ped` with the updated race, ethnicity, and 
+#' ancestry information for subject `id`.
+#' 
+#' @details this is convenience wrapper for `popPersonData()`.
+assumeBackground <- function(tmp.ped, assume.from = NULL, id = NULL){
+  
+  # assume ID to be updated is the last row of the pedigree if `NULL`
+  if(is.null(id)){
+    id <- tmp.ped$ID[nrow(tmp.ped)]
+  }
+  
+  # assume proband is referenced if `NULL`
+  if(is.null(assume.from)){
+    assume.from <- tmp.ped$ID[which(tmp.ped$isProband == 1)]
+  }
+  
+  # reference proband's race and ancestry info for later
+  NPP.race <- tmp.ped$NPP.race[which(tmp.ped$ID == assume.from)]
+  NPP.eth <- tmp.ped$NPP.eth[which(tmp.ped$ID == assume.from)]
+  NPP.AJ <- tmp.ped$NPP.AJ[which(tmp.ped$ID == assume.from)]
+  NPP.It <- tmp.ped$NPP.It[which(tmp.ped$ID == assume.from)]
+  
+  # update the pedigree and return it
+  popPersonData(tmp.ped = tmp.ped, id = id, 
+                rc = NPP.race, et = NPP.eth, 
+                an.aj = NPP.AJ, an.it = NPP.It)
 }
 
 

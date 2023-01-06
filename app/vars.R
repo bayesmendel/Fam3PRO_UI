@@ -7,8 +7,8 @@ non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 #### Pedigree ####
 #pedigree column names
 ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex", 
-              "MotherID", "FatherID", "isProband", "CurAge", "isDead", "race", 
-              "Ancestry", 
+              "MotherID", "FatherID", "isProband", "CurAge", "isDead", 
+              "race", "Ancestry", "NPP.race", "NPP.eth", "NPP.AJ", "NPP.It",
               paste0("riskmod", c("Mast","Hyst","Ooph")),
               paste0("interAge", c("Mast","Hyst","Ooph")),
               "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
