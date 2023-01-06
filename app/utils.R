@@ -304,6 +304,22 @@ getPPRace <- function(race, ethnicity){
   return(pp.race)
 }
 
+#' Combine AJ and Italian Ancestry into PanelPRO Ancestry categories
+#' 
+#' @param aj.anc logical, Ashkenazi Jewish ancestry
+#' @param it.anc logical, Italian ancestry
+#' @returns a string with the PanelPRO Ancestry category which is one of 
+#' `PanelPRO:::ANCESTRY_TYPES`
+getPPAncestry <- function(aj.anc, it.anc){
+  if(aj.anc){
+    return("AJ")
+  } else if(it.anc){
+    return("Italian")
+  } else if(!aj.anc & !it.anc){
+    return("nonAJ")
+  }
+}
+
 
 #' Populate Data of Modify Data for a Person in a Pedigree
 #' 
@@ -314,9 +330,10 @@ getPPRace <- function(race, ethnicity){
 #' Default is `FALSE`.
 #' @param cur.age number, the person's current age, if alive, or age of death
 #' @param is.dead binary indicating if person is dead, 0 if alive, 1 if dead.
-#' @param rc string, race, one of `c()`.
-#' @param et string, ethnicity, one of `c()`.
-#' @param an string, ancestry, one of `c()`.
+#' @param rc string, race, one of `rc.choices`.
+#' @param et string, ethnicity, one of `et.choices`.
+#' @param an.aj logical, Ashkenazi Jewish Ancestry.
+#' @param an.it logical, Italian Ancestry.
 #' @param m.id number, mother's pedigree ID.
 #' @param f.id number, father's pedigree ID.
 #' @param twin number, twin pair number.
@@ -354,7 +371,8 @@ popPersonData <- function(tmp.ped,
                           is.dead = NULL, 
                           rc = NULL, 
                           et = NULL, 
-                          an = NULL,  
+                          an.aj = NULL,
+                          an.it = NULL,
                           riskmods.and.ages = NULL,
                           t.markers = NULL,
                           cancers.and.ages = NULL,
@@ -373,40 +391,187 @@ popPersonData <- function(tmp.ped,
       id <- tmp.ped$ID[which(tmp.ped$isProband == 1)]
     }
   }
-
+  
+  # demographics
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ tmp.ped$isDead[which(tmp.ped$ID == id)] <- is.dead }
   if(!is.null(rc) & !is.null(et)){ tmp.ped$race[which(tmp.ped$ID == id)] <- getPPRace(rc, et) }
-  if(!is.null(an)){ tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- an }
+  if(!is.null(an.aj) & !is.null(an.it)){ tmp.ped$Ancestry[which(tmp.ped$ID == id)] <- getPPAncestry(an.aj, an.it) }
+  
+  # surgical hx
   if(!is.null(riskmods.and.ages)){
-    tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
-    tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
-    tmp.ped$riskmodOoph[which(tmp.ped$ID == id)] <- riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "ooph")]
-    tmp.ped$interAgeMast[which(tmp.ped$ID == id)] <- riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "mast")]
-    tmp.ped$interAgeHyst[which(tmp.ped$ID == id)] <- riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
-    tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
+    
+    # surgery status
+    tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
+    tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
+    tmp.ped$riskmodOoph[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "ooph")]
+    
+    # surgery age
+    tmp.ped$interAgeMast[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "mast")]
+    tmp.ped$interAgeHyst[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
+    tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
   }
+  
+  # tumor markers
   if(!is.null(t.markers)){
-    tmp.ped$ER[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "ER")]
-    tmp.ped$PR[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "PR")]
-    tmp.ped$CK14[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "CK14")]
-    tmp.ped$CK5.6[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "CK5.6")]
-    tmp.ped$HER2[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "HER2")]
-    tmp.ped$MSI[which(tmp.ped$ID == id)] <- t.markers[which(names(t.markers) == "MSI")]
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
+    
+    # subset storage to only populated values
+    v.t.markers <- t.markers[which(t.markers$Mark != "No marker selected" & t.markers$Result != "Not Tested"),]
+    if(nrow(v.t.markers) > 0){
+      for(row in 1:nrow(v.t.markers)){
+        tmp.ped[which(tmp.ped$ID == id), v.t.markers$Mark[row]] <- 
+          ifelse(v.t.markers$Result[row] == "Negative", 0, 
+                 ifelse(v.t.markers$Result[row] == "Positive", 1, NA))
+      }
+    }
   }
+  
+  # cancer hx
   if(!is.null(cancers.and.ages)){
-    for(cnum in 1:length(PanelPRO:::CANCER_NAME_MAP$short)){
-      c.short <- PanelPRO:::CANCER_NAME_MAP$short[cnum]
-      tmp.ped[[paste0("isAff", c.short)]][which(tmp.ped$ID == id)] <- cancers.and.ages$isAff[[which(names(cancers.and.ages$isAff) == c.short)]]
-      tmp.ped[[paste0("Age", c.short)]][which(tmp.ped$ID == id)] <- cancers.and.ages$Age[[which(names(cancers.and.ages$Age) == c.short)]]
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)] <- 0
+    tmp.ped[which(tmp.ped$ID == id), paste0("Age", PanelPRO:::CANCER_NAME_MAP$short)] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "NPP.isAffX.AgeX"] <- NA
+    
+    # separate PanelPRO cancers form non-PanelPRO cancers
+    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected", "Other")),]
+    other.can.df <- cancers.and.ages[which(cancers.and.ages$Cancer == "Other"),]
+    
+    # iterate through PanelPRO cancers
+    if(nrow(pp.cans.df) > 0){
+      for(row in 1:nrow(pp.cans.df)){
+        c.short <- CANCER.CHOICES$short[which(CANCER.CHOICES$long == pp.cans.df$Cancer[row])]
+        tmp.ped[which(tmp.ped$ID == id), paste0("isAff", c.short)] <- 1
+        tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- pp.cans.df$Age[row]
+      }
+    }
+    
+    # make a json string for the other cancers
+    if(nrow(other.can.df)){
+      other.can.df <-
+        other.can.df %>%
+        mutate(String = paste0("'", ifelse(Other == "", "UnkType", Other), "':'", Age,"'"))
+      other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
+      tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
     }
   }
+  
+  # gene results
   if(!is.null(gene.results)){
-    for(gnum in 1:length(PanelPRO:::GENE_TYPES)){
-      g.name <- PanelPRO:::GENE_TYPES[gnum]
-      tmp.ped[[g.name]][which(tmp.ped$ID == id)] <- gene.results[which(names(gene.results) == g.name)]
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), PanelPRO:::GENE_TYPES] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "PP.gene.info"] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "NPP.gene.info"] <- NA
+    
+    # remove slash from result codings and add json string column by result type
+    gene.results <-
+      gene.results %>%
+      mutate(Result = ifelse(Result == "P/LP", "PLP",
+                             ifelse(Result == "B/LP", "BLP", Result))) %>%
+      mutate(Var.Prot.Zyg = paste0(Result, ":{",
+                                   "var:'", Variants, "',",
+                                   "prot:'", Proteins, "',",
+                                   "zyg:'", Zygosity, "'}"))
+      
+    # combine duplicate entries of the gene with different result types
+    # only retain most severe result type for each gene
+    if(any(table(gene.results$Gene) > 1)){
+      dups <- names(table(gene.results$Gene)[which(table(gene.results$Gene) > 1)])
+      for(d in dups){
+        tmp.df <- gene.results %>% filter(Gene == d)
+        tmp.vpz <- paste0(tmp.df$Var.Prot.Zyg, collapse = ",")
+        gene.results$Var.Prot.Zyg[which(gene.results$Gene == d)] <- tmp.vpz
+        result.types <- unique(tmp.df$Result)
+        if(any(result.types == "PLP")){
+          gene.results <- gene.results[which(!(gene.results$Gene == d & gene.results$Result != "PLP")),]
+        } else if(any(result.types == "VUS")) {
+          gene.results <- gene.results[which(!which(gene.results$Gene == d & gene.results$Result != "VUS")),]
+        } else if(any(result.types == "BLB")) {
+          gene.results <- gene.results[which(!which(gene.results$Gene == d & gene.results$Result != "BLB")),]
+        }
+      }
+    }
+    
+    # add json string column by gene
+    gene.results <-
+      gene.results %>%
+      mutate(Gene.JSON = paste0(Gene, ":{", Var.Prot.Zyg, "}"))
+    
+    # separate PanelPRO genes from non-PanelPRO genes
+    pp.genes.df <- gene.results[which(gene.results$Gene %in% PanelPRO:::GENE_TYPES),]
+    npp.genes.df <- gene.results[which(gene.results$Gene %in% non.pp.genes),]
+      
+    # PanelPRO genes
+    if(nrow(pp.genes.df) > 0){
+      
+      # iterate through PanelPRO genes to assign results status (1 or 0 only)
+      # in PanelPRO gene columns
+      for(row in 1:nrow(pp.genes.df)){
+        for.PP <- TRUE
+        if(pp.genes.df$Result[row] == "PLP"){
+          
+          ### check for P/LP genes that have variants, proteins, or zygosity not handled by PanelPRO
+          ### assume missing values are compatible with the PanelPRO
+          ## Genes where the variant type matters
+          # CHEK2
+          if(pp.genes.df$Gene[row] == "CHEK2"){
+            tmp.vars <- tolower(strsplit(pp.genes.df$Variants[row], split = ", ")[[1]])
+            if(all(!tmp.vars %in% c("",tolower(varCHEK2plp)))){ for.PP <- FALSE }
+            
+            # NBN
+          } else if(pp.genes.df$Gene[row] == "NBN"){
+            tmp.vars <- tolower(strsplit(pp.genes.df$Variants[row], split = ", ")[[1]])
+            if(all(!tmp.vars %in% c("",tolower(varNBNplp)))){ for.PP <- FALSE }
+              
+            ## genes where the protein matters
+            #CDKN2A
+          } else if(pp.genes.df$Gene[row] == "CDKN2A"){
+            tmp.vars <- tolower(strsplit(pp.genes.df$Proteins[row], split = ", ")[[1]])
+            if(all(!tmp.vars %in% c("",tolower(varNBNplp)))){ for.PP <- FALSE }
+            
+            ## genes where the zygosity matters
+            # MUTYH
+          } else if(pp.genes.df$Gene[row] == "MUTYH"){
+            if(!pp.genes.df$Zygosity[row] %in% c("Unk",zygMUTYHplp)){ for.PP <- FALSE }
+          }
+          
+          # mark PanelPRO gene columns in pedigree with results
+          if(for.PP){
+            tmp.ped[which(tmp.ped$ID == id), pp.genes.df$Gene[row]] <- 1
+          } else {
+            tmp.ped[which(tmp.ped$ID == id), pp.genes.df$Gene[row]] <- 0
+          }
+          
+          # for PanelPRO, mark all VUS, B/LB, and negative as negative
+        } else {
+          tmp.ped[which(tmp.ped$ID == id), pp.genes.df$Gene[row]] <- 0
+        }
+      }
+      
+      # record all PanelPRO gene information in JSON string by gene and result type 
+      # (VUS, B/LB, and Neg are differentiated in this data structure)
+      pp.gene.json <- paste0("{",paste0(pp.genes.df$Gene.JSON, collapse = ","),"}")
+      tmp.ped$PP.gene.info[which(tmp.ped$ID == id)] <- pp.gene.json
+    }
+    
+    # record all non-PanelPRO gene information in JSON string by gene and result type 
+    if(nrow(npp.genes.df)){
+      npp.gene.json <- paste0("{",paste0(npp.genes.df$Gene.JSON, collapse = ","),"}")
+      tmp.ped$NPP.gene.info[which(tmp.ped$ID == id)] <- npp.gene.json
     }
   }
+  
   return(tmp.ped)
 }
 
@@ -415,41 +580,13 @@ popPersonData <- function(tmp.ped,
 #' 
 #' @param pedigree.id string, pedigree ID
 #' @param pb.sex binary, proband's sex, `0` for female and `1` for male
-#' @param pb.cur.age number, the person's current age, if alive, or age of death
-#' @param pb.rc string, race, one of values from `rc.choices`.
-#' @param pb.et string, ethnicity, one of the values from `et.choices`.
-#' @param pb.an string, ancestry, one of the values from `an.choices`.
-#' @param pb.riskmods.and.ages list of prophylactic surgery intervention statuses 
-#' and ages formatted per the documentation for the `riskmods.and.ages` argument 
-#' of the `popPersonData` function.
-#' @param pb.riskmods.and.ages list of prophylactic surgery intervention statuses 
-#' and ages formatted per the documentation for the `riskmods.and.ages` argument 
-#' of the `popPersonData` function.
-#' @param pb.t.markers vector of tumor marker results formatted per the documentation 
-#' for the `t.markers` argument of the `popPersonData` function.
-#' @param pb.cancers.and.ages list of cancer affection statues and diagnosis ages 
-#' formatted per the documentation for the `cancers.and.ages` argument of the 
-#' `popPersonData` function.
-#' @returns an initial 3 person pedigree with proband and proband's parents. The 
-#' data provided for the proband will be populated in the pedigree, except the 
-#' proband's gene test results. The parents will only have the basic data and 
-#' defaults as assigned by the `formatNewPerson` 
-#' function.
-initPed <- function(pedigree.id, pb.sex, pb.cur.age, pb.rc, pb.et, pb.an, 
-                    pb.cancers.and.ages, pb.riskmods.and.ages, pb.t.markers){
-  
-  # create minimal pedigree
+#' @returns an initial 3 person pedigree with proband and proband's parents containing 
+#' the PedigreeID, proband's CurAge, Sex, race, and Ancestry and the proband's parents with 
+#' Sex, race, and Ancestry.
+initPed <- function(pedigree.id, pb.sex){
   t.ped <- formatNewPerson(relation = "proband", ped.id = pedigree.id, sx = pb.sex)
   t.ped <- formatNewPerson(relation = "mother", tmp.ped = t.ped)
   t.ped <- formatNewPerson(relation = "father", tmp.ped = t.ped)
-  
-  # populate proband's data
-  t.ped <- popPersonData(tmp.ped = t.ped, is.proband = TRUE, cur.age = pb.cur.age, 
-                         rc = pb.rc, et = pb.et, an = pb.an, 
-                         riskmods.and.ages = pb.riskmods.and.ages, 
-                         t.markers = pb.t.markers, 
-                         cancers.and.ages = pb.cancers.and.ages)
-  
   return(t.ped)
 } 
 
@@ -587,4 +724,22 @@ modLinkInfo <- function(tmp.ped, id, is.proband = FALSE, new.id = NULL,
                         side.of.fam = NULL, rel.to.proband = NULL, sex = NULL, 
                         m.id = NULL, f.id = NULL){
   return(tmp.ped)
+}
+
+# validate age values are between min.age and m
+validAge <- function(in.age, cur.age){
+  if(!is.na(in.age)){
+    isNum <- is.numeric(in.age)
+    need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+    if(isNum){
+      inRange <- (in.age >= min.age & in.age <= max.age)
+      isInt <- in.age %% 1 == 0
+      noConflict <- in.age <= cur.age
+      if(!noConflict){
+        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age))
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ",max.age,"."))
+      }
+    }
+  }
 }

@@ -14,8 +14,9 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
-              PanelPRO:::GENE_TYPES, 
-              "NPP.isAffX.AgeX", "NPP.gene.results")
+              "NPP.isAffX.AgeX",
+              PanelPRO:::GENE_TYPES,"PP.gene.info", "NPP.gene.info"
+              )
 
 #### Demographics ####
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
@@ -23,30 +24,22 @@ max.age <- 89
 min.age <- 1
 
 # race choices (different from PanelPRO's race choices)
-rc.choices <- c("Other or Unreported" = "All_Races1",
-                "Mixed Race" = "All_Races2",
+rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",
                 "American Indian/Alaskan Native" = "AIAN",
                 "Asian/Pacific Islander" = "Asian",
                 "Black" = "Black",
                 "White" = "White")
 # ethnicity choices
-et.choices <- c("Other or Unreported" = "Other_Ethnicity1",
-                "Mixed Ethnicity" = "Other_Ethnicity2",
+et.choices <- c("Unreported/Both" = "Other_Ethnicity",
                 "Hispanic" = "Hispanic", 
                 "Non-Hispanic" = "Non-Hispanic")
-
-# ancestry choices
-an.choices <- c("Other or Unreported" = "nonAJ1",
-                "Not Ashkenazi Jewish or Italian" = "nonAJ2",
-                "Ashkenazi Jewish" = "AJ", 
-                "Italian" = "Italian")
 
 #### Surgeries ####
 RISKMOD.TYPES <- c("mast","hyst","ooph")
 
 # template list of prophylactic surgery statuses and ages
-init.riskmods.and.ages <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
-                               interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
+riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
+                              interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
 
 #### Tumor Markers ####
 MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
@@ -54,12 +47,9 @@ MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
 # result choices
 marker.result.choices <- c("Not Tested" = "Not Tested", "Positive" = "Positive", "Negative" = "Negative")
 
-# template data frame of tumor markers, temporary storage
+# template data frame for storing tumor marker inputs
 tmark.inputs.store <- data.frame(Mark = rep("No marker selected", length(MARKER.TYPES)-1),
                                  Result = rep("Not Tested", length(MARKER.TYPES)-1))
-
-# template vector of tumor markers, persistent storage
-init.t.markers <- setNames(object = rep(NA, length(MARKER.TYPES)-1), nm = setdiff(MARKER.TYPES, "No marker selected"))
 
 #### Cancers ####
 # cancer choices from PanelPRO
@@ -69,28 +59,17 @@ CANCER.CHOICES$long <- c("No cancer selected", CANCER.CHOICES$long, "Other")
 
 # see the non-PanelPRO cancers loaded as a csv at the top of this file
 
-# template data frame of cancers, temporary storage
+# template data frame for storing cancer history
 cancer.inputs.store <- data.frame(Cancer = rep("No cancer selected", 100),
-                                  Age = rep(NA, 100),
-                                  Other = rep("", 100))
-
-# template list of cancer affection statuses and diagnosis ages, permanent storage
-init.cancers.and.ages <- list(isAff = setNames(rep(0, length(PanelPRO:::CANCER_NAME_MAP$short)), PanelPRO:::CANCER_NAME_MAP$short),
-                              Age = setNames(rep(NA, length(PanelPRO:::CANCER_NAME_MAP$short)), PanelPRO:::CANCER_NAME_MAP$short))
+                                  Age    = rep(NA, 100),
+                                  Other  = rep("", 100))
 
 #### Genes ####
-# template vector of gene results, permanent storage (good for populating the pedigree)
-# only contains PanelPRO genes
-init.gene.results <- list(Result      = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES),
-                          Variants    = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES),
-                          Proteins    = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES),
-                          Zygosity = setNames(rep(NA, length(PanelPRO:::GENE_TYPES)), PanelPRO:::GENE_TYPES))
 
-
-# template data frame of gene results, temporary storage (hold both PanelPRO and other genes)
-gene.inputs.store <- data.frame(Gene        = rep("", 1000),
-                                Variants     = rep("", 1000),
-                                Proteins     = rep("", 1000),
+# template data frame for storing gene results
+gene.inputs.store <- data.frame(Gene     = rep(""   , 1000),
+                                Variants = rep(""   , 1000),
+                                Proteins = rep(""   , 1000),
                                 Zygosity = rep("Unk", 1000))
 
 # master genes lists
@@ -107,7 +86,6 @@ all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMP
                'TSC2', 'VHL', 'WRN', 'WT1')
 hboc.genes <- c("ATM","BRCA1","BRCA2","CDH1","CHEK2","PALB2","PTEN")
 lynch.genes <- c("MLH1","MSH2","MSH6","PMS2","EPCAM")
-pp.genes <- PanelPRO:::GENE_TYPES
 non.pp.genes <- setdiff(all.genes, PanelPRO:::GENE_TYPES)
 
 # master panel list
@@ -123,10 +101,10 @@ varNBNplp <- "657del5"
 # genes with specific proteins
 protCDKN2Aplp <- "p16"
 
-# gene where zygousity matters
-zygMUTYH <- c("homozygous","heterozygous")
+# genes where zygosity matters
+zygMUTYHplp <- "Hetero"
 
-# zygous choices
+# zygosity choices
 zyg.choices <- c("Unk","Homo","Hetero")
 
 
