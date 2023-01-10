@@ -7,21 +7,24 @@ non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 #### Pedigree ####
 #pedigree column names
 ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex", 
-              "MotherID", "FatherID", "isProband", "CurAge", "isDead", "race", 
-              "Ancestry", 
+              "MotherID", "FatherID", "isProband", "CurAge", "isDead", 
+              "race", "Ancestry", "NPP.race", "NPP.eth", "NPP.AJ", "NPP.It",
               paste0("riskmod", c("Mast","Hyst","Ooph")),
               paste0("interAge", c("Mast","Hyst","Ooph")),
               "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
               "NPP.isAffX.AgeX",
-              PanelPRO:::GENE_TYPES,"PP.gene.info", "NPP.gene.info"
+              PanelPRO:::GENE_TYPES,"panel.name","PP.gene.info", "NPP.gene.info"
               )
 
 #### Demographics ####
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
 max.age <- 89
 min.age <- 1
+
+# sex choices
+sex.choices <- c(" "=" ","Female"="Female","Male"="Male")
 
 # race choices (different from PanelPRO's race choices)
 rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",
