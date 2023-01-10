@@ -40,6 +40,9 @@ ui <- fixedPage(
   # Google analytics
   # tags$head(includeHTML(("google-analytics.html"))),
   
+  # allows shinyjs commands like disable (and others?)
+  useShinyjs(),
+  
   navbarPage(title = "", id = "navbarTabs",
     
     ##### Home ####
@@ -66,13 +69,13 @@ ui <- fixedPage(
         ),
         
         # column for pedigree data entry, full width at first, then 1/2 width once pedigree is visualized
-        column(width = 12, class = "tosix",
+        column(width = 6, 
                
           # select which relative is being edited, only show after pedigree is visualized
           conditionalPanel("input.visPed",
             selectInput("relSelect", label = h4("Select a relative to edit:"),
-                        choices = c(1),
-                        width = "150px")
+                        choices = c(1), # placeholder, this will be updated once FDR+AU ped initialized
+                        width = "200px")
           ),
                
           tabsetPanel(id = "pedTabs", type = "pills",
@@ -90,15 +93,15 @@ ui <- fixedPage(
                    It also cannot be the proband's MRN.",
                    style = "color:red")
               ),
-              selectInput("pbSex", label = h5("*Sex assigned at birth:"),
-                          choices = c(" "=" ","Female"="Female","Male"="Male"),
+              selectInput("Sex", label = h5("*Sex assigned at birth:"),
+                          choices = sex.choices,
                           width = "150px"),
-              numericInput("pbAge",
+              numericInput("Age",
                            label = h5("*Current Age (1 to 89):"),
                            value = NA, min = min.age, max = max.age, step = 1,
                            width = "150px"),
-              textOutput("validPbAge"),
-              tags$head(tags$style("#validPbAge{color: red;}")),
+              textOutput("validAge"),
+              tags$head(tags$style("#validAge{color: red;}")),
               
               # create maternal and paternal race, ethnicity, and ancestry columns
               # for the proband (before pedigree is visualized)
@@ -106,36 +109,36 @@ ui <- fixedPage(
                 fluidRow(
                   
                   # maternal race, ethnicity, ancestry column
-                  column(width = 3, class = "tosix",
-                    selectInput("pbRaceM", label = h5("Mother's Race:"),
+                  column(width = 6, 
+                    selectInput("RaceM", label = h5("Mother's Race:"),
                                 choices = rc.choices,
                                 selected = "Other or Unreported",
                                 width = "95%"),
-                    selectInput("pbEthM", label = h5("Mother's Hispanic Ethnicity:"),
+                    selectInput("EthM", label = h5("Mother's Hispanic Ethnicity:"),
                                 choices = et.choices,
                                 selected = "Other or Unreported",
                                 width = "95%"),
                     h5("Mother's Ancestry (check all that apply):"),
                     div(style = "margin-left:25px",
-                      checkboxInput("pbAncAJM", label = "Ashkenazi Jewish"),
-                      checkboxInput("pbAncItM", label = "Italian")
+                      checkboxInput("AncAJM", label = "Ashkenazi Jewish"),
+                      checkboxInput("AncItM", label = "Italian")
                     )
                   ),
                   
                   # paternal race, ethnicity, ancestry column
-                  column(width = 3, class = "tosix",
-                    selectInput("pbRaceF", label = h5("Father's Race:"),
+                  column(width = 6, 
+                    selectInput("RaceF", label = h5("Father's Race:"),
                                 choices = rc.choices,
                                 selected = "Other or Unreported",
                                 width = "95%"),
-                    selectInput("pbEthF", label = h5("Father's Hispanic Ethnicity:"),
+                    selectInput("EthF", label = h5("Father's Hispanic Ethnicity:"),
                                 choices = et.choices,
                                 selected = "Other or Unreported",
                                 width = "95%"),
                     h5("Father's Ancestry (check all that apply):"),
                     div(style = "margin-left:25px",
-                      checkboxInput("pbAncAJF", label = "Ashkenazi Jewish"),
-                      checkboxInput("pbAncItF", label = "Italian")
+                      checkboxInput("AncAJF", label = "Ashkenazi Jewish"),
+                      checkboxInput("AncItF", label = "Italian")
                     )
                   ),
                 ) # end of fluidRow for race and ancestry
@@ -165,29 +168,29 @@ ui <- fixedPage(
               h3("Prophylactic Surgical History"),
               
               # message for proph surgery is Female sex is not selected
-              conditionalPanel("input.pbSex != 'Female'",
+              conditionalPanel("input.Sex != 'Female'",
                 h5("Prophylactic surgery information is only required for females.")
               ),
               
               # for females
-              conditionalPanel("input.pbSex == 'Female'",
+              conditionalPanel("input.Sex == 'Female'",
                 p("Check each surgery the person has had and enter the age at surgery."),
                 
                 # mastecomties
                 fluidRow(
-                  column(width = 3, class = "tosix",
-                    checkboxInput("pbMast", label = "Bilateral Mastectomy",
+                  column(width = 6, 
+                    checkboxInput("Mast", label = "Bilateral Mastectomy",
                                   width = "150px")
                   ),
-                  column(width = 3, class = "tosix",
-                    conditionalPanel("input.pbMast",
+                  column(width = 6, 
+                    conditionalPanel("input.Mast",
                       div(style = "margin-left:-75px",
-                        numericInput("pbMastAge",
+                        numericInput("MastAge",
                                      label = h5("Age at Mastectomy:"),
                                      value = NA, min = min.age, max = max.age, step = 1,
                                      width = "150px"),
-                        textOutput("validpbMastAge"),
-                        tags$head(tags$style("#validpbMastAge{color: red;}"))
+                        textOutput("validMastAge"),
+                        tags$head(tags$style("#validMastAge{color: red;}"))
                       )
                     )
                   ),
@@ -195,19 +198,19 @@ ui <- fixedPage(
                 
                 # hysterectomies
                 fluidRow(
-                  column(width = 3, class = "tosix",
-                    checkboxInput("pbHyst", label = "Hysterectomy",
+                  column(width = 6, 
+                    checkboxInput("Hyst", label = "Hysterectomy",
                                   width = "150px")
                   ),
-                  column(width = 3, class = "tosix",
-                    conditionalPanel("input.pbHyst",
+                  column(width = 6, 
+                    conditionalPanel("input.Hyst",
                       div(style = "margin-left:-75px",
-                        numericInput("pbHystAge",
+                        numericInput("HystAge",
                                      label = h5("Age at Hysterectomy:"),
                                      value = NA, min = min.age, max = max.age, step = 1,
                                      width = "150px"),
-                        textOutput("validpbHystAge"),
-                        tags$head(tags$style("#validpbHystAge{color: red;}"))
+                        textOutput("validHystAge"),
+                        tags$head(tags$style("#validHystAge{color: red;}"))
                       )
                     )
                   ),
@@ -215,19 +218,19 @@ ui <- fixedPage(
                 
                 # oophorectomies
                 fluidRow(
-                  column(width = 3, class = "tosix",
-                    checkboxInput("pbOoph", label = "Bilateral Oophorectomy",
+                  column(width = 6, 
+                    checkboxInput("Ooph", label = "Bilateral Oophorectomy",
                                   width = "250px")
                   ),
-                  column(width = 3, class = "tosix",
-                    conditionalPanel("input.pbOoph",
+                  column(width = 6, 
+                    conditionalPanel("input.Ooph",
                       div(style = "margin-left:-75px",
-                        numericInput("pbOophAge",
+                        numericInput("OophAge",
                                      label = h5("Age at Oophorectomy:"),
                                      value = NA, min = min.age, max = max.age, step = 1,
                                      width = "150px"),
-                        textOutput("validpbOophAge"),
-                        tags$head(tags$style("#validpbOophAge{color: red;}"))
+                        textOutput("validOophAge"),
+                        tags$head(tags$style("#validOophAge{color: red;}"))
                       )
                     )
                   )
@@ -242,11 +245,11 @@ ui <- fixedPage(
               conditionalPanel("output.dupMarkers",
                 h5("You have the same tumor marker listed more than once, please fix this.", style = "color:red")
               ),
-              uiOutput("pbMarkInputs"),
-              actionButton("addPbMark", label = "Add Marker",
+              uiOutput("MarkInputs"),
+              actionButton("addMark", label = "Add Marker",
                            icon = icon('plus'),
                            style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
-              actionButton("removePbMark", label = "Remove Last Marker",
+              actionButton("removeMark", label = "Remove Last Marker",
                            icon = icon('trash'),
                            style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
             ), # end of tumor marker tab
@@ -265,15 +268,15 @@ ui <- fixedPage(
               ),
               
               # issue warning if any cancer age is not valid
-              textOutput("validpbCanAges"),
-              tags$head(tags$style("#validpbCanAges{color: red;}")),
+              textOutput("validCanAges"),
+              tags$head(tags$style("#validCanAges{color: red;}")),
               
               # enter cancers
-              uiOutput("pbCanInputs"),
-              actionButton("addPbCan", label = "Add Cancer",
+              uiOutput("CanInputs"),
+              actionButton("addCan", label = "Add Cancer",
                            icon = icon('plus'),
                            style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
-              actionButton("removePbCan", label = "Remove Last Cancer",
+              actionButton("removeCan", label = "Remove Last Cancer",
                            icon = icon('trash'),
                            style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
             ), # end of cancers tab
@@ -289,7 +292,7 @@ ui <- fixedPage(
               tabsetPanel(id = "geneTabs",
                 
                 tabPanel(title = "1. Select Panel & Enter Results",
-                  fluidRow(column(width = 6, class = "totwelve",
+                  fluidRow(column(width = 12, 
                        
                     # select existing panel
                     h4("Step 1a: Specify the Panel of Genes Tested"),
@@ -325,9 +328,18 @@ ui <- fixedPage(
                         h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
                            Check for errors in the information you entered for gene results.", style = "color:red")
                       ),
+                      conditionalPanel("output.dupPLP",
+                        h5("You have the same gene listed more than once as P/LP, please fix this.", style = "color:red")
+                      ),
+                      conditionalPanel("output.dupVUS",
+                        h5("You have the same gene listed more than once as VUS, please fix this.", style = "color:red")
+                      ),
+                      conditionalPanel("output.dupBLB",
+                        h5("You have the same gene listed more than once as B/LB, please fix this.", style = "color:red")
+                      ),
                       
                       # create a tab for each result type to save space
-                      tabsetPanel(id = "pbGeneResultTabs",
+                      tabsetPanel(id = "GeneResultTabs",
                       
                         # P/LP
                         tabPanel("P/LP",
@@ -348,10 +360,10 @@ ui <- fixedPage(
                               ),
                             ),
                             uiOutput("plpGeneInfo"),
-                            actionButton("addPbPLP", label = "Add P/LP Gene",
+                            actionButton("addPLP", label = "Add P/LP Gene",
                                          icon = icon('plus'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                            actionButton("removePbPLP", label = "Remove Last P/LP Gene",
+                            actionButton("removePLP", label = "Remove Last P/LP Gene",
                                          icon = icon('trash'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
                           )
@@ -376,10 +388,10 @@ ui <- fixedPage(
                               ),
                             ),
                             uiOutput("vusGeneInfo"),
-                            actionButton("addPbVUS", label = "Add VUS Gene",
+                            actionButton("addVUS", label = "Add VUS Gene",
                                          icon = icon('plus'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                            actionButton("removePbVUS", label = "Remove Last VUS Gene",
+                            actionButton("removeVUS", label = "Remove Last VUS Gene",
                                          icon = icon('trash'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
                           )
@@ -404,10 +416,10 @@ ui <- fixedPage(
                               ),
                             ),
                             uiOutput("blbGeneInfo"),
-                            actionButton("addPbBLB", label = "Add B/LB Gene",
+                            actionButton("addBLB", label = "Add B/LB Gene",
                                          icon = icon('plus'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                            actionButton("removePbBLB", label = "Remove Last BLB Gene",
+                            actionButton("removeBLB", label = "Remove Last BLB Gene",
                                          icon = icon('trash'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
                           )
@@ -443,7 +455,7 @@ ui <- fixedPage(
                 can be added later on."),
               
               fluidRow(
-                column(width = 3,
+                column(width = 6,
                   wellPanel(
                     h4("Children"),
                     numericInput("numDau",
@@ -477,7 +489,7 @@ ui <- fixedPage(
                   )
                 ), # end of column for siblings and children
                 
-                column(width = 3,
+                column(width = 6,
                   wellPanel(
                     h4("Maternal Relatives"),
                     numericInput("numMAunt",
@@ -521,27 +533,6 @@ ui <- fixedPage(
             ) # end of number and type of rels tab
           ) # end of tabsetPanel for data entry
         ), # end of column for data entry
-        
-        # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
-        tags$script(
-          type = "text/javascript",
-          "
-            const btn = document.getElementById('visPed');
-            btn.addEventListener('click', function(event) {
-
-                // update class
-                const columns = document.querySelectorAll('.tosix');
-                const columns1 = document.querySelectorAll('.totwelve');
-                columns.forEach(function(column) {
-                    column.className = 'col-sm-' + 6 + ' tosix';
-                });
-                columns1.forEach(function(column) {
-                    column.className = 'col-sm-' + 12 + ' totwelve';
-                });
-            })
-          "
-        ),
-        
       ) # end of fluidRow for create/modify pedigree tab
     ), # end of tab for create/modify pedigree
     
@@ -580,54 +571,44 @@ server <- function(input, output, session) {
   
   #### Validate Age Inputs ####
   
-  ## proband's age
-  validPbAge <- reactive({
-    validate(validAge(input$pbAge, input$pbAge))
+  ## age
+  validAge <- reactive({
+    validate(validateAge(input$Age, input$Age))
   })
-  output$validPbAge <- renderText({ validPbAge() })
+  output$validAge <- renderText({ validAge() })
   
-  ## proband's surgery ages
+  ## surgery ages
   # Oophorectomy age
-  validpbOophAge <- reactive({
-    validate(validAge(input$pbOophAge, input$pbAge))
+  validOophAge <- reactive({
+    validate(validateAge(input$OophAge, input$Age))
   })
-  output$validpbOophAge <- renderText({ validpbOophAge() })
+  output$validOophAge <- renderText({ validOophAge() })
   # Mastectomy age
-  validpbMastAge <- reactive({
-    validate(validAge(input$pbMastAge, input$pbAge))
+  validMastAge <- reactive({
+    validate(validateAge(input$MastAge, input$Age))
   })
-  output$validpbMastAge <- renderText({ validpbMastAge() })
+  output$validMastAge <- renderText({ validMastAge() })
   # Hysterectomy age
-  validpbHystAge <- reactive({
-    validate(validAge(input$pbHystAge, input$pbAge))
+  validHystAge <- reactive({
+    validate(validateAge(input$HystAge, input$Age))
   })
-  output$validpbHystAge <- renderText({ validpbHystAge() })
+  output$validHystAge <- renderText({ validHystAge() })
   
-  ## proband's cancer ages
-  validpbCanAges <- reactive({
+  ## cancer ages
+  validCanAges <- reactive({
     v.age <- canReactive$df$Age[which(canReactive$df$Cancer != "No cancer selected")]
-    validate(unlist(lapply(v.age, validAge, cur.age = input$pbAge))[1])
+    validate(unlist(lapply(v.age, validateAge, cur.age = input$Age))[1])
   })
-  output$validpbCanAges <- renderText({ validpbCanAges() })
+  output$validCanAges <- renderText({ validCanAges() })
   
   #### Demographics / Create Pedigree ####
   
-  # proband's sex, convert to binary
-  pb.Sex <- reactiveVal(NA)
-  observeEvent(input$pbSex, {
-    if(input$pbSex == "Female"){
-      pb.Sex(0)
-    } else if(input$pbSex == "Male"){
-      pb.Sex(1)
-    } else {
-      pb.Sex(NA)
-    }
-  })
-  
   # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
   pbMinInfo <- reactiveVal(FALSE)
-  observeEvent(list(input$pedID, input$pbSex, input$pbAge, validPbAge()), {
-    if(input$pedID != "" & input$pbSex != " " & !is.na(input$pbAge) & is.null(validPbAge())){
+  observeEvent(list(input$pedID, input$Sex, input$Age, validAge(), PED()), {
+    if(!input$visPed & input$pedID != "" & input$Sex != " " & !is.na(input$Age) & is.null(validAge())){
+      pbMinInfo(TRUE)
+    } else if(input$visPed){
       pbMinInfo(TRUE)
     } else {
       pbMinInfo(FALSE)
@@ -660,35 +641,46 @@ server <- function(input, output, session) {
   
   # initialize the pedigree when user leave the proband demographics tab
   PED <- reactiveVal(NULL)
-  onPbDemoTab <- reactiveVal(TRUE)
+  onDemoTab <- reactiveVal(TRUE)
   observeEvent(input$pedTabs, {
     
+    # lock the sex field - sex's will be handled by pedigreejs
+    shinyjs::disable("Sex")
+    
     # execute if the previous tab was the proband demographics tab and the current tab is different
-    if(onPbDemoTab() & input$pedTabs != "Demographics" & pbMinInfo()){
+    if(onDemoTab() & input$pedTabs != "Demographics" & pbMinInfo()){
       
       # initialize new pedigree with proband and parents if no pedigree exists
       if(is.null(PED())){
-        PED(initPed(pedigree.id = input$pedID, pb.sex = pb.Sex()))
+        if(input$Sex == "Female"){
+          ps <- 0
+        } else if(input$Sex == "Male"){
+          ps <- 1
+        } else {
+          ps <- NA
+        }
+        PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
       }
+      
       # combine proband's mother and father race, ethnicity, and ancestry information
-      if(input$pbRaceM != input$pbRaceF){
+      if(input$RaceM != input$RaceF){
         pb.rc <- "All_Races"
-      } else if(input$pbRaceM == input$pbRaceF){
-        pb.rc <- input$pbRaceM
+      } else if(input$RaceM == input$RaceF){
+        pb.rc <- input$RaceM
       }
-      if(input$pbEthM == input$pbEthF){
-        pb.et <- input$pbEthM
-      } else if(all(c(input$pbEthM, input$pbEthP) != "Other_Ethnicity")){
+      if(input$EthM == input$EthF){
+        pb.et <- input$EthM
+      } else if(all(c(input$EthM, input$EthP) != "Other_Ethnicity")){
         pb.et <- "Hispanic"
       } else {
         pb.et <- "Other_Ethnicity"
       }
-      if(input$pbAncAJM | input$pbAncAJF){
+      if(input$AncAJM | input$AncAJF){
         pb.an.aj <- TRUE
       } else {
         pb.an.aj <- FALSE
       }
-      if(input$pbAncItM | input$pbAncItF){
+      if(input$AncItM | input$AncItF){
         pb.an.it <- TRUE
       } else {
         pb.an.it <- FALSE
@@ -696,93 +688,114 @@ server <- function(input, output, session) {
       
       # populate proband's demographics data and PedigreeID
       t.ped <- PED()
-      t.ped <- popPersonData(tmp.ped = t.ped, is.proband = TRUE, cur.age = input$pbAge, 
+      t.ped <- popPersonData(tmp.ped = t.ped, id = input$relSelect, cur.age = input$Age, 
                              rc = pb.rc, et = pb.et, an.aj = pb.an.aj, an.it = pb.an.it)
       
       # populate mother's race and Ancestry information
       t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
-                             rc = input$pbRaceM, et = input$pbEthM, 
-                             an.aj = input$pbAncAJM, an.it = input$pbAncItM)
+                             rc = input$RaceM, et = input$EthM, 
+                             an.aj = input$AncAJM, an.it = input$AncItM)
       
       # populate father's race and Ancestry information
       t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$FatherID[which(t.ped$isProband == 1)], 
-                             rc = input$pbRaceF, et = input$pbEthF, 
-                             an.aj = input$pbAncAJF, an.it = input$pbAncItF)
+                             rc = input$RaceF, et = input$EthF, 
+                             an.aj = input$AncAJF, an.it = input$AncItF)
       PED(t.ped)
       
-      
-      
-      View(PED())
-      
-      
-      
+      # update the race, ethnicity, and ancestry inputs for the proband
+      # which will be displayed after the pedigree is visualized (vs the ones for their mother and father)
+      updateSelectInput(session, "race", selected = pb.rc)
+      updateSelectInput(session, "eth", selected = pb.et)
+      updateCheckboxInput(session, "ancAJ", value = pb.an.aj)
+      updateCheckboxInput(session, "ancIt", value = pb.an.it)
     }
     
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Demographics"){
-      onPbDemoTab(TRUE)
+      onDemoTab(TRUE)
     } else {
-      onPbDemoTab(FALSE)
+      onDemoTab(FALSE)
     }
   }, ignoreInit = TRUE)
+  
+  
+  
+  
+  # FOR TESTING: VIEW PEDIGREE EVERY TIME IT CHANGES
+  observeEvent(PED(), { View(PED()) })
+  
+  
+  
   
   #### Surgical History ####
   
   # store for prophylactic surgeries
   surgReactive <- reactiveValues(lst = riskmods.inputs.store)
-  observeEvent(list(input$pbMast, input$pbMastAge), {
-    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "mast")] <- input$pbMast
-    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "mast")] <- input$pbMastAge
+  observeEvent(list(input$Mast, input$MastAge), {
+    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "mast")] <- input$Mast
+    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "mast")] <- input$MastAge
   }, ignoreInit = TRUE)
-  observeEvent(list(input$pbHyst, input$pbHystAge), {
-    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "hyst")] <- input$pbHyst
-    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "hyst")] <- input$pbHystAge
+  observeEvent(list(input$Hyst, input$HystAge), {
+    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "hyst")] <- input$Hyst
+    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "hyst")] <- input$HystAge
   }, ignoreInit = TRUE)
-  observeEvent(list(input$pbOoph, input$pbOophAge), {
-    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "ooph")] <- input$pbOoph
-    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "ooph")] <- input$pbOophAge
+  observeEvent(list(input$Ooph, input$OophAge), {
+    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "ooph")] <- input$Ooph
+    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "ooph")] <- input$OophAge
   }, ignoreInit = TRUE)
   
   ## if a surgery is unchecked, reset the surgery age value
   # Mast
-  observeEvent(input$pbMast, {
-    if(!input$pbMast){
-      updateNumericInput(session, "pbMastAge", value = NA)
+  observeEvent(input$Mast, {
+    if(!input$Mast){
+      updateNumericInput(session, "MastAge", value = NA)
     }
   })
   
   # Ooph
-  observeEvent(input$pbOoph, {
-    if(!input$pbOoph){
-      updateNumericInput(session, "pbOophAge", value = NA)
+  observeEvent(input$Ooph, {
+    if(!input$Ooph){
+      updateNumericInput(session, "OophAge", value = NA)
     }
   })
   
   # Hyst
-  observeEvent(input$pbHyst, {
-    if(!input$pbHyst){
-      updateNumericInput(session, "pbHystAge", value = NA)
+  observeEvent(input$Hyst, {
+    if(!input$Hyst){
+      updateNumericInput(session, "HystAge", value = NA)
+    }
+  })
+  
+  # if sex is changed from female to male, clear all surgical data from inputs and ped
+  observeEvent(list(input$Sex), {
+    if(!is.null(PED())){
+      if(PED()$Sex[which(PED()$ID == input$relSelect)] == 0){
+        if(input$Sex == "Male"){
+          for(sg in c("Mast", "Hyst", "Ooph")){
+            updateCheckboxInput(session, sg, value = FALSE)
+            updateNumericInput(session, paste0(sg,"Age"), value = NA)
+            tmp.ped <- PED()
+            tmp.ped[[paste0("riskmod", sg)]][which(tmp.ped$ID == input$relSelect)] <- 0
+            tmp.ped[[paste0("interAge", sg)]][which(tmp.ped$ID == input$relSelect)] <- NA
+            PED(tmp.ped)
+          }
+        }
+      }
     }
   })
   
   # add data to pedigree when user navigates off of the tab
-  onPbSurgTab <- reactiveVal(FALSE)
+  onSurgTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    if(onPbSurgTab() & input$pedTabs != "Surgical Hx"){
-      PED(popPersonData(tmp.ped = PED(), is.proband = TRUE, riskmods.and.ages = surgReactive$lst))
-      
-      
-      View(PED())
-      
-      
-      
+    if(onSurgTab() & input$pedTabs != "Surgical Hx"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, riskmods.and.ages = surgReactive$lst))
     }
     
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Surgical Hx"){
-      onPbSurgTab(TRUE)
+      onSurgTab(TRUE)
     } else {
-      onPbSurgTab(FALSE)
+      onSurgTab(FALSE)
     }
   }, ignoreInit = TRUE)
   
@@ -792,35 +805,38 @@ server <- function(input, output, session) {
   ##### UI ####
   
   # count number of markers
-  pbMarkCnt <- reactiveVal(1)
-  observeEvent(input$addPbMark, {
-    if(pbMarkCnt() < length(MARKER.TYPES)-1){
-      pbMarkCnt(pbMarkCnt()+1)
+  MarkCnt <- reactiveVal(1)
+  observeEvent(input$addMark, {
+    if(MarkCnt() < length(MARKER.TYPES)-1){
+      MarkCnt(MarkCnt()+1)
     }
   })
-  observeEvent(input$removePbMark, {
-    if(pbMarkCnt() > 0){
-      pbMarkCnt(pbMarkCnt()-1)
+  observeEvent(input$removeMark, {
+    if(MarkCnt() > 0){
+    
+      # update count of inputs
+      MarkCnt(MarkCnt()-1)
+      
+      # remove UIs from memory to prevent duplication if they are recreated
+      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+      remove_shiny_inputs(id = paste0("#Mark",MarkCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#MarkResult",MarkCnt()+1), input)
     }
   })
   
-  # tumor marker UI for proband
-  output$pbMarkInputs <- renderUI({
-    
-    # dynamically change columns widths when pedigree is/is not displayed
-    col.widths <- ifelse(input$visPed, 6, 3)
-    
-    lapply(if(pbMarkCnt() > 0){1:pbMarkCnt()}else{1}, function(pbMarkNum){
+  # tumor marker UI
+  output$MarkInputs <- renderUI({
+    lapply(if(MarkCnt() > 0){1:MarkCnt()}else{1}, function(MarkNum){
       fluidRow(
-        column(width = col.widths, 
-            selectInput(paste0('pbMark', pbMarkNum), h5(paste0('Marker ', pbMarkNum,':')),
+        column(width = 6, 
+            selectInput(paste0('Mark', MarkNum), h5(paste0('Marker ', MarkNum,':')),
                         choices = MARKER.TYPES,
                         width = "65%")
         ),
-        conditionalPanel(paste0("input.pbMark", pbMarkNum, " != 'No marker selected'"),
-          column(width = col.widths, 
+        conditionalPanel(paste0("input.Mark", MarkNum, " != 'No marker selected'"),
+          column(width = 6, 
             div(
-              selectInput(paste0('pbMarkResult', pbMarkNum), h5("Test Result:"),
+              selectInput(paste0('MarkResult', MarkNum), h5("Test Result:"),
                           choices = marker.result.choices,
                           width = "125px"),
               style = "margin-left:-100px",
@@ -846,31 +862,39 @@ server <- function(input, output, session) {
   output$dupMarkers <- reactive({ dupMarkers() })
   outputOptions(output, 'dupMarkers', suspendWhenHidden = FALSE)
   
+  ##### Storage ####
+  
+  # store proband tumor marker inputs in the order they are entered
+  markReactive <- reactiveValues(df = tmark.inputs.store)
+  
+  
+  
+  # # FOR TESTING ONLY: observe marker df every time it changes
+  # observeEvent(markReactive$df, {
+  #   View(markReactive$df)
+  # })
+  
+  
   # store tumor marker names in the order they are entered
   observe(
-    lapply(1:pbMarkCnt(), 
+    lapply(1:MarkCnt(), 
            function(mc){
-             observeEvent(input[[paste0("pbMark",mc)]], {
-               if(input[[paste0("pbMark",mc)]] != "No marker selected"){
-                 markReactive$df$Mark[mc] <- input[[paste0("pbMark",mc)]]
+             observeEvent(input[[paste0("Mark",mc)]], {
+               if(input[[paste0("Mark",mc)]] != "No marker selected"){
+                 markReactive$df$Mark[mc] <- input[[paste0("Mark",mc)]]
                }
              }, ignoreInit = TRUE)
            }
     )
   )
   
-  ##### Storage ####
-  
-  # store proband tumor marker inputs in the order they are entered
-  markReactive <- reactiveValues(df = tmark.inputs.store)
-  
   # store tumor marker results in the order they are entered
   observe(
-    lapply(1:pbMarkCnt(), 
+    lapply(1:MarkCnt(), 
            function(mc){
-             observeEvent(input[[paste0("pbMarkResult",mc)]], {
-               if(input[[paste0("pbMarkResult",mc)]] != "Not Tested"){
-                  markReactive$df$Result[mc] <- input[[paste0("pbMarkResult",mc)]]
+             observeEvent(input[[paste0("MarkResult",mc)]], {
+               if(input[[paste0("MarkResult",mc)]] != "Not Tested"){
+                  markReactive$df$Result[mc] <- input[[paste0("MarkResult",mc)]]
                }
              }, ignoreInit = TRUE)
            }
@@ -879,43 +903,40 @@ server <- function(input, output, session) {
   
   # repopulate tumor marker inputs when a marker is added or deleted and 
   # remove previously selected tumor markers from dropdown choices
-  observeEvent(list(input$addPbMark, input$removePbMark), {
-    for(mc in 1:pbMarkCnt()){
-      if(mc > 1){
-        u.choices <- MARKER.TYPES[which(!MARKER.TYPES %in% setdiff(markReactive$df$Mark[1:(mc-1)], "No marker selected"))]
+  observeEvent(list(input$addMark, input$removeMark, markReactive$df), {
+    unselected.choices <- MARKER.TYPES[which(!MARKER.TYPES %in% 
+                                               setdiff(markReactive$df$Mark[1:MarkCnt()], 
+                                                       "No marker selected"))]
+    for(mc in 1:MarkCnt()){
+      if(length(unselected.choices) > 0){
+        u.choices <- unique(c(unselected.choices, input[[paste0("Mark", mc)]]))
+        u.choices <- MARKER.TYPES[which(MARKER.TYPES %in% u.choices)] # keep the order consistent
       } else {
         u.choices <- MARKER.TYPES
       }
-      updateSelectInput(session, paste0("pbMark",mc), selected = markReactive$df$Mark[mc], choices = u.choices)
-      updateSelectInput(session, paste0("pbMarkResult",mc), selected = markReactive$df$Result[mc])
+      updateSelectInput(session, paste0("Mark",mc), selected = markReactive$df$Mark[mc], choices = u.choices)
+      updateSelectInput(session, paste0("MarkResult",mc), selected = markReactive$df$Result[mc])
     }
   }, ignoreInit = TRUE)
   
   # remove marker from temporary storage when the input is deleted
-  observeEvent(input$removePbMark, {
-    markReactive$df$Mark[pbMarkCnt()+1] <- "No marker selected"
-    markReactive$df$Result[pbMarkCnt()+1] <- "Not Tested"
+  observeEvent(input$removeMark, {
+    markReactive$df$Mark[MarkCnt()+1] <- "No marker selected"
+    markReactive$df$Result[MarkCnt()+1] <- "Not Tested"
   }, ignoreInit = TRUE)
   
   # add data to pedigree when user navigates off of the tab
-  onPbMarkerTab <- reactiveVal(FALSE)
-  observeEvent(input$pedTabs, {
-    if(onPbMarkerTab() & input$pedTabs != "Tumor Markers"){
-      PED(popPersonData(tmp.ped = PED(), is.proband = TRUE, t.markers = markReactive$df))
-      
-      
-      
-      View(PED())
-      
-      
-      
+  onMarkerTab <- reactiveVal(FALSE)
+  observeEvent(list(input$pedTabs), {
+    if(onMarkerTab() & input$pedTabs != "Tumor Markers"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, t.markers = markReactive$df))
     }
     
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Tumor Markers"){
-      onPbMarkerTab(TRUE)
+      onMarkerTab(TRUE)
     } else {
-      onPbMarkerTab(FALSE)
+      onMarkerTab(FALSE)
     }
   }, ignoreInit = TRUE)
   
@@ -924,34 +945,57 @@ server <- function(input, output, session) {
   
   ##### UI ####
   
-  # count number of cancers
-  pbCanCnt <- reactiveVal(1)
-  observeEvent(input$addPbCan, {
-    pbCanCnt(pbCanCnt()+1)
-  })
-  observeEvent(input$removePbCan, {
-    if(pbCanCnt() > 0){
-      pbCanCnt(pbCanCnt()-1)
-    }
+  
+  
+  # for testing:
+  observeEvent(CanCnt(), {
+    print(paste0("CanCnt(): ", CanCnt()))
   })
   
-  # cancer history UI for proband
-  output$pbCanInputs <- renderUI({
+  
+  
+  # count number of cancers
+  CanCnt <- reactiveVal(1)
+  observeEvent(input$addCan, {
+    CanCnt(CanCnt()+1)
+  })
+  observeEvent(input$removeCan, {
+    if(CanCnt() > 1){
+      
+      # update count, cannot go below 1
+      CanCnt(CanCnt()-1)
+      
+      # index of cancer inputs to remove from memory
+      ind <- CanCnt()+1
+    } else if(CanCnt() == 1){
+      ind <- 1
+    }
     
-    # dynamically change columns widths when pedigree is/is not displayed
-    col.widths <- ifelse(input$visPed, 6, 3)
+    # remove UIs from memory to prevent duplication if they are recreated
+    # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+    remove_shiny_inputs(id = paste0("#Can", ind), input)
+    remove_shiny_inputs(id = paste0("#CanOther", ind), input)
+    remove_shiny_inputs(id = paste0("#CanAge", ind), input)
     
-    lapply(if(pbCanCnt() > 0){1:pbCanCnt()}else{1}, function(pbCanNum){
+    # remove values from temporary storage data frame
+    canReactive$df$Cancer[ind] <- "No cancer selected"
+    canReactive$df$Age[ind]    <- NA
+    canReactive$df$Other[ind]  <- ""
+  })
+  
+  # cancer history UI
+  output$CanInputs <- renderUI({
+    lapply(if(CanCnt() > 0){1:CanCnt()}else{1}, function(CanNum){
       fluidRow(
-        column(width = col.widths, 
-          selectInput(paste0('pbCan', pbCanNum), h5(paste0('Cancer ', pbCanNum,':')),
+        column(width = 6, 
+          selectInput(paste0('Can', CanNum), h5(paste0('Cancer ', CanNum,':')),
                       choices = CANCER.CHOICES$long,
                       width = "200px"),
-          conditionalPanel(paste0('input.pbCan', pbCanNum, " == 'Other'"),
+          conditionalPanel(paste0('input.Can', CanNum, " == 'Other'"),
             fluidRow(
               column(6, h5("Other cancer:", style = "margin-left:25px")),
               column(6, 
-                div(selectizeInput(paste0('pbCanOther', pbCanNum), label = NULL,
+                div(selectizeInput(paste0('CanOther', CanNum), label = NULL,
                                    choices = c("", non.pp.cancers), selected = "",
                                    multiple = FALSE, options = list(create=TRUE),
                                    width = "225px"),
@@ -961,9 +1005,9 @@ server <- function(input, output, session) {
             )
           )
         ),
-        conditionalPanel(paste0("input.pbCan", pbCanNum, " != 'No cancer selected'"),
-          column(width = col.widths,
-            div(numericInput(paste0('pbCanAge', pbCanNum), h5("Diagnosis Age:"),
+        conditionalPanel(paste0("input.Can", CanNum, " != 'No cancer selected'"),
+          column(width = 6,
+            div(numericInput(paste0('CanAge', CanNum), h5("Diagnosis Age:"),
                              min = min.age, max = max.age, step = 1, value = NA,
                              width = "100px"),
                 style = "margin-left:-50px"
@@ -991,16 +1035,23 @@ server <- function(input, output, session) {
   
   
   ##### Storage ####
-  
-  # store proband cancer inputs in the order they are entered
   canReactive <- reactiveValues(df = cancer.inputs.store)
+  
+  
+  
+  # FOR TESTING ONLY: observe df every time it changes
+  observeEvent(canReactive$df, {
+    View(canReactive$df)
+  })
+  
+  
   
   # store cancer names in the order they are entered
   observe(
-    lapply(1:pbCanCnt(), 
+    lapply(1:CanCnt(), 
            function(cc){
-             observeEvent(input[[paste0("pbCan",cc)]], {
-               canReactive$df$Cancer[cc] <- input[[paste0("pbCan",cc)]]
+             observeEvent(input[[paste0("Can",cc)]], {
+               canReactive$df$Cancer[cc] <- input[[paste0("Can",cc)]]
              }, ignoreInit = TRUE)
            }
     )
@@ -1008,10 +1059,10 @@ server <- function(input, output, session) {
   
   # store cancer ages in the order they are entered
   observe(
-    lapply(1:pbCanCnt(), 
+    lapply(1:CanCnt(), 
            function(cc){
-             observeEvent(input[[paste0("pbCanAge",cc)]], {
-               canReactive$df$Age[cc] <- input[[paste0("pbCanAge",cc)]]
+             observeEvent(input[[paste0("CanAge",cc)]], {
+               canReactive$df$Age[cc] <- input[[paste0("CanAge",cc)]]
              }, ignoreInit = TRUE)
            }
     )
@@ -1019,56 +1070,46 @@ server <- function(input, output, session) {
   
   # store other cancer names in the order they are entered
   observe(
-    lapply(1:pbCanCnt(), 
+    lapply(1:CanCnt(), 
            function(cc){
-             observeEvent(input[[paste0("pbCanOther",cc)]], {
-               canReactive$df$Other[cc] <- input[[paste0("pbCanOther",cc)]]
+             observeEvent(input[[paste0("CanOther",cc)]], {
+               canReactive$df$Other[cc] <- input[[paste0("CanOther",cc)]]
              }, ignoreInit = TRUE)
            }
     )
   )
   
-  # repopulate cancer inputs when a cancer is added or deleted and 
+  # repopulate cancer inputs when a cancer is added or deleted and
   # remove previously selected cancers from dropdown choices
-  observeEvent(list(input$addPbCan, input$removePbCan), {
-    for(cc in 1:pbCanCnt()){
-      if(cc > 1){
-        u.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% setdiff(canReactive$df$Cancer[1:(cc-1)], c("Other", "No cancer selected")))]
+  observeEvent(list(input$addCan, input$removeCan, canReactive$df), {
+    unselected.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in%
+                                                      setdiff(canReactive$df$Cancer[1:CanCnt()],
+                                                              c("No cancer selected", "Other")))]
+    for(cc in 1:CanCnt()){
+      if(length(unselected.choices) > 0){
+        u.choices <- unique(c(unselected.choices, input[[paste0("Can", cc)]]))
+        u.choices <- CANCER.CHOICES$long[which(CANCER.CHOICES$long %in% u.choices)] # keep the order consistent
       } else {
         u.choices <- CANCER.CHOICES$long
       }
-      updateSelectInput(session, paste0("pbCan",cc), selected = canReactive$df$Cancer[cc], choices = u.choices)
-      updateSelectInput(session, paste0("pbCanAge",cc), selected = canReactive$df$Age[cc])
-      updateSelectInput(session, paste0("pbCanOther",cc), selected = canReactive$df$Other[cc])
+      updateSelectInput(session, paste0("Can",cc), selected = canReactive$df$Cancer[cc], choices = u.choices)
+      updateSelectInput(session, paste0("CanAge",cc), selected = canReactive$df$Age[cc])
+      updateSelectInput(session, paste0("CanOther",cc), selected = canReactive$df$Other[cc])
     }
   }, ignoreInit = TRUE)
   
-  # remove cancer from temporary storage which the input is deleted
-  observeEvent(input$removePbCan, {
-    canReactive$df$Cancer[pbCanCnt()+1] <- "No cancer selected"
-    canReactive$df$Age[pbCanCnt()+1]    <- NA
-    canReactive$df$Other[pbCanCnt()+1]  <- ""
-  }, ignoreInit = TRUE)
-  
   # add data to pedigree when user navigates off of the tab
-  onPbCanTab <- reactiveVal(FALSE)
+  onCanTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    if(onPbCanTab() & input$pedTabs != "Cancer Hx"){
-      PED(popPersonData(tmp.ped = PED(), is.proband = TRUE, cancers.and.ages = canReactive$df))
-      
-
-      
-      View(PED())
-      
-      
-      
+    if(onCanTab() & input$pedTabs != "Cancer Hx"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cancers.and.ages = canReactive$df))
     }
     
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Cancer Hx"){
-      onPbCanTab(TRUE)
+      onCanTab(TRUE)
     } else {
-      onPbCanTab(FALSE)
+      onCanTab(FALSE)
     }
   }, ignoreInit = TRUE)
   
@@ -1100,46 +1141,73 @@ server <- function(input, output, session) {
   
   ## count number of genes by result type
   # PLP
-  pbPLPCnt <- reactiveVal(1)
-  observeEvent(input$addPbPLP, {
-    pbPLPCnt(pbPLPCnt()+1)
+  PLPCnt <- reactiveVal(1)
+  observeEvent(input$addPLP, {
+    PLPCnt(PLPCnt()+1)
   })
-  observeEvent(input$removePbPLP, {
-    if(pbPLPCnt() > 0){
-      pbPLPCnt(pbPLPCnt()-1)
+  observeEvent(input$removePLP, {
+    if(PLPCnt() > 0){
+      
+      # update count
+      PLPCnt(PLPCnt()-1)
+      
+      # remove UIs from memory to prevent duplication if they are recreated
+      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+      remove_shiny_inputs(id = paste0("#PLPGene",PLPCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#PLPVarInfo",PLPCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#PLPProtInfo",PLPCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#PLPZygInfo",PLPCnt()+1), input)
     }
   })
   
   # VUS
-  pbVUSCnt <- reactiveVal(1)
-  observeEvent(input$addPbVUS, {
-    pbVUSCnt(pbVUSCnt()+1)
+  VUSCnt <- reactiveVal(1)
+  observeEvent(input$addVUS, {
+    VUSCnt(VUSCnt()+1)
   })
-  observeEvent(input$removePbVUS, {
-    if(pbVUSCnt() > 0){
-      pbVUSCnt(pbVUSCnt()-1)
+  observeEvent(input$removeVUS, {
+    if(VUSCnt() > 0){
+      
+      # update count
+      VUSCnt(VUSCnt()-1)
+      
+      # remove UIs from memory to prevent duplication if they are recreated
+      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+      remove_shiny_inputs(id = paste0("#VUSGene",VUSCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#VUSVarInfo",VUSCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#VUSProtInfo",VUSCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#VUSZygInfo",VUSCnt()+1), input)
     }
   })
   
   # BLB
-  pbBLBCnt <- reactiveVal(1)
-  observeEvent(input$addPbBLB, {
-    pbBLBCnt(pbBLBCnt()+1)
+  BLBCnt <- reactiveVal(1)
+  observeEvent(input$addBLB, {
+    BLBCnt(BLBCnt()+1)
   })
-  observeEvent(input$removePbBLB, {
-    if(pbBLBCnt() > 0){
-      pbBLBCnt(pbBLBCnt()-1)
+  observeEvent(input$removeBLB, {
+    if(BLBCnt() > 0){
+      
+      # update count
+      BLBCnt(BLBCnt()-1)
+      
+      # remove UIs from memory to prevent duplication if they are recreated
+      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+      remove_shiny_inputs(id = paste0("#BLBGene",BLBCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#BLBVarInfo",BLBCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#BLBProtInfo",BLBCnt()+1), input)
+      remove_shiny_inputs(id = paste0("#BLBZygInfo",BLBCnt()+1), input)
     }
   })
   
   ## dynamic data inputs for each gene by result type
   # PLP
   output$plpGeneInfo <- renderUI({
-      lapply(if(pbPLPCnt() > 0){1:pbPLPCnt()}else{1}, function(plpNum){
+      lapply(if(PLPCnt() > 0){1:PLPCnt()}else{1}, function(plpNum){
         fluidRow(
           column(width = 3,
                  div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
-                     selectInput(paste0('pbPLPGene', plpNum),
+                     selectInput(paste0('PLPGene', plpNum),
                                  label = NULL, 
                                  choices = c("", geneReactive$panel.genes),
                                  selected = "",
@@ -1147,10 +1215,10 @@ server <- function(input, output, session) {
                      
                  )
           ),
-          conditionalPanel(paste0("input.pbPLPGene", plpNum, " != ''"),
+          conditionalPanel(paste0("input.PLPGene", plpNum, " != ''"),
             column(width = 3,
                    div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                       selectizeInput(paste0('pbPLPVarInfo', plpNum), 
+                       selectizeInput(paste0('PLPVarInfo', plpNum), 
                                       label = NULL,
                                       choices = "", 
                                       selected = "",
@@ -1161,7 +1229,7 @@ server <- function(input, output, session) {
             ),
             column(width = 3,
                    div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                       selectizeInput(paste0('pbPLPProtInfo', plpNum),
+                       selectizeInput(paste0('PLPProtInfo', plpNum),
                                       label = NULL,
                                       choices = "",
                                       selected = "",
@@ -1172,7 +1240,7 @@ server <- function(input, output, session) {
             ),
             column(width = 3,
                    div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
-                       selectInput(paste0('pbPLPZygInfo', plpNum),
+                       selectInput(paste0('PLPZygInfo', plpNum),
                                    label = NULL,
                                    choices = zyg.choices,
                                    selected = "Unk",
@@ -1186,11 +1254,11 @@ server <- function(input, output, session) {
   
   # VUS
   output$vusGeneInfo <- renderUI({
-    lapply(if(pbVUSCnt() > 0){1:pbVUSCnt()}else{1}, function(vusNum){
+    lapply(if(VUSCnt() > 0){1:VUSCnt()}else{1}, function(vusNum){
       fluidRow(
         column(width = 3,
                div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
-                   selectInput(paste0('pbVUSGene', vusNum),
+                   selectInput(paste0('VUSGene', vusNum),
                                label = NULL, 
                                choices = c("", geneReactive$panel.genes),
                                selected = "",
@@ -1198,10 +1266,10 @@ server <- function(input, output, session) {
                    
                )
         ),
-        conditionalPanel(paste0("input.pbVUSGene", vusNum, " != ''"),
+        conditionalPanel(paste0("input.VUSGene", vusNum, " != ''"),
                          column(width = 3,
                                 div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('pbVUSVarInfo', vusNum), 
+                                    selectizeInput(paste0('VUSVarInfo', vusNum), 
                                                    label = NULL,
                                                    choices = "", 
                                                    selected = "",
@@ -1212,7 +1280,7 @@ server <- function(input, output, session) {
                          ),
                          column(width = 3,
                                 div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('pbVUSProtInfo', vusNum),
+                                    selectizeInput(paste0('VUSProtInfo', vusNum),
                                                    label = NULL,
                                                    choices = "",
                                                    selected = "",
@@ -1223,7 +1291,7 @@ server <- function(input, output, session) {
                          ),
                          column(width = 3,
                                 div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
-                                    selectInput(paste0('pbVUSZygInfo', vusNum),
+                                    selectInput(paste0('VUSZygInfo', vusNum),
                                                 label = NULL,
                                                 choices = zyg.choices,
                                                 selected = "Unk",
@@ -1237,11 +1305,11 @@ server <- function(input, output, session) {
   
   # BLB
   output$blbGeneInfo <- renderUI({
-    lapply(if(pbBLBCnt() > 0){1:pbBLBCnt()}else{1}, function(blbNum){
+    lapply(if(BLBCnt() > 0){1:BLBCnt()}else{1}, function(blbNum){
       fluidRow(
         column(width = 3,
                div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
-                   selectInput(paste0('pbBLBGene', blbNum),
+                   selectInput(paste0('BLBGene', blbNum),
                                label = NULL, 
                                choices = c("", geneReactive$panel.genes),
                                selected = "",
@@ -1249,10 +1317,10 @@ server <- function(input, output, session) {
                    
                )
         ),
-        conditionalPanel(paste0("input.pbBLBGene", blbNum, " != ''"),
+        conditionalPanel(paste0("input.BLBGene", blbNum, " != ''"),
                          column(width = 3,
                                 div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('pbBLBVarInfo', blbNum), 
+                                    selectizeInput(paste0('BLBVarInfo', blbNum), 
                                                    label = NULL,
                                                    choices = "", 
                                                    selected = "",
@@ -1263,7 +1331,7 @@ server <- function(input, output, session) {
                          ),
                          column(width = 3,
                                 div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('pbBLBProtInfo', blbNum),
+                                    selectizeInput(paste0('BLBProtInfo', blbNum),
                                                    label = NULL,
                                                    choices = "",
                                                    selected = "",
@@ -1274,7 +1342,7 @@ server <- function(input, output, session) {
                          ),
                          column(width = 3,
                                 div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
-                                    selectInput(paste0('pbBLBZygInfo', blbNum),
+                                    selectInput(paste0('BLBZygInfo', blbNum),
                                                 label = NULL,
                                                 choices = zyg.choices,
                                                 selected = "Unk",
@@ -1290,7 +1358,7 @@ server <- function(input, output, session) {
   # PLP
   dupPLP <- reactiveVal(FALSE)
   observeEvent(geneReactive$plp.df, {
-    gs <- geneReactive$plp.df$Gene[which(geneReactive$plp.df$Gene != "No cancer selected")]
+    gs <- geneReactive$plp.df$Gene[which(geneReactive$plp.df$Gene != "")]
     if(length(gs) > 1){
       if(any(table(gs) > 1)){
         dupPLP(TRUE)
@@ -1305,7 +1373,7 @@ server <- function(input, output, session) {
   # VUS
   dupVUS <- reactiveVal(FALSE)
   observeEvent(geneReactive$vus.df, {
-    gs <- geneReactive$vus.df$Gene[which(geneReactive$vus.df$Gene != "No cancer selected")]
+    gs <- geneReactive$vus.df$Gene[which(geneReactive$vus.df$Gene != "")]
     if(length(gs) > 1){
       if(any(table(gs) > 1)){
         dupVUS(TRUE)
@@ -1320,7 +1388,7 @@ server <- function(input, output, session) {
   # BLB
   dupBLB <- reactiveVal(FALSE)
   observeEvent(geneReactive$blb.df, {
-    gs <- geneReactive$blb.df$Gene[which(geneReactive$blb.df$Gene != "No cancer selected")]
+    gs <- geneReactive$blb.df$Gene[which(geneReactive$blb.df$Gene != "")]
     if(length(gs) > 1){
       if(any(table(gs) > 1)){
         dupBLB(TRUE)
@@ -1412,11 +1480,11 @@ server <- function(input, output, session) {
   ## store gene names in the order they are entered
   # PLP
   observe(
-    lapply(1:pbPLPCnt(), 
+    lapply(1:PLPCnt(), 
            function(plpc){
-             observeEvent(input[[paste0("pbPLPGene",plpc)]], {
-               if(input[[paste0("pbPLPGene",plpc)]] != ""){
-                 geneReactive$plp.df$Gene[plpc] <- input[[paste0("pbPLPGene",plpc)]]
+             observeEvent(input[[paste0("PLPGene",plpc)]], {
+               if(input[[paste0("PLPGene",plpc)]] != ""){
+                 geneReactive$plp.df$Gene[plpc] <- input[[paste0("PLPGene",plpc)]]
                }
              }, ignoreInit = TRUE)
            }
@@ -1425,11 +1493,11 @@ server <- function(input, output, session) {
   
   # VUS
   observe(
-    lapply(1:pbVUSCnt(), 
+    lapply(1:VUSCnt(), 
            function(vusc){
-             observeEvent(input[[paste0("pbVUSGene",vusc)]], {
-               if(input[[paste0("pbVUSGene",vusc)]] != ""){
-                 geneReactive$vus.df$Gene[vusc] <- input[[paste0("pbVUSGene",vusc)]]
+             observeEvent(input[[paste0("VUSGene",vusc)]], {
+               if(input[[paste0("VUSGene",vusc)]] != ""){
+                 geneReactive$vus.df$Gene[vusc] <- input[[paste0("VUSGene",vusc)]]
                }
              }, ignoreInit = TRUE)
            }
@@ -1438,11 +1506,11 @@ server <- function(input, output, session) {
   
   # BLB
   observe(
-    lapply(1:pbBLBCnt(), 
+    lapply(1:BLBCnt(), 
            function(blbc){
-             observeEvent(input[[paste0("pbBLBGene",blbc)]], {
-               if(input[[paste0("pbBLBGene",blbc)]] != ""){
-                 geneReactive$blb.df$Gene[blbc] <- input[[paste0("pbBLBGene",blbc)]]
+             observeEvent(input[[paste0("BLBGene",blbc)]], {
+               if(input[[paste0("BLBGene",blbc)]] != ""){
+                 geneReactive$blb.df$Gene[blbc] <- input[[paste0("BLBGene",blbc)]]
                }
              }, ignoreInit = TRUE)
            }
@@ -1452,10 +1520,10 @@ server <- function(input, output, session) {
   ## store variants in the order they are entered
   # PLP
   observe(
-    lapply(1:pbPLPCnt(), 
+    lapply(1:PLPCnt(), 
            function(plpc){
-             observeEvent(input[[paste0("pbPLPVarInfo",plpc)]], {
-               geneReactive$plp.df$Variants[plpc] <- paste0(input[[paste0("pbPLPVarInfo",plpc)]], collapse = ", ")
+             observeEvent(input[[paste0("PLPVarInfo",plpc)]], {
+               geneReactive$plp.df$Variants[plpc] <- paste0(input[[paste0("PLPVarInfo",plpc)]], collapse = ", ")
              }, ignoreInit = TRUE, ignoreNULL = FALSE)
            }
     )
@@ -1463,10 +1531,10 @@ server <- function(input, output, session) {
   
   # VUS
   observe(
-    lapply(1:pbVUSCnt(), 
+    lapply(1:VUSCnt(), 
            function(vusc){
-             observeEvent(input[[paste0("pbVUSVarInfo",vusc)]], {
-               geneReactive$vus.df$Variants[vusc] <- paste0(input[[paste0("pbVUSVarInfo",vusc)]], collapse = ", ")
+             observeEvent(input[[paste0("VUSVarInfo",vusc)]], {
+               geneReactive$vus.df$Variants[vusc] <- paste0(input[[paste0("VUSVarInfo",vusc)]], collapse = ", ")
              }, ignoreInit = TRUE, ignoreNULL = FALSE)
            }
     )
@@ -1474,10 +1542,10 @@ server <- function(input, output, session) {
   
   # BLB
   observe(
-    lapply(1:pbBLBCnt(), 
+    lapply(1:BLBCnt(), 
            function(blbc){
-             observeEvent(input[[paste0("pbBLBVarInfo",blbc)]], {
-               geneReactive$blb.df$Variants[blbc] <- paste0(input[[paste0("pbBLBVarInfo",blbc)]], collapse = ", ")
+             observeEvent(input[[paste0("BLBVarInfo",blbc)]], {
+               geneReactive$blb.df$Variants[blbc] <- paste0(input[[paste0("BLBVarInfo",blbc)]], collapse = ", ")
              }, ignoreInit = TRUE, ignoreNULL = FALSE)
            }
     )
@@ -1486,10 +1554,10 @@ server <- function(input, output, session) {
   ## store proteins in the order they are entered
   # PLP
   observe(
-    lapply(1:pbPLPCnt(), 
+    lapply(1:PLPCnt(), 
            function(plpc){
-             observeEvent(input[[paste0("pbPLPProtInfo",plpc)]], {
-               geneReactive$plp.df$Proteins[plpc] <- paste0(input[[paste0("pbPLPProtInfo",plpc)]], collapse = ", ")
+             observeEvent(input[[paste0("PLPProtInfo",plpc)]], {
+               geneReactive$plp.df$Proteins[plpc] <- paste0(input[[paste0("PLPProtInfo",plpc)]], collapse = ", ")
              }, ignoreInit = TRUE, ignoreNULL = FALSE)
            }
     )
@@ -1497,10 +1565,10 @@ server <- function(input, output, session) {
   
   # VUS
   observe(
-    lapply(1:pbVUSCnt(), 
+    lapply(1:VUSCnt(), 
            function(vusc){
-             observeEvent(input[[paste0("pbVUSProtInfo",vusc)]], {
-               geneReactive$vus.df$Proteins[vusc] <- paste0(input[[paste0("pbVUSProtInfo",vusc)]], collapse = ", ")
+             observeEvent(input[[paste0("VUSProtInfo",vusc)]], {
+               geneReactive$vus.df$Proteins[vusc] <- paste0(input[[paste0("VUSProtInfo",vusc)]], collapse = ", ")
              }, ignoreInit = TRUE, ignoreNULL = FALSE)
            }
     )
@@ -1508,10 +1576,10 @@ server <- function(input, output, session) {
   
   # BLB
   observe(
-    lapply(1:pbBLBCnt(), 
+    lapply(1:BLBCnt(), 
            function(blbc){
-             observeEvent(input[[paste0("pbBLBProtInfo",blbc)]], {
-               geneReactive$blb.df$Proteins[blbc] <- paste0(input[[paste0("pbBLBProtInfo",blbc)]], collapse = ", ")
+             observeEvent(input[[paste0("BLBProtInfo",blbc)]], {
+               geneReactive$blb.df$Proteins[blbc] <- paste0(input[[paste0("BLBProtInfo",blbc)]], collapse = ", ")
              }, ignoreInit = TRUE, ignoreNULL = FALSE)
            }
     )
@@ -1520,10 +1588,10 @@ server <- function(input, output, session) {
   ## store homo/hetero in the order they are entered
   # PLP
   observe(
-    lapply(1:pbPLPCnt(), 
+    lapply(1:PLPCnt(), 
            function(plpc){
-             observeEvent(input[[paste0("pbPLPZygInfo",plpc)]], {
-               geneReactive$plp.df$Zygosity[plpc] <- input[[paste0("pbPLPZygInfo",plpc)]]
+             observeEvent(input[[paste0("PLPZygInfo",plpc)]], {
+               geneReactive$plp.df$Zygosity[plpc] <- input[[paste0("PLPZygInfo",plpc)]]
              }, ignoreInit = TRUE)
            }
     )
@@ -1531,10 +1599,10 @@ server <- function(input, output, session) {
   
   # VUS
   observe(
-    lapply(1:pbVUSCnt(), 
+    lapply(1:VUSCnt(), 
            function(vusc){
-             observeEvent(input[[paste0("pbVUSZygInfo",vusc)]], {
-               geneReactive$vus.df$Zygosity[vusc] <- input[[paste0("pbVUSZygInfo",vusc)]]
+             observeEvent(input[[paste0("VUSZygInfo",vusc)]], {
+               geneReactive$vus.df$Zygosity[vusc] <- input[[paste0("VUSZygInfo",vusc)]]
              }, ignoreInit = TRUE)
            }
     )
@@ -1542,10 +1610,10 @@ server <- function(input, output, session) {
   
   # BLB
   observe(
-    lapply(1:pbBLBCnt(), 
+    lapply(1:BLBCnt(), 
            function(blbc){
-             observeEvent(input[[paste0("pbBLBZygInfo",blbc)]], {
-               geneReactive$blb.df$Zygosity[blbc] <- input[[paste0("pbBLBZygInfo",blbc)]]
+             observeEvent(input[[paste0("BLBZygInfo",blbc)]], {
+               geneReactive$blb.df$Zygosity[blbc] <- input[[paste0("BLBZygInfo",blbc)]]
              }, ignoreInit = TRUE)
            }
     )
@@ -1553,18 +1621,20 @@ server <- function(input, output, session) {
   
   ## repopulate gene inputs when a gene is added or deleted and remove previously selected genes from dropdown choices
   # PLP
-  observeEvent(list(input$addPbPLP, input$removePbPLP), {
-    if(pbPLPCnt() > 0){
-      for(plpc in 1:pbPLPCnt()){
+  observeEvent(list(input$addPLP, input$removePLP, geneReactive$plp.df), {
+    unselected.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
+                                                      setdiff(geneReactive$plp.df$Gene[1:PLPCnt()], ""))]
+    if(PLPCnt() > 0){
+      for(plpc in 1:PLPCnt()){
         
         # genes
-        if(plpc > 1){
-          u.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
-                                                        setdiff(geneReactive$plp.df$Gene[1:(plpc-1)], ""))]
+        if(length(unselected.choices) > 0){
+          u.choices <- unique(c(unselected.choices, input[[paste0("PLPGene", plpc)]]))
+          u.choices <- geneReactive$panel.genes[which(geneReactive$panel.genes %in% u.choices)] # keep the order consistent
         } else {
           u.choices <- geneReactive$panel.genes
         }
-        updateSelectInput(session, paste0("pbPLPGene",plpc), selected = geneReactive$plp.df$Gene[plpc], choices = u.choices)
+        updateSelectInput(session, paste0("PLPGene",plpc), selected = geneReactive$plp.df$Gene[plpc], choices = u.choices)
         
         # variant/protein
         if(geneReactive$plp.df$Gene[plpc] != ""){
@@ -1583,28 +1653,30 @@ server <- function(input, output, session) {
           tmp.var.prot <- list("","")
         }
 
-        updateSelectInput(session, paste0("pbPLPVarInfo",plpc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
-        updateSelectInput(session, paste0("pbPLPProtInfo",plpc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
+        updateSelectInput(session, paste0("PLPVarInfo",plpc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
+        updateSelectInput(session, paste0("PLPProtInfo",plpc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
         
         # homo/hetero
-        updateSelectInput(session, paste0("pbPLPZygInfo",plpc), selected = geneReactive$plp.df$Zygosity[plpc])
+        updateSelectInput(session, paste0("PLPZygInfo",plpc), selected = geneReactive$plp.df$Zygosity[plpc])
       }
     }
   }, ignoreInit = TRUE)
   
   # VUS
-  observeEvent(list(input$addPbVUS, input$removePbVUS), {
-    if(pbVUSCnt() > 0){
-      for(vusc in 1:pbVUSCnt()){
+  observeEvent(list(input$addVUS, input$removeVUS, geneReactive$vus.df), {
+    unselected.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
+                                                           setdiff(geneReactive$vus.df$Gene[1:VUSCnt()], ""))]
+    if(VUSCnt() > 0){
+      for(vusc in 1:VUSCnt()){
         
         # genes
-        if(vusc > 1){
-          u.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
-                                                        setdiff(geneReactive$vus.df$Gene[1:(vusc-1)], ""))]
+        if(length(unselected.choices) > 0){
+          u.choices <- unique(c(unselected.choices, input[[paste0("VUSGene", vusc)]]))
+          u.choices <- geneReactive$panel.genes[which(geneReactive$panel.genes %in% u.choices)] # keep the order consistent
         } else {
           u.choices <- geneReactive$panel.genes
         }
-        updateSelectInput(session, paste0("pbVUSGene",vusc), selected = geneReactive$vus.df$Gene[vusc], choices = u.choices)
+        updateSelectInput(session, paste0("VUSGene",vusc), selected = geneReactive$vus.df$Gene[vusc], choices = u.choices)
         
         # variant/protein
         if(geneReactive$vus.df$Gene[vusc] != ""){
@@ -1623,28 +1695,30 @@ server <- function(input, output, session) {
           tmp.var.prot <- list("","")
         }
         
-        updateSelectInput(session, paste0("pbVUSVarInfo",vusc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
-        updateSelectInput(session, paste0("pbVUSProtInfo",vusc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
+        updateSelectInput(session, paste0("VUSVarInfo",vusc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
+        updateSelectInput(session, paste0("VUSProtInfo",vusc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
         
         # homo/hetero
-        updateSelectInput(session, paste0("pbVUSZygInfo",vusc), selected = geneReactive$vus.df$Zygosity[vusc])
+        updateSelectInput(session, paste0("VUSZygInfo",vusc), selected = geneReactive$vus.df$Zygosity[vusc])
       }
     }
   }, ignoreInit = TRUE)
   
   # BLB
-  observeEvent(list(input$addPbBLB, input$removePbBLB), {
-    if(pbBLBCnt() > 0){
-      for(blbc in 1:pbBLBCnt()){
+  observeEvent(list(input$addBLB, input$removeBLB, geneReactive$blb.df), {
+    unselected.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
+                                                           setdiff(geneReactive$blb.df$Gene[1:BLBCnt()], ""))]
+    if(BLBCnt() > 0){
+      for(blbc in 1:BLBCnt()){
         
         # genes
-        if(blbc > 1){
-          u.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
-                                                        setdiff(geneReactive$blb.df$Gene[1:(blbc-1)], ""))]
+        if(length(unselected.choices) > 0){
+          u.choices <- unique(c(unselected.choices, input[[paste0("BLBGene", blbc)]]))
+          u.choices <- geneReactive$panel.genes[which(geneReactive$panel.genes %in% u.choices)] # keep the order consistent
         } else {
           u.choices <- geneReactive$panel.genes
         }
-        updateSelectInput(session, paste0("pbBLBGene",blbc), selected = geneReactive$blb.df$Gene[blbc], choices = u.choices)
+        updateSelectInput(session, paste0("BLBGene",blbc), selected = geneReactive$blb.df$Gene[blbc], choices = u.choices)
         
         # variant/protein
         if(geneReactive$blb.df$Gene[blbc] != ""){
@@ -1663,74 +1737,74 @@ server <- function(input, output, session) {
           tmp.var.prot <- list("","")
         }
         
-        updateSelectInput(session, paste0("pbBLBVarInfo",blbc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
-        updateSelectInput(session, paste0("pbBLBProtInfo",blbc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
+        updateSelectInput(session, paste0("BLBVarInfo",blbc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
+        updateSelectInput(session, paste0("BLBProtInfo",blbc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
         
         # homo/hetero
-        updateSelectInput(session, paste0("pbBLBZygInfo",blbc), selected = geneReactive$blb.df$Zygosity[blbc])
+        updateSelectInput(session, paste0("BLBZygInfo",blbc), selected = geneReactive$blb.df$Zygosity[blbc])
       }
     }
   }, ignoreInit = TRUE)
   
   ## remove gene from temporary storage when the input is deleted
   # PLP
-  observeEvent(input$removePbPLP, {
-    geneReactive$plp.df$Gene[pbPLPCnt()+1] <- ""
-    geneReactive$plp.df$Variants[pbPLPCnt()+1] <- ""
-    geneReactive$plp.df$Proteins[pbPLPCnt()+1]  <- ""
-    geneReactive$plp.df$Zygosity[pbPLPCnt()+1]  <- "Unk"
+  observeEvent(input$removePLP, {
+    geneReactive$plp.df$Gene[PLPCnt()+1] <- ""
+    geneReactive$plp.df$Variants[PLPCnt()+1] <- ""
+    geneReactive$plp.df$Proteins[PLPCnt()+1]  <- ""
+    geneReactive$plp.df$Zygosity[PLPCnt()+1]  <- "Unk"
   }, ignoreInit = TRUE)
   
   # VUS
-  observeEvent(input$removePbVUS, {
-    geneReactive$vus.df$Gene[pbVUSCnt()+1] <- ""
-    geneReactive$vus.df$Variants[pbVUSCnt()+1] <- ""
-    geneReactive$vus.df$Proteins[pbVUSCnt()+1]  <- ""
-    geneReactive$vus.df$Zygosity[pbVUSCnt()+1]  <- "Unk"
+  observeEvent(input$removeVUS, {
+    geneReactive$vus.df$Gene[VUSCnt()+1] <- ""
+    geneReactive$vus.df$Variants[VUSCnt()+1] <- ""
+    geneReactive$vus.df$Proteins[VUSCnt()+1]  <- ""
+    geneReactive$vus.df$Zygosity[VUSCnt()+1]  <- "Unk"
   }, ignoreInit = TRUE)
   
   # BLB
-  observeEvent(input$removePbBLB, {
-    geneReactive$blb.df$Gene[pbBLBCnt()+1] <- ""
-    geneReactive$blb.df$Variants[pbBLBCnt()+1] <- ""
-    geneReactive$blb.df$Proteins[pbBLBCnt()+1]  <- ""
-    geneReactive$blb.df$Zygosity[pbBLBCnt()+1]  <- "Unk"
+  observeEvent(input$removeBLB, {
+    geneReactive$blb.df$Gene[BLBCnt()+1] <- ""
+    geneReactive$blb.df$Variants[BLBCnt()+1] <- ""
+    geneReactive$blb.df$Proteins[BLBCnt()+1]  <- ""
+    geneReactive$blb.df$Zygosity[BLBCnt()+1]  <- "Unk"
   }, ignoreInit = TRUE)
   
   ### store variant/protein/homo-hetero information by result type
   # PLP
   observe(
-    if(length(input$pbPLPGenes) > 0 & !(all(input$pbPLPGenes == ""))){
-      lapply(1:length(input$pbPLPGenes),
+    if(length(input$PLPGenes) > 0 & !(all(input$PLPGenes == ""))){
+      lapply(1:length(input$PLPGenes),
              function(plpNum){
-               plp.g.name <- input$pbPLPGenes[plpNum]
+               plp.g.name <- input$PLPGenes[plpNum]
                
                # variants: store variants as one string
-               observeEvent(input[[paste0('pbPLPVarInfo', plpNum)]], {
-                 if(is.null(input[[paste0('pbPLPVarInfo', plpNum)]])){
+               observeEvent(input[[paste0('PLPVarInfo', plpNum)]], {
+                 if(is.null(input[[paste0('PLPVarInfo', plpNum)]])){
                    tmp.var <- ""
                  } else {
-                   tmp.var <- input[[paste0('pbPLPVarInfo', plpNum)]]
+                   tmp.var <- input[[paste0('PLPVarInfo', plpNum)]]
                  }
                  geneReactive$plp.df$Variants[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
                    paste0(unique(tmp.var), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # proteins: store proteins as one string
-               observeEvent(input[[paste0('pbPLPProtInfo', plpNum)]], {
-                 if(is.null(input[[paste0('pbPLPProtInfo', plpNum)]])){
+               observeEvent(input[[paste0('PLPProtInfo', plpNum)]], {
+                 if(is.null(input[[paste0('PLPProtInfo', plpNum)]])){
                    tmp.prot <- ""
                  } else {
-                   tmp.prot <- input[[paste0('pbPLPProtInfo', plpNum)]]
+                   tmp.prot <- input[[paste0('PLPProtInfo', plpNum)]]
                  }
                  geneReactive$plp.df$Proteins[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
                    paste0(unique(tmp.prot), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # homo/hetero
-               observeEvent(input[[paste0('pbPLPZygInfo', plpNum)]], {
+               observeEvent(input[[paste0('PLPZygInfo', plpNum)]], {
                  geneReactive$plp.df$Zygosity[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
-                   paste0(input[[paste0('pbPLPZygInfo', plpNum)]], collapse = ", ")
+                   paste0(input[[paste0('PLPZygInfo', plpNum)]], collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
              })
     }
@@ -1738,37 +1812,37 @@ server <- function(input, output, session) {
   
   # VUS
   observe(
-    if(length(input$pbVUSGenes) > 0 & !(all(input$pbVUSGenes == ""))){
-      lapply(1:length(input$pbVUSGenes),
+    if(length(input$VUSGenes) > 0 & !(all(input$VUSGenes == ""))){
+      lapply(1:length(input$VUSGenes),
              function(vusNum){
-               vus.g.name <- input$pbVUSGenes[vusNum]
+               vus.g.name <- input$VUSGenes[vusNum]
                
                # variants: store variants as one string
-               observeEvent(input[[paste0('pbVUSVarInfo', vusNum)]], {
-                 if(is.null(input[[paste0('pbVUSVarInfo', vusNum)]])){
+               observeEvent(input[[paste0('VUSVarInfo', vusNum)]], {
+                 if(is.null(input[[paste0('VUSVarInfo', vusNum)]])){
                    tmp.var <- ""
                  } else {
-                   tmp.var <- input[[paste0('pbVUSVarInfo', vusNum)]]
+                   tmp.var <- input[[paste0('VUSVarInfo', vusNum)]]
                  }
                  geneReactive$vus.df$Variants[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
                    paste0(unique(tmp.var), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # proteins: store proteins as one string
-               observeEvent(input[[paste0('pbVUSProtInfo', vusNum)]], {
-                 if(is.null(input[[paste0('pbVUSProtInfo', vusNum)]])){
+               observeEvent(input[[paste0('VUSProtInfo', vusNum)]], {
+                 if(is.null(input[[paste0('VUSProtInfo', vusNum)]])){
                    tmp.prot <- ""
                  } else {
-                   tmp.prot <- input[[paste0('pbVUSProtInfo', vusNum)]]
+                   tmp.prot <- input[[paste0('VUSProtInfo', vusNum)]]
                  }
                  geneReactive$vus.df$Proteins[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
                    paste0(unique(tmp.prot), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # homo/hetero
-               observeEvent(input[[paste0('pbVUSZygInfo', vusNum)]], {
+               observeEvent(input[[paste0('VUSZygInfo', vusNum)]], {
                  geneReactive$vus.df$Zygosity[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
-                   paste0(input[[paste0('pbVUSZygInfo', vusNum)]], collapse = ", ")
+                   paste0(input[[paste0('VUSZygInfo', vusNum)]], collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
              })
     }
@@ -1776,61 +1850,56 @@ server <- function(input, output, session) {
   
   # BLB
   observe(
-    if(length(input$pbBLBGenes) > 0 & !(all(input$pbBLBGenes == ""))){
-      lapply(1:length(input$pbBLBGenes),
+    if(length(input$BLBGenes) > 0 & !(all(input$BLBGenes == ""))){
+      lapply(1:length(input$BLBGenes),
              function(blbNum){
-               blb.g.name <- input$pbBLBGenes[blbNum]
+               blb.g.name <- input$BLBGenes[blbNum]
                
                # variants: store variants as one string
-               observeEvent(input[[paste0('pbBLBVarInfo', blbNum)]], {
-                 if(is.null(input[[paste0('pbBLBVarInfo', blbNum)]])){
+               observeEvent(input[[paste0('BLBVarInfo', blbNum)]], {
+                 if(is.null(input[[paste0('BLBVarInfo', blbNum)]])){
                    tmp.var <- ""
                  } else {
-                   tmp.var <- input[[paste0('pbBLBVarInfo', blbNum)]]
+                   tmp.var <- input[[paste0('BLBVarInfo', blbNum)]]
                  }
                  geneReactive$blb.df$Variants[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
                    paste0(unique(tmp.var), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # proteins: store proteins as one string
-               observeEvent(input[[paste0('pbBLBProtInfo', blbNum)]], {
-                 if(is.null(input[[paste0('pbBLBProtInfo', blbNum)]])){
+               observeEvent(input[[paste0('BLBProtInfo', blbNum)]], {
+                 if(is.null(input[[paste0('BLBProtInfo', blbNum)]])){
                    tmp.prot <- ""
                  } else {
-                   tmp.prot <- input[[paste0('pbBLBProtInfo', blbNum)]]
+                   tmp.prot <- input[[paste0('BLBProtInfo', blbNum)]]
                  }
                  geneReactive$blb.df$Proteins[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
                    paste0(unique(tmp.prot), collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
                
                # homo/hetero
-               observeEvent(input[[paste0('pbBLBZygInfo', blbNum)]], {
+               observeEvent(input[[paste0('BLBZygInfo', blbNum)]], {
                  geneReactive$blb.df$Zygosity[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
-                   paste0(input[[paste0('pbBLBZygInfo', blbNum)]], collapse = ", ")
+                   paste0(input[[paste0('BLBZygInfo', blbNum)]], collapse = ", ")
                }, ignoreInit = TRUE, ignoreNULL = FALSE)
              })
     }
   )
   
   # add data to pedigree when user navigates off of the tab
-  onPbGeneTab <- reactiveVal(FALSE)
+  onGeneTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    if(onPbGeneTab() & input$pedTabs != "Genes"){
-      PED(popPersonData(tmp.ped = PED(), is.proband = TRUE, gene.results = panelSum()))
-      
-      
-      
-      View(PED())
-      
-      
-      
+    if(onGeneTab() & input$pedTabs != "Genes"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
+                        gene.results = panelSum(), 
+                        panel.name = input$existingPanels))
     }
     
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Genes"){
-      onPbGeneTab(TRUE)
+      onGeneTab(TRUE)
     } else {
-      onPbGeneTab(FALSE)
+      onGeneTab(FALSE)
     }
   }, ignoreInit = TRUE)
   
@@ -1968,12 +2037,8 @@ server <- function(input, output, session) {
     # hide initialize pedigree tab
     hideTab("pedTabs", target = "Initialize Pedigree", session = session)
     
-    
-    
-    View(PED())
-    
-    
-    
+    # disable the pedigree name field
+    shinyjs::disable("pedID")
   }, ignoreInit = TRUE)
   
   #### Visualize Pedigree ####
@@ -1993,8 +2058,192 @@ server <- function(input, output, session) {
     plot(dped[paste0(input$pedID)])
   })
   
-  #### PanelPRO ####
+  #### Switch Selected Relative ####
   
+  # initialize the ID of the last relative selected with proband
+  lastRel <- reactiveVal(1)
+  
+  # 1) save data to pedigree when the relative is switched or if navbarTabs change
+  # 2) repopulate inputs with new relative's data from the pedigree
+  observeEvent(list(input$relSelect, input$navbarTabs), {
+    
+    # only execute when pedigree has been visualized
+    if(input$visPed){
+      
+      ##### Save Data for Previous Relative ####
+      ## save data for the previously selected relative to pedigree
+      # demographics
+      if(input$pedTabs == "Demographics"){
+        t.ped <- PED()
+        t.ped <- popPersonData(tmp.ped = t.ped, id = lastRel(), 
+                               cur.age = input$Age, 
+                               rc = input$race, et = input$eth, 
+                               an.aj = input$ancAJ, an.it = input$ancIt)
+        PED(t.ped)
+        
+        # surgical hx
+      } else if(input$pedTabs == "Surgical Hx"){
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), riskmods.and.ages = surgReactive$lst))
+        
+        # tumor markers
+      } else if(input$pedTabs == "Tumor Markers"){
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), t.markers = markReactive$df))
+        
+        # cancer hx
+      } else if(input$pedTabs == "Cancer Hx"){
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), cancers.and.ages = canReactive$df))
+        
+        # genes
+      } else if(input$pedTabs == "Genes"){
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), 
+                          gene.results = panelSum(), 
+                          panel.name = input$existingPanels))
+      }
+      
+      # update the last relative selected
+      lastRel(as.numeric(input$relSelect))
+      
+      #### Re-populate data for new person ####
+      rel.info <- PED()[which(PED()$ID == as.numeric(input$relSelect)),]
+      
+      ##### Demographics ####
+      # sex
+      new.sex <- ifelse(rel.info$Sex == 0, "Female",
+                        ifelse(rel.info$Sex == 1, "Male", NA))
+      updateSelectInput(session, "Sex", selected = new.sex, choices = sex.choices)
+      
+      # age
+      updateNumericInput(session, "Age", value = rel.info$CurAge)
+      
+      # Non-PanelPRO races, ethnicity, and ancestries
+      updateSelectInput(session, "race", selected = rel.info$NPP.race)
+      updateSelectInput(session, "eth", selected = rel.info$NPP.eth)
+      updateCheckboxInput(session, "ancAJ", value = rel.info$NPP.AJ)
+      updateCheckboxInput(session, "ancIt", value = rel.info$NPP.It)
+      
+      ## surgical hx
+      for(sg in c("Mast", "Ooph", "Hyst")){
+        updateCheckboxInput(session, sg, value = rel.info[[paste0("riskmod", sg)]])
+        updateNumericInput(session, paste0(sg,"Age"), value = rel.info[[paste0("interAge", sg)]])
+      }
+      
+      ##### Tumor Markers ####
+      # clear inputs and data frame
+      for(i in 1:MarkCnt()){
+        
+        # update count of inputs
+        if(MarkCnt() > 0){
+          MarkCnt(MarkCnt()-1)
+        }
+        
+        # remove UIs from memory to prevent duplication if they are recreated
+        # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+        remove_shiny_inputs(id = paste0("#Mark",MarkCnt()+1), input)
+        remove_shiny_inputs(id = paste0("#MarkResult",MarkCnt()+1), input)
+      }
+      markReactive$df <- tmark.inputs.store
+      
+      # retrieve results for this person from the pedigree 
+      tm.info <- rel.info[, setdiff(MARKER.TYPES, "No marker selected")]
+      tms.tested <- colnames(tm.info)[which(!is.na(tm.info))]
+      tm.results <- tm.info[,tms.tested]
+      
+      # if there were results in the pedigree, loop through them
+      if(length(tms.tested) > 0){
+        
+        # update marker data frame
+        markReactive$df$Mark[1:length(tms.tested)] <- tms.tested
+        markReactive$df$Result[1:length(tms.tested)] <- tm.results
+        
+        # set choices based on what has already been selected
+        unselected.choices <- MARKER.TYPES[which(!MARKER.TYPES %in% tms.tested)]
+        for(mc in 1:length(tms.tested)){
+          
+          # add another set of inputs
+          MarkCnt(MarkCnt()+1)
+          
+          # update inputs
+          if(length(unselected.choices) > 0){
+            u.choices <- unique(c(unselected.choices, tms.tested[mc]))
+            u.choices <- MARKER.TYPES[which(MARKER.TYPES %in% u.choices)] # keep the order consistent
+          } else {
+            u.choices <- MARKER.TYPES
+          }
+          updateSelectInput(session, paste0("Mark",mc),
+                            selected = tms.tested[mc], choices = u.choices)
+          updateSelectInput(session, paste0("MarkResult",mc),
+                            selected = ifelse(tm.results[mc] == 1, "Positive", "Negative"))
+        }
+      }
+      
+      ##### Cancer Hx ####
+      # clear inputs and data frame
+      for(i in 1:CanCnt()){
+        
+        # update count of inputs
+        if(CanCnt() > 1){
+          CanCnt(CanCnt()-1)
+        }
+        
+        # remove UIs from memory to prevent duplication if they are recreated
+        # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+        remove_shiny_inputs(id = paste0("#Can",CanCnt()+1), input)
+        remove_shiny_inputs(id = paste0("#CanAge",CanCnt()+1), input)
+        remove_shiny_inputs(id = paste0("#CanOther",CanCnt()+1), input)
+      }
+      canReactive$df <- cancer.inputs.store
+      
+      # retrieve results for this person from the pedigree
+      can.aff.info <- rel.info %>% select(starts_with("isAff"))
+      cans.had.short <- sub(pattern = "isAff", replacement = "", colnames(can.aff.info)[which(can.aff.info == 1)])
+      # if(!is.na(rel.info$NPP.isAffX.AgeX)){
+      #   cans.had.short <- c(cans.had.short, "Other")
+      # }
+      cans.had.long <- CANCER.CHOICES$long[which(CANCER.CHOICES$short %in% cans.had.short)]
+      
+      # if there were results in the pedigree, loop through them
+      if(length(cans.had.short) > 0){
+
+        ## update data frame
+        # PanelPRO cancers
+        canReactive$df$Cancer[1:length(cans.had.long)] <- cans.had.long
+        can.ages <-
+          rel.info %>%
+          select(all_of(paste0("Age", cans.had.short)))
+        can.ages <- as.numeric(can.ages)
+        canReactive$df$Age[1:length(cans.had.long)] <- can.ages
+        
+        # non-PanelPRO (Other) cancers
+        
+        
+        # set choices based on what has already been selected
+        unselected.choices <-
+          CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% cans.had.long)]
+        for(cc in 1:length(cans.had.short)){
+          
+          # add another set of inputs
+          if(cc > 1){
+            CanCnt(CanCnt()+1)
+          }
+          
+          # update inputs
+          if(length(unselected.choices) > 0){
+            u.choices <- unique(c(unselected.choices, cans.had.long[cc]))
+            u.choices <- CANCER.CHOICES$long[which(CANCER.CHOICES$long %in% u.choices)] # keep the order consistent
+          } else {
+            u.choices <- CANCER.CHOICES$long
+          }
+          updateSelectInput(session, paste0("Can",cc),
+                            choices = u.choices, selected = cans.had.long[cc])
+          updateNumericInput(session, paste0("CanAge",cc),
+                             value = can.ages[cc])
+        }
+      }
+    }
+  }, ignoreInit = TRUE)
+  
+  #### PanelPRO ####
+
   
 }
 

@@ -15,13 +15,16 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
               "NPP.isAffX.AgeX",
-              PanelPRO:::GENE_TYPES,"PP.gene.info", "NPP.gene.info"
+              PanelPRO:::GENE_TYPES,"panel.name","PP.gene.info", "NPP.gene.info"
               )
 
 #### Demographics ####
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
 max.age <- 89
 min.age <- 1
+
+# sex choices
+sex.choices <- c(" "=" ","Female"="Female","Male"="Male")
 
 # race choices (different from PanelPRO's race choices)
 rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",

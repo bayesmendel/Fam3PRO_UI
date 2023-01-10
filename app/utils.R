@@ -161,7 +161,8 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
   tmp.person <-
     tmp.person %>%
     mutate(across(everything(), ~is.numeric(.))) %>%
-    mutate(across(.cols = c(race, Ancestry, NPP.race, NPP.eth), ~is.character(.))) %>%
+    mutate(across(.cols = c(race, Ancestry, NPP.race, NPP.eth, panel.name), 
+                  ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
     mutate(ID = tmp.id) %>%
     mutate(relationship = ifelse(relation == "rel.partner", paste0("partner.of.",partner.of), relation)) %>%
@@ -171,6 +172,7 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     mutate(Ancestry = "nonAJ") %>%
     mutate(NPP.race = "All_Races") %>%
     mutate(NPP.eth = "Other_Ethnicity") %>%
+    mutate(panel.name = "none") %>%
     mutate(across(.cols = c(isProband, isDead, Twins, NPP.AJ, NPP.It,
                             starts_with("riskmod"), starts_with("isAff")), 
                   ~ 0)) %>%
@@ -392,7 +394,10 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' same as `$isAff` and values are ages from `min.age` to `max.age`.
 #' @param gene.results named numeric vector of gene test results with names 
 #' `PanelPRO:::GENE_TYPES` and length `length(PanelPRO:::GENE_TYPES)`. The values 
-#' are `NA` for no test, `0` for negative/B/LP, `1` for P/LP, and `2` for VUS.
+#' are `NA` for no test, `0` for negative/B/LP, `1` for P/LP, and `2` for VUS.  
+#' Must be provided when `panel.name` is not `NULL`.
+#' @param panel.name string, name of the panel tested. Must be provided when 
+#' `gene.results` is not `NULL`.
 #' @returns a modified version of `tmp.ped` where the person with `id` has updated 
 #' values based on the arguments supplied.
 #' @details This function cannot be used to modify `PedigreeID`, a person's `ID`,
@@ -411,7 +416,8 @@ popPersonData <- function(tmp.ped,
                           riskmods.and.ages = NULL,
                           t.markers = NULL,
                           cancers.and.ages = NULL,
-                          gene.results = NULL){
+                          gene.results = NULL,
+                          panel.name = NULL){
   
   # check for a pedigree
   if(is.null(tmp.ped)){
@@ -482,12 +488,12 @@ popPersonData <- function(tmp.ped,
   if(!is.null(cancers.and.ages)){
     
     # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)] <- 0
-    tmp.ped[which(tmp.ped$ID == id), paste0("Age", PanelPRO:::CANCER_NAME_MAP$short)] <- NA
+    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", setdiff(CANCER.CHOICES$short, c("No cancer selected", "Other")))] <- 0
+    tmp.ped[which(tmp.ped$ID == id), paste0("Age", setdiff(CANCER.CHOICES$short, c("No cancer selected", "Other")))] <- NA
     tmp.ped[which(tmp.ped$ID == id), "NPP.isAffX.AgeX"] <- NA
     
-    # separate PanelPRO cancers form non-PanelPRO cancers
-    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected", "Other")),]
+    # create two data frames: 1) PanelPRO cancers 2) non-PanelPRO ("Other") cancers
+    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected","Other")),]
     other.can.df <- cancers.and.ages[which(cancers.and.ages$Cancer == "Other"),]
     
     # iterate through PanelPRO cancers
@@ -503,19 +509,23 @@ popPersonData <- function(tmp.ped,
     if(nrow(other.can.df)){
       other.can.df <-
         other.can.df %>%
-        mutate(String = paste0("'", ifelse(Other == "", "UnkType", Other), "':'", Age,"'"))
+        mutate(String = paste0(ifelse(Other == "", "UnkType", Other), ":'", Age,"'"))
       other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
       tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
     }
   }
   
   # gene results
-  if(!is.null(gene.results)){
+  if(!is.null(gene.results) & !is.null(panel.name)){
     
     # clear existing values
     tmp.ped[which(tmp.ped$ID == id), PanelPRO:::GENE_TYPES] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "panel.name"] <- "none"
     tmp.ped[which(tmp.ped$ID == id), "PP.gene.info"] <- NA
     tmp.ped[which(tmp.ped$ID == id), "NPP.gene.info"] <- NA
+    
+    # populate panel name
+    tmp.ped$panel.name[which(tmp.ped$ID == id)] <- panel.name
     
     # remove slash from result codings and add json string column by result type
     gene.results <-
@@ -549,7 +559,7 @@ popPersonData <- function(tmp.ped,
     # add json string column by gene
     gene.results <-
       gene.results %>%
-      mutate(Gene.JSON = paste0(Gene, ":{", Var.Prot.Zyg, "}"))
+      mutate(Gene.JSON = ifelse(Result == "Neg", paste0(Gene, ":'Neg'"), paste0(Gene, ":{", Var.Prot.Zyg, "}")))
     
     # separate PanelPRO genes from non-PanelPRO genes
     pp.genes.df <- gene.results[which(gene.results$Gene %in% PanelPRO:::GENE_TYPES),]
@@ -808,8 +818,8 @@ modLinkInfo <- function(tmp.ped, id, is.proband = FALSE, new.id = NULL,
 }
 
 # validate age values are between min.age and m
-validAge <- function(in.age, cur.age){
-  if(!is.na(in.age)){
+validateAge <- function(in.age, cur.age){
+  if(!is.na(in.age) & !is.na(cur.age)){
     isNum <- is.numeric(in.age)
     need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
     if(isNum){
@@ -823,4 +833,18 @@ validAge <- function(in.age, cur.age){
       }
     }
   }
+}
+
+#' Removes shiny inputs from memory
+#' 
+#' @param id string, input name to remove from memory
+#' @param .input ???
+#' 
+#' @details from https://www.r-bloggers.com/2020/02/shiny-add-removing-modules-dynamically/
+remove_shiny_inputs <- function(id, .input) {
+  invisible(
+    lapply(grep(id, names(.input), value = TRUE), function(i) {
+      .subset2(.input, "impl")$.values$remove(i)
+    })
+  )
 }
