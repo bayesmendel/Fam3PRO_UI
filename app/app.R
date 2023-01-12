@@ -238,22 +238,6 @@ ui <- fixedPage(
               ) # end of female conditionalPanel for surgical history information
             ), # end of surgery tab
             
-            ###### Tumor Markers ####
-            tabPanel("Tumor Markers",
-              h3("Tumor Markers"),
-              p("If the person was tested for any of tumor markers options below, report the results."),
-              conditionalPanel("output.dupMarkers",
-                h5("You have the same tumor marker listed more than once, please fix this.", style = "color:red")
-              ),
-              uiOutput("MarkInputs"),
-              actionButton("addMark", label = "Add Marker",
-                           icon = icon('plus'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
-              actionButton("removeMark", label = "Remove Last Marker",
-                           icon = icon('trash'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
-            ), # end of tumor marker tab
-            
             ###### Cancer Hx ####
             tabPanel("Cancer Hx",
               h3("Cancer History"),
@@ -280,6 +264,29 @@ ui <- fixedPage(
                            icon = icon('trash'),
                            style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
             ), # end of cancers tab
+            
+            ###### Tumor Markers ####
+            tabPanel("Tumor Markers",
+              h3("Tumor Markers"),
+              conditionalPanel("!output.showMarkers",
+                p("Tumor markers are only applicable if the person has/had breast cancer or colorectal cancer")
+              ),
+              conditionalPanel("output.showMarkers",
+                p("If the person was tested for any of tumor markers options below, report the results. If this person 
+                  had breast cancer (BC) you will see options for ER, PR, CK14, CK5.6, and HER2. If this person had 
+                  colorectal cancer (CRC) you will see an option for MSI."),
+                conditionalPanel("output.dupMarkers",
+                  h5("You have the same tumor marker listed more than once, please fix this.", style = "color:red")
+                ),
+                uiOutput("MarkInputs"),
+                actionButton("addMark", label = "Add Marker",
+                             icon = icon('plus'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
+                actionButton("removeMark", label = "Remove Last Marker",
+                             icon = icon('trash'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+              )
+            ), # end of tumor marker tab
             
             ###### Genes ####
             tabPanel("Genes",
@@ -800,147 +807,6 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  #### Tumor Markers ####
-  
-  ##### UI ####
-  
-  # count number of markers
-  MarkCnt <- reactiveVal(1)
-  observeEvent(input$addMark, {
-    if(MarkCnt() < length(MARKER.TYPES)-1){
-      MarkCnt(MarkCnt()+1)
-    }
-  })
-  observeEvent(input$removeMark, {
-    if(MarkCnt() > 0){
-    
-      # update count of inputs
-      MarkCnt(MarkCnt()-1)
-      
-      # remove UIs from memory to prevent duplication if they are recreated
-      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-      remove_shiny_inputs(id = paste0("#Mark",MarkCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#MarkResult",MarkCnt()+1), input)
-    }
-  })
-  
-  # tumor marker UI
-  output$MarkInputs <- renderUI({
-    lapply(if(MarkCnt() > 0){1:MarkCnt()}else{1}, function(MarkNum){
-      fluidRow(
-        column(width = 6, 
-            selectInput(paste0('Mark', MarkNum), h5(paste0('Marker ', MarkNum,':')),
-                        choices = MARKER.TYPES,
-                        width = "65%")
-        ),
-        conditionalPanel(paste0("input.Mark", MarkNum, " != 'No marker selected'"),
-          column(width = 6, 
-            div(
-              selectInput(paste0('MarkResult', MarkNum), h5("Test Result:"),
-                          choices = marker.result.choices,
-                          width = "125px"),
-              style = "margin-left:-100px",
-            )
-          )
-        )
-      )
-    })
-  })
-  
-  # check for marker duplicate entries
-  dupMarkers <- reactiveVal(FALSE)
-  observeEvent(markReactive$df, {
-    tms <- markReactive$df$Mark[which(markReactive$df$Mark != "No marker selected")]
-    if(length(tms) > 1){
-      if(any(table(tms) > 1)){
-        dupMarkers(TRUE)
-      } else {
-        dupMarkers(FALSE)
-      }
-    }
-  }, ignoreInit = TRUE)
-  output$dupMarkers <- reactive({ dupMarkers() })
-  outputOptions(output, 'dupMarkers', suspendWhenHidden = FALSE)
-  
-  ##### Storage ####
-  
-  # store proband tumor marker inputs in the order they are entered
-  markReactive <- reactiveValues(df = tmark.inputs.store)
-  
-  
-  
-  # # FOR TESTING ONLY: observe marker df every time it changes
-  # observeEvent(markReactive$df, {
-  #   View(markReactive$df)
-  # })
-  
-  
-  # store tumor marker names in the order they are entered
-  observe(
-    lapply(1:MarkCnt(), 
-           function(mc){
-             observeEvent(input[[paste0("Mark",mc)]], {
-               if(input[[paste0("Mark",mc)]] != "No marker selected"){
-                 markReactive$df$Mark[mc] <- input[[paste0("Mark",mc)]]
-               }
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # store tumor marker results in the order they are entered
-  observe(
-    lapply(1:MarkCnt(), 
-           function(mc){
-             observeEvent(input[[paste0("MarkResult",mc)]], {
-               if(input[[paste0("MarkResult",mc)]] != "Not Tested"){
-                  markReactive$df$Result[mc] <- input[[paste0("MarkResult",mc)]]
-               }
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # repopulate tumor marker inputs when a marker is added or deleted and 
-  # remove previously selected tumor markers from dropdown choices
-  observeEvent(list(input$addMark, input$removeMark, markReactive$df), {
-    unselected.choices <- MARKER.TYPES[which(!MARKER.TYPES %in% 
-                                               setdiff(markReactive$df$Mark[1:MarkCnt()], 
-                                                       "No marker selected"))]
-    for(mc in 1:MarkCnt()){
-      if(length(unselected.choices) > 0){
-        u.choices <- unique(c(unselected.choices, input[[paste0("Mark", mc)]]))
-        u.choices <- MARKER.TYPES[which(MARKER.TYPES %in% u.choices)] # keep the order consistent
-      } else {
-        u.choices <- MARKER.TYPES
-      }
-      updateSelectInput(session, paste0("Mark",mc), selected = markReactive$df$Mark[mc], choices = u.choices)
-      updateSelectInput(session, paste0("MarkResult",mc), selected = markReactive$df$Result[mc])
-    }
-  }, ignoreInit = TRUE)
-  
-  # remove marker from temporary storage when the input is deleted
-  observeEvent(input$removeMark, {
-    markReactive$df$Mark[MarkCnt()+1] <- "No marker selected"
-    markReactive$df$Result[MarkCnt()+1] <- "Not Tested"
-  }, ignoreInit = TRUE)
-  
-  # add data to pedigree when user navigates off of the tab
-  onMarkerTab <- reactiveVal(FALSE)
-  observeEvent(list(input$pedTabs), {
-    if(onMarkerTab() & input$pedTabs != "Tumor Markers"){
-      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, t.markers = markReactive$df))
-    }
-    
-    # update the reactive value to detect if the current tab is the target tab
-    if(input$pedTabs == "Tumor Markers"){
-      onMarkerTab(TRUE)
-    } else {
-      onMarkerTab(FALSE)
-    }
-  }, ignoreInit = TRUE)
-  
-  
   #### Cancer History ####
   
   ##### UI ####
@@ -1110,6 +976,256 @@ server <- function(input, output, session) {
       onCanTab(TRUE)
     } else {
       onCanTab(FALSE)
+    }
+  }, ignoreInit = TRUE)
+  
+  
+  #### Tumor Markers ####
+  
+  ##### UI ####
+  
+  
+  
+  
+  # FOR TESTING
+  observeEvent(MarkCnt(),{
+    print(paste0("MarkCnt(): ", MarkCnt()))
+  })
+  
+  
+  
+  
+  # count number of markers
+  MarkCnt <- reactiveVal(1)
+  observeEvent(input$addMark, {
+    MarkCnt(MarkCnt()+1)
+  })
+  observeEvent(input$removeMark, {
+    if(MarkCnt() > 1){
+      
+      # update count of inputs
+      MarkCnt(MarkCnt()-1)
+      ind <- MarkCnt()+1
+    } else if(MarkCnt() == 1){
+      ind <- 1
+    }
+    
+    # remove UIs from memory to prevent duplication if they are recreated
+    # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+    remove_shiny_inputs(id = paste0("#Mark",ind), input)
+    remove_shiny_inputs(id = paste0("#MarkResult",ind), input)
+    
+    # remove marker from temporary storage when the input is deleted
+    markReactive$df$Mark[ind] <- "No marker selected"
+    markReactive$df$Result[ind] <- "Not Tested"
+  })
+  
+  # monitor cancer data frame for changes that will affect the marker choices: 
+  # 1) dynamically change tumor marker drop down choices based on cancer hx
+  # 2) set variable to show conditional panel if any markers are possible
+  # 3) remove tumor markers for tumor marker related cancers that were deleted
+  # 4) repopulate marker inputs
+  mod.MARKER.TYPES <- reactiveVal("No marker selected")
+  showMarkers <- reactiveVal(FALSE)
+  output$showMarkers <- reactive({ showMarkers() })
+  outputOptions(output, 'showMarkers', suspendWhenHidden = FALSE)
+  observeEvent(canReactive$df, {
+    
+    # check updated cancers list for presence of tumor marker related cancers,
+    # update marker choices, and show/don't show tumor marker inputs in the UI
+    hadBC <- FALSE
+    hadCRC <- FALSE
+    if(any(c("Breast","Colorectal") %in% canReactive$df$Cancer)){
+      showMarkers(TRUE)
+      if("Breast" %in% canReactive$df$Cancer){ hadBC <- TRUE }
+      if("Colorectal" %in% canReactive$df$Cancer){ hadCRC <- TRUE }
+      
+      # update marker choices 
+      if(hadBC & hadCRC){
+        mod.MARKER.TYPES(ALL.MARKER.TYPES)
+      } else if(hadBC){
+        mod.MARKER.TYPES(BC.MARKER.TYPES)
+      } else if(hadCRC){
+        mod.MARKER.TYPES(CRC.MARKER.TYPES)
+      }
+    } else {
+      showMarkers(FALSE)
+      mod.MARKER.TYPES("No marker selected")
+    }
+    
+    # indicate if any recorded markers need to be removed
+    rmBCmarks <- FALSE
+    rmCRCmarks <- FALSE
+    if(!hadBC & any(!is.na(PED()[which(PED()$ID == input$relSelect), PanelPRO:::MARKER_TESTING$BC$MARKERS]))){
+      rmBCmarks <- TRUE
+    }
+    if(!hadCRC & any(!is.na(PED()[which(PED()$ID == input$relSelect), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
+      rmCRCmarks <- TRUE
+    }
+    
+    # change marker data frame and pedigree if removal of records is required
+    if(rmBCmarks | rmCRCmarks){
+      
+      # remove the records which needed deleting from the marker data frame
+      markReactive$df <- filter(markReactive$df, Mark != "CRC: MSI")
+      markReactive$df <- filter(markReactive$df, !Mark %in% setdiff(BC.MARKER.TYPES, "No marker selected"))
+      
+      # modify the pedigree
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, t.markers = markReactive$df))
+    }
+    
+    # reset the inputs
+    for(i in 1:MarkCnt()){
+      
+      # update count of inputs
+      if(MarkCnt() > 1){
+        MarkCnt(MarkCnt()-1)
+        ind <- MarkCnt()+1
+      } else if(MarkCnt() == 1){
+        ind <- 1
+      }
+      
+      # remove UIs from memory to prevent duplication if they are recreated
+      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+      remove_shiny_inputs(id = paste0("#Mark",ind), input)
+      remove_shiny_inputs(id = paste0("#MarkResult",ind), input)
+    }
+    
+    # re-populate marker inputs
+    # set choices based on what has already been selected
+    selected.choices <- setdiff(markReactive$df$Mark, "No marker selected")
+    unselected.choices <- mod.MARKER.TYPES()[which(!mod.MARKER.TYPES() %in% selected.choices)]
+    loop.max <- ifelse(length(selected.choices) == 0, 1, length(selected.choices))
+    for(mc in 1:loop.max){
+      
+      # add another set of inputs if there is at least tumor marker with a result
+      if(loop.max > 1){
+        MarkCnt(MarkCnt()+1)
+      }
+      
+      # update inputs
+      if(length(unselected.choices)-1 > 0){
+        u.choices <- unique(c(unselected.choices, markReactive$df$Mark[mc]))
+        u.choices <- mod.MARKER.TYPES()[which(mod.MARKER.TYPES() %in% u.choices)] # keep the order consistent
+      } else {
+        u.choices <- mod.MARKER.TYPES()
+      }
+      updateSelectInput(session, paste0("Mark",mc),
+                        selected = markReactive$df$Mark[mc], choices = u.choices)
+      updateSelectInput(session, paste0("MarkResult",mc),
+                        selected = markReactive$df$Result[mc])
+    }
+  })
+  
+  # tumor marker UI
+  output$MarkInputs <- renderUI({
+    lapply(1:MarkCnt(), function(MarkNum){
+      fluidRow(
+        column(width = 6, 
+               selectInput(paste0('Mark', MarkNum), h5(paste0('Marker ', MarkNum,':')),
+                           choices = mod.MARKER.TYPES(),
+                           width = "65%")
+        ),
+        conditionalPanel(paste0("input.Mark", MarkNum, " != 'No marker selected'"),
+                         column(width = 6, 
+                                div(
+                                  selectInput(paste0('MarkResult', MarkNum), h5("Test Result:"),
+                                              choices = marker.result.choices,
+                                              width = "125px"),
+                                  style = "margin-left:-100px",
+                                )
+                         )
+        )
+      )
+    })
+  })
+  
+  # check for marker duplicate entries
+  dupMarkers <- reactiveVal(FALSE)
+  observeEvent(markReactive$df, {
+    tms <- markReactive$df$Mark[which(markReactive$df$Mark != "No marker selected")]
+    if(length(tms) > 1){
+      if(any(table(tms) > 1)){
+        dupMarkers(TRUE)
+      } else {
+        dupMarkers(FALSE)
+      }
+    }
+  }, ignoreInit = TRUE)
+  output$dupMarkers <- reactive({ dupMarkers() })
+  outputOptions(output, 'dupMarkers', suspendWhenHidden = FALSE)
+  
+  ##### Storage ####
+  
+  # store proband tumor marker inputs in the order they are entered
+  markReactive <- reactiveValues(df = tmark.inputs.store)
+  
+  
+  
+  
+  # FOR TESTING ONLY: observe marker df every time it changes
+  observeEvent(markReactive$df, {
+    View(markReactive$df)
+  })
+  
+  
+  
+  # store tumor marker names in the order they are entered
+  observe(
+    lapply(1:MarkCnt(), 
+           function(mc){
+             observeEvent(input[[paste0("Mark",mc)]], {
+               if(input[[paste0("Mark",mc)]] != "No marker selected"){
+                 markReactive$df$Mark[mc] <- input[[paste0("Mark",mc)]]
+               }
+             }, ignoreInit = TRUE)
+           }
+    )
+  )
+  
+  # store tumor marker results in the order they are entered
+  observe(
+    lapply(1:MarkCnt(), 
+           function(mc){
+             observeEvent(input[[paste0("MarkResult",mc)]], {
+               if(input[[paste0("MarkResult",mc)]] != "Not Tested"){
+                 markReactive$df$Result[mc] <- input[[paste0("MarkResult",mc)]]
+               }
+             }, ignoreInit = TRUE)
+           }
+    )
+  )
+  
+  # repopulate tumor marker inputs when a marker is added or deleted and 
+  # remove previously selected tumor markers from dropdown choices
+  observeEvent(list(input$addMark, input$removeMark, markReactive$df), {
+    unselected.choices <- mod.MARKER.TYPES()[which(!mod.MARKER.TYPES() %in% 
+                                               setdiff(markReactive$df$Mark[1:MarkCnt()], 
+                                                       "No marker selected"))]
+    for(mc in 1:MarkCnt()){
+      if(length(unselected.choices) > 0){
+        u.choices <- unique(c(unselected.choices, input[[paste0("Mark", mc)]]))
+        u.choices <- mod.MARKER.TYPES()[which(mod.MARKER.TYPES() %in% u.choices)] # keep the order consistent
+      } else {
+        u.choices <- mod.MARKER.TYPES()
+      }
+      updateSelectInput(session, paste0("Mark",mc), selected = markReactive$df$Mark[mc], choices = u.choices)
+      updateSelectInput(session, paste0("MarkResult",mc), selected = markReactive$df$Result[mc])
+    }
+  }, ignoreInit = TRUE)
+  
+  # add data to pedigree when user navigates off of the tab
+  onMarkerTab <- reactiveVal(FALSE)
+  observeEvent(list(input$pedTabs), {
+    if(onMarkerTab() & input$pedTabs != "Tumor Markers"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, t.markers = markReactive$df))
+    }
+    
+    # update the reactive value to detect if the current tab is the target tab
+    if(input$pedTabs == "Tumor Markers"){
+      onMarkerTab(TRUE)
+    } else {
+      onMarkerTab(FALSE)
     }
   }, ignoreInit = TRUE)
   
@@ -2074,12 +2190,10 @@ server <- function(input, output, session) {
       ## save data for the previously selected relative to pedigree
       # demographics
       if(input$pedTabs == "Demographics"){
-        t.ped <- PED()
-        t.ped <- popPersonData(tmp.ped = t.ped, id = lastRel(), 
-                               cur.age = input$Age, 
-                               rc = input$race, et = input$eth, 
-                               an.aj = input$ancAJ, an.it = input$ancIt)
-        PED(t.ped)
+        PED(popPersonData(tmp.ped = t.ped, id = lastRel(), cur.age = input$Age, 
+                          rc = input$race, et = input$eth, 
+                          an.aj = input$ancAJ, an.it = input$ancIt)
+            )
         
         # surgical hx
       } else if(input$pedTabs == "Surgical Hx"){
@@ -2125,55 +2239,6 @@ server <- function(input, output, session) {
       for(sg in c("Mast", "Ooph", "Hyst")){
         updateCheckboxInput(session, sg, value = rel.info[[paste0("riskmod", sg)]])
         updateNumericInput(session, paste0(sg,"Age"), value = rel.info[[paste0("interAge", sg)]])
-      }
-      
-      ##### Tumor Markers ####
-      # clear inputs and data frame
-      for(i in 1:MarkCnt()){
-        
-        # update count of inputs
-        if(MarkCnt() > 0){
-          MarkCnt(MarkCnt()-1)
-        }
-        
-        # remove UIs from memory to prevent duplication if they are recreated
-        # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-        remove_shiny_inputs(id = paste0("#Mark",MarkCnt()+1), input)
-        remove_shiny_inputs(id = paste0("#MarkResult",MarkCnt()+1), input)
-      }
-      markReactive$df <- tmark.inputs.store
-      
-      # retrieve results for this person from the pedigree 
-      tm.info <- rel.info[, setdiff(MARKER.TYPES, "No marker selected")]
-      tms.tested <- colnames(tm.info)[which(!is.na(tm.info))]
-      tm.results <- tm.info[,tms.tested]
-      
-      # if there were results in the pedigree, loop through them
-      if(length(tms.tested) > 0){
-        
-        # update marker data frame
-        markReactive$df$Mark[1:length(tms.tested)] <- tms.tested
-        markReactive$df$Result[1:length(tms.tested)] <- tm.results
-        
-        # set choices based on what has already been selected
-        unselected.choices <- MARKER.TYPES[which(!MARKER.TYPES %in% tms.tested)]
-        for(mc in 1:length(tms.tested)){
-          
-          # add another set of inputs
-          MarkCnt(MarkCnt()+1)
-          
-          # update inputs
-          if(length(unselected.choices) > 0){
-            u.choices <- unique(c(unselected.choices, tms.tested[mc]))
-            u.choices <- MARKER.TYPES[which(MARKER.TYPES %in% u.choices)] # keep the order consistent
-          } else {
-            u.choices <- MARKER.TYPES
-          }
-          updateSelectInput(session, paste0("Mark",mc),
-                            selected = tms.tested[mc], choices = u.choices)
-          updateSelectInput(session, paste0("MarkResult",mc),
-                            selected = ifelse(tm.results[mc] == 1, "Positive", "Negative"))
-        }
       }
       
       ##### Cancer Hx ####
@@ -2222,9 +2287,7 @@ server <- function(input, output, session) {
         for(cc in 1:length(cans.had.short)){
           
           # add another set of inputs
-          if(cc > 1){
-            CanCnt(CanCnt()+1)
-          }
+          CanCnt(CanCnt()+1)
           
           # update inputs
           if(length(unselected.choices) > 0){
@@ -2237,6 +2300,58 @@ server <- function(input, output, session) {
                             choices = u.choices, selected = cans.had.long[cc])
           updateNumericInput(session, paste0("CanAge",cc),
                              value = can.ages[cc])
+        }
+      }
+      
+      ##### Tumor Markers ####
+      # clear inputs and data frame
+      for(i in 1:MarkCnt()){
+        
+        # update count of inputs
+        if(MarkCnt() > 1){
+          MarkCnt(MarkCnt()-1)
+          ind <- MarkCnt()+1
+        } else if(MarkCnt() == 1){
+          ind <- 1
+        }
+        
+        # remove UIs from memory to prevent duplication if they are recreated
+        # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
+        remove_shiny_inputs(id = paste0("#Mark",ind), input)
+        remove_shiny_inputs(id = paste0("#MarkResult",ind), input)
+      }
+      markReactive$df <- tmark.inputs.store
+      
+      # retrieve results for this person from the pedigree 
+      tm.info <- rel.info[, setdiff(mod.MARKER.TYPES(), "No marker selected")]
+      tms.tested <- colnames(tm.info)[which(!is.na(tm.info))]
+      tm.results <- tm.info[,tms.tested]
+      
+      # if there were results in the pedigree, loop through them
+      if(length(tms.tested) > 0){
+        
+        # update marker data frame
+        markReactive$df$Mark[1:length(tms.tested)] <- tms.tested
+        markReactive$df$Result[1:length(tms.tested)] <- tm.results
+        
+        # set choices based on what has already been selected
+        unselected.choices <- mod.MARKER.TYPES()[which(!mod.MARKER.TYPES() %in% tms.tested)]
+        for(mc in 1:length(tms.tested)){
+          
+          # add another set of inputs
+          MarkCnt(MarkCnt()+1)
+          
+          # update inputs
+          if(length(unselected.choices) > 0){
+            u.choices <- unique(c(unselected.choices, tms.tested[mc]))
+            u.choices <- mod.MARKER.TYPES()[which(mod.MARKER.TYPES() %in% u.choices)] # keep the order consistent
+          } else {
+            u.choices <- mod.MARKER.TYPES()
+          }
+          updateSelectInput(session, paste0("Mark",mc),
+                            selected = tms.tested[mc], choices = u.choices)
+          updateSelectInput(session, paste0("MarkResult",mc),
+                            selected = ifelse(tm.results[mc] == 1, "Positive", "Negative"))
         }
       }
     }

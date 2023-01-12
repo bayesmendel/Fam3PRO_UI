@@ -44,16 +44,6 @@ RISKMOD.TYPES <- c("mast","hyst","ooph")
 riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
                               interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
 
-#### Tumor Markers ####
-MARKER.TYPES <- c("No marker selected","ER","PR","CK14","CK5.6","HER2","MSI")
-
-# result choices
-marker.result.choices <- c("Not Tested" = "Not Tested", "Positive" = "Positive", "Negative" = "Negative")
-
-# template data frame for storing tumor marker inputs
-tmark.inputs.store <- data.frame(Mark = rep("No marker selected", length(MARKER.TYPES)-1),
-                                 Result = rep("Not Tested", length(MARKER.TYPES)-1))
-
 #### Cancers ####
 # cancer choices from PanelPRO
 CANCER.CHOICES <- PanelPRO:::CANCER_NAME_MAP
@@ -66,6 +56,19 @@ CANCER.CHOICES$long <- c("No cancer selected", CANCER.CHOICES$long, "Other")
 cancer.inputs.store <- data.frame(Cancer = rep("No cancer selected", 100),
                                   Age    = rep(NA, 100),
                                   Other  = rep("", 100))
+
+
+#### Tumor Markers ####
+BC.MARKER.TYPES <- c("No marker selected", paste0("BC: ", PanelPRO:::MARKER_TESTING$BC$MARKERS))
+CRC.MARKER.TYPES <- c("No marker selected", paste0("CRC: ", PanelPRO:::MARKER_TESTING$COL$MARKERS))
+ALL.MARKER.TYPES <- unique(c(BC.MARKER.TYPES, CRC.MARKER.TYPES))
+
+# result choices
+marker.result.choices <- c("Not Tested" = "Not Tested", "Positive" = "Positive", "Negative" = "Negative")
+
+# template data frame for storing tumor marker inputs
+tmark.inputs.store <- data.frame(Mark = rep("No marker selected", 100),
+                                 Result = rep("Not Tested", 100))
 
 #### Genes ####
 

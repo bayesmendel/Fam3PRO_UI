@@ -382,9 +382,6 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' - `$interAge`: named numeric vector of with the same names as `$riskmod`. 
 #' If the corresponding surgery did not occur, the age value is `NA`, otherwise 
 #' the value is an age between `min.age` and `max.age`.
-#' @param t.markers named numeric vector of tumor marker results of length 6 where 
-#' with the names: `c("ER","PR","CK14","CK5.6","HER2","MSI")`. The values are `NA` for 
-#' no test, `0` for negative and `1` for positive.
 #' @param cancers.and.ages list of cancer affection statuses and diagnosis ages 
 #' with two components: 
 #' - `$isAff`: named binary vector of cancer affection statuses with names: 
@@ -392,6 +389,9 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' Values are either `0` for not affected or `1` for affected.
 #' - `$Age`: named numeric vector of cancer diagnosis ages where names are the 
 #' same as `$isAff` and values are ages from `min.age` to `max.age`.
+#' @param t.markers named numeric vector of tumor marker results of length 6 where 
+#' with the names: `c("ER","PR","CK14","CK5.6","HER2","MSI")`. The values are `NA` for 
+#' no test, `0` for negative and `1` for positive.
 #' @param gene.results named numeric vector of gene test results with names 
 #' `PanelPRO:::GENE_TYPES` and length `length(PanelPRO:::GENE_TYPES)`. The values 
 #' are `NA` for no test, `0` for negative/B/LP, `1` for P/LP, and `2` for VUS.  
@@ -414,8 +414,8 @@ popPersonData <- function(tmp.ped,
                           an.aj = NULL,
                           an.it = NULL,
                           riskmods.and.ages = NULL,
-                          t.markers = NULL,
                           cancers.and.ages = NULL,
+                          t.markers = NULL,
                           gene.results = NULL,
                           panel.name = NULL){
   
@@ -467,23 +467,6 @@ popPersonData <- function(tmp.ped,
       riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
   }
   
-  # tumor markers
-  if(!is.null(t.markers)){
-    
-    # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
-    
-    # subset storage to only populated values
-    v.t.markers <- t.markers[which(t.markers$Mark != "No marker selected" & t.markers$Result != "Not Tested"),]
-    if(nrow(v.t.markers) > 0){
-      for(row in 1:nrow(v.t.markers)){
-        tmp.ped[which(tmp.ped$ID == id), v.t.markers$Mark[row]] <- 
-          ifelse(v.t.markers$Result[row] == "Negative", 0, 
-                 ifelse(v.t.markers$Result[row] == "Positive", 1, NA))
-      }
-    }
-  }
-  
   # cancer hx
   if(!is.null(cancers.and.ages)){
     
@@ -512,6 +495,32 @@ popPersonData <- function(tmp.ped,
         mutate(String = paste0(ifelse(Other == "", "UnkType", Other), ":'", Age,"'"))
       other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
       tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
+    }
+    
+    # reset cancer specific tumor marker values
+    if(tmp.ped$isAffBC[which(tmp.ped$ID == id)] == 0){
+      tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$BC$MARKERS] <- NA
+    }
+    if(tmp.ped$isAffCOL[which(tmp.ped$ID == id)] == 0){
+      tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$COL$MARKERS] <- NA
+    }
+  }
+  
+  # tumor markers
+  if(!is.null(t.markers)){
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
+    
+    # subset storage to only populated values
+    v.t.markers <- t.markers %>% filter(Mark != "No marker selected" & Result != "Not Tested")
+    if(nrow(v.t.markers) > 0){
+      v.t.markers <- v.t.markers %>% mutate(Mark = gsub(pattern = "BC: |CRC: ", replacement = "", Mark))
+      for(row in 1:nrow(v.t.markers)){
+        tmp.ped[which(tmp.ped$ID == id), v.t.markers$Mark[row]] <- 
+          ifelse(v.t.markers$Result[row] == "Negative", 0, 
+                 ifelse(v.t.markers$Result[row] == "Positive", 1, NA))
+      }
     }
   }
   
