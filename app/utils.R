@@ -389,9 +389,12 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' Values are either `0` for not affected or `1` for affected.
 #' - `$Age`: named numeric vector of cancer diagnosis ages where names are the 
 #' same as `$isAff` and values are ages from `min.age` to `max.age`.
-#' @param t.markers named numeric vector of tumor marker results of length 6 where 
-#' with the names: `c("ER","PR","CK14","CK5.6","HER2","MSI")`. The values are `NA` for 
-#' no test, `0` for negative and `1` for positive.
+#' @param er string, ER tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param pr string, PR tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param her2 string, HER2 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param ck5.6 string, CK5.6 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param ck14 string, CK14 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param msi string, MSI tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
 #' @param gene.results named numeric vector of gene test results with names 
 #' `PanelPRO:::GENE_TYPES` and length `length(PanelPRO:::GENE_TYPES)`. The values 
 #' are `NA` for no test, `0` for negative/B/LP, `1` for P/LP, and `2` for VUS.  
@@ -415,7 +418,12 @@ popPersonData <- function(tmp.ped,
                           an.it = NULL,
                           riskmods.and.ages = NULL,
                           cancers.and.ages = NULL,
-                          t.markers = NULL,
+                          er = NULL,
+                          pr = NULL,
+                          her2 = NULL,
+                          ck5.6 = NULL,
+                          ck14 = NULL,
+                          msi = NULL,
                           gene.results = NULL,
                           panel.name = NULL){
   
@@ -507,20 +515,18 @@ popPersonData <- function(tmp.ped,
   }
   
   # tumor markers
-  if(!is.null(t.markers)){
+  bc.mark.vec <- c(ER = er, PR = pr, HER2 = her2, CK5.6 = ck5.6, CK14 = ck14)
+  crc.mark.vec <- c(MSI = msi)
+  mark.vec <- c(bc.mark.vec, crc.mark.vec)
+  if(any(!is.null(mark.vec))){
     
     # clear existing values
     tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
     
-    # subset storage to only populated values
-    v.t.markers <- t.markers %>% filter(Mark != "No marker selected" & Result != "Not Tested")
-    if(nrow(v.t.markers) > 0){
-      v.t.markers <- v.t.markers %>% mutate(Mark = gsub(pattern = "BC: |CRC: ", replacement = "", Mark))
-      for(row in 1:nrow(v.t.markers)){
-        tmp.ped[which(tmp.ped$ID == id), v.t.markers$Mark[row]] <- 
-          ifelse(v.t.markers$Result[row] == "Negative", 0, 
-                 ifelse(v.t.markers$Result[row] == "Positive", 1, NA))
-      }
+    # populate new values
+    for(m in 1:length(mark.vec)){
+      tmp.ped[which(tmp.ped$ID == id), names(mark.vec)[m]] <- ifelse(mark.vec[m] == "Positive", 1,
+                                                                     ifelse(mark.vec[m] == "Negative", 0, NA))
     }
   }
   
