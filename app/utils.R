@@ -500,7 +500,7 @@ popPersonData <- function(tmp.ped,
     if(nrow(other.can.df)){
       other.can.df <-
         other.can.df %>%
-        mutate(String = paste0(ifelse(Other == "", "UnkType", Other), ":'", Age,"'"))
+        mutate(String = paste0(ifelse(Other == "Unknown/Not Listed", "UnkType", Other), ":'", Age,"'"))
       other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
       tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
     }

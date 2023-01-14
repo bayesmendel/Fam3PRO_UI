@@ -53,9 +53,8 @@ CANCER.CHOICES$long <- c("No cancer selected", CANCER.CHOICES$long, "Other")
 # see the non-PanelPRO cancers loaded as a csv at the top of this file
 
 # template data frame for storing cancer history
-cancer.inputs.store <- data.frame(Cancer = rep("No cancer selected", 100),
-                                  Age    = rep(NA, 100),
-                                  Other  = rep("", 100))
+cancer.inputs.store <- as.data.frame(matrix(, nrow = 0, ncol = 3))
+colnames(cancer.inputs.store) <- c("Cancer","Age","Other")
 
 
 #### Tumor Markers ####
