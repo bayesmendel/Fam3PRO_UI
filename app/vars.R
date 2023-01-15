@@ -47,15 +47,15 @@ riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), 
 #### Cancers ####
 # cancer choices from PanelPRO
 CANCER.CHOICES <- PanelPRO:::CANCER_NAME_MAP
-CANCER.CHOICES$short <- c("No cancer selected", CANCER.CHOICES$short, "Other")
-CANCER.CHOICES$long <- c("No cancer selected", CANCER.CHOICES$long, "Other")
+CANCER.CHOICES$short <- c("No cancer selected", setdiff(CANCER.CHOICES$short, "CBC"), "Other")
+CANCER.CHOICES$long <- c("No cancer selected", setdiff(CANCER.CHOICES$long, "Contralateral"), "Other")
 
 # see the non-PanelPRO cancers loaded as a csv at the top of this file
+OTHER.CANCER.CHOICES <- c("Unknown/Not Listed", non.pp.cancers)
 
 # template data frame for storing cancer history
-cancer.inputs.store <- data.frame(Cancer = rep("No cancer selected", 100),
-                                  Age    = rep(NA, 100),
-                                  Other  = rep("", 100))
+cancer.inputs.store <- as.data.frame(matrix(, nrow = 0, ncol = 3))
+colnames(cancer.inputs.store) <- c("Cancer","Age","Other")
 
 
 #### Tumor Markers ####

@@ -22,7 +22,7 @@ library(ggpattern)
 library(gmailr)
 library(httr)
 
-# talbes
+# tables
 library(DT)
 
 # load data
@@ -31,6 +31,7 @@ library(DT)
 # utils and variables
 source("./vars.R")
 source("./utils.R")
+source("./modules.R")
 
 #### UI ####
 ui <- fixedPage(
@@ -246,22 +247,22 @@ ui <- fixedPage(
                 contralateral breast cancer (CBC) then enter two cancers: one as 'Breast' with the first 
                 diagnosis age and a second as 'Contralateral' with the CBC diagnosis age."),
               
-              # issue warning if the same cancer is listed more than once
-              conditionalPanel("output.dupCancers",
-                h5("You have the same cancer listed more than once, please fix this.", style = "color:red")
-              ),
+              # # issue warning if the same cancer is listed more than once
+              # conditionalPanel("output.dupCancers",
+              #   h5("You have the same cancer listed more than once, please fix this.", style = "color:red")
+              # ),
               
               # issue warning if any cancer age is not valid
               textOutput("validCanAges"),
               tags$head(tags$style("#validCanAges{color: red;}")),
               
               # enter cancers
-              uiOutput("CanInputs"),
+              tags$div(
+                id = "canContainer",
+                style = "width:100%"
+              ),
               actionButton("addCan", label = "Add Cancer",
                            icon = icon('plus'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px"),
-              actionButton("removeCan", label = "Remove Last Cancer",
-                           icon = icon('trash'),
                            style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
             ), # end of cancers tab
             
@@ -851,167 +852,179 @@ server <- function(input, output, session) {
   
   
   #### Cancer History ####
+  # save the number of cancers for each person in the pedigree
+  canReactive <- reactiveValues(canNums = setNames(rep(0,3), 1:3))
   
-  ##### UI ####
-  
-  
-  
-  # for testing:
-  observeEvent(CanCnt(), {
-    print(paste0("CanCnt(): ", CanCnt()))
-  })
-  
-  
-  
-  # count number of cancers
-  CanCnt <- reactiveVal(1)
+  # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
-    CanCnt(CanCnt()+1)
-  })
-  observeEvent(input$removeCan, {
-    if(CanCnt() > 1){
-      
-      # update count, cannot go below 1
-      CanCnt(CanCnt()-1)
-      
-      # index of cancer inputs to remove from memory
-      ind <- CanCnt()+1
-    } else if(CanCnt() == 1){
-      ind <- 1
-    }
     
-    # remove UIs from memory to prevent duplication if they are recreated
-    # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-    remove_shiny_inputs(id = paste0("#Can", ind), input)
-    remove_shiny_inputs(id = paste0("#CanOther", ind), input)
-    remove_shiny_inputs(id = paste0("#CanAge", ind), input)
+    # increase this person's count of cancer input modules by 1
+    canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)] <- 
+      canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)] + 1
+    canNum <- canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]
     
-    # remove values from temporary storage data frame
-    canReactive$df$Cancer[ind] <- "No cancer selected"
-    canReactive$df$Age[ind]    <- NA
-    canReactive$df$Other[ind]  <- ""
-  })
-  
-  # cancer history UI
-  output$CanInputs <- renderUI({
-    lapply(if(CanCnt() > 0){1:CanCnt()}else{1}, function(CanNum){
-      fluidRow(
-        column(width = 6, 
-          selectInput(paste0('Can', CanNum), h5(paste0('Cancer ', CanNum,':')),
-                      choices = CANCER.CHOICES$long,
-                      width = "200px"),
-          conditionalPanel(paste0('input.Can', CanNum, " == 'Other'"),
-            fluidRow(
-              column(6, h5("Other cancer:", style = "margin-left:25px")),
-              column(6, 
-                div(selectizeInput(paste0('CanOther', CanNum), label = NULL,
-                                   choices = c("", non.pp.cancers), selected = "",
-                                   multiple = FALSE, options = list(create=TRUE),
-                                   width = "225px"),
-                    style = "margin-left:-25px;margin-right:-100px"
-                )
-              )
-            )
-          )
-        ),
-        conditionalPanel(paste0("input.Can", CanNum, " != 'No cancer selected'"),
-          column(width = 6,
-            div(numericInput(paste0('CanAge', CanNum), h5("Diagnosis Age:"),
-                             min = min.age, max = max.age, step = 1, value = NA,
-                             width = "100px"),
-                style = "margin-left:-50px"
-            ),
-          )
-        )
-      )
+    # create the unique module ID and insert the UI module
+    id <- paste0("rel", input$relSelect, "canModule", canNum)
+    insertUI(
+      selector = "#canContainer",
+      where = "beforeEnd",
+      ui = canUI(id = id, rel = reactive(input$relSelect))
+    )
+    
+    ### Cancer UI Remove Observer
+    # create a remove module button observer for each UI module created
+    observeEvent(input[[paste0(id, '-removeCan')]], {
+      
+      ## re-add deleted cancer choice to dropdown choices of this person's other cancer modules
+      # get all of the cancers currently selected
+      cans.selected <- as.character()
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        if(!input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]] %in% c("No cancer selected", "Other") &
+           input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]] != input[[paste0(id, '-Can')]]){
+          cans.selected <- c(cans.selected, input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]])
+        }
+      }
+      
+      # update all cancer choices
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        
+        # get cancer dropdown choices available for this cancer name input
+        mod.cans.selected <- cans.selected[which(cans.selected != input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]])]
+        cans.avail <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% mod.cans.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "canModule", cn, '-Can'), 
+                          choices = cans.avail, 
+                          selected = input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]])
+      }
+      
+      ## re-add deleted OTHER cancer choice to dropdown choices of this person's OTHER cancer modules
+      # get all of the cancers currently selected across this person's cancer UI modules
+      cans.selected <- as.character()
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]] != "Unknown/Not Listed" &
+           input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]] != input[[paste0(id, '-CanOther')]]){
+          cans.selected <- c(cans.selected, input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]])
+        }
+      }
+      
+      # update each of this person's cancer UI module OTHER cancer choice dropdowns to exclude the newly selected OTHER cancer
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        
+        # get OTHER cancer dropdown choices available for this OTHER cancer name and input
+        mod.cans.selected <- cans.selected[which(cans.selected != input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]])]
+        cans.avail <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% mod.cans.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "canModule", cn, '-CanOther'),
+                          choices = cans.avail,
+                          selected = input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]])
+      }
+      
+      ## delete the module and UI
+      # remove the module from the UI
+      removeUI(selector = paste0("#canSubContainer",id))
+      
+      # remove the module's inputs from memory
+      remove_shiny_inputs(id, input)
+      
+      ## decrease the cancer count for this person by 1
+      if(canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)] > 0){
+        canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)] <- 
+          canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)] - 1
+      }
     })
-  })
-  
-  # check for cancer duplicate entries
-  dupCancers <- reactiveVal(FALSE)
-  observeEvent(canReactive$df, {
-    cs <- canReactive$df$Cancer[which(!canReactive$df$Cancer %in% c("Other","No cancer selected"))]
-    if(length(cs) > 1){
-      if(any(table(cs) > 1)){
-        dupCancers(TRUE)
-      } else {
-        dupCancers(FALSE)
+    
+    ## create a cancer selection observer which will trigger an update of all of the cancer dropdown 
+    ## choices for each of the person's cancer UI modules
+    observeEvent(input[[paste0(id, '-Can')]], {
+      
+      # get all of the cancers currently selected across this person's cancer UI modules
+      cans.selected <- as.character()
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        if(!input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]] %in% c("No cancer selected", "Other")){
+          cans.selected <- c(cans.selected, input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]])
+        }
       }
-    }
-  }, ignoreInit = TRUE)
-  output$dupCancers <- reactive({ dupCancers() })
-  outputOptions(output, 'dupCancers', suspendWhenHidden = FALSE)
-  
-  
-  ##### Storage ####
-  canReactive <- reactiveValues(df = cancer.inputs.store)
-  
-  
-  
-  # FOR TESTING ONLY: observe df every time it changes
-  observeEvent(canReactive$df, {
-    View(canReactive$df)
-  })
-  
-  
-  
-  # store cancer names in the order they are entered
-  observe(
-    lapply(1:CanCnt(), 
-           function(cc){
-             observeEvent(input[[paste0("Can",cc)]], {
-               canReactive$df$Cancer[cc] <- input[[paste0("Can",cc)]]
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # store cancer ages in the order they are entered
-  observe(
-    lapply(1:CanCnt(), 
-           function(cc){
-             observeEvent(input[[paste0("CanAge",cc)]], {
-               canReactive$df$Age[cc] <- input[[paste0("CanAge",cc)]]
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # store other cancer names in the order they are entered
-  observe(
-    lapply(1:CanCnt(), 
-           function(cc){
-             observeEvent(input[[paste0("CanOther",cc)]], {
-               canReactive$df$Other[cc] <- input[[paste0("CanOther",cc)]]
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # repopulate cancer inputs when a cancer is added or deleted and
-  # remove previously selected cancers from dropdown choices
-  observeEvent(list(input$addCan, input$removeCan, canReactive$df), {
-    unselected.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in%
-                                                      setdiff(canReactive$df$Cancer[1:CanCnt()],
-                                                              c("No cancer selected", "Other")))]
-    for(cc in 1:CanCnt()){
-      if(length(unselected.choices) > 0){
-        u.choices <- unique(c(unselected.choices, input[[paste0("Can", cc)]]))
-        u.choices <- CANCER.CHOICES$long[which(CANCER.CHOICES$long %in% u.choices)] # keep the order consistent
-      } else {
-        u.choices <- CANCER.CHOICES$long
+      
+      # update each of this person's cancer UI module cancer choice dropdowns to exclude the newly selected cancer
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        
+        # get cancer dropdown choices available for this cancer name input
+        mod.cans.selected <- cans.selected[which(cans.selected != input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]])]
+        cans.avail <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% mod.cans.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "canModule", cn, '-Can'), 
+                          choices = cans.avail, 
+                          selected = input[[paste0("rel", input$relSelect, "canModule", cn, '-Can')]])
       }
-      updateSelectInput(session, paste0("Can",cc), selected = canReactive$df$Cancer[cc], choices = u.choices)
-      updateSelectInput(session, paste0("CanAge",cc), selected = canReactive$df$Age[cc])
-      updateSelectInput(session, paste0("CanOther",cc), selected = canReactive$df$Other[cc])
-    }
-  }, ignoreInit = TRUE)
+    })
+    
+    ## create an OTHER cancer selection observer which will trigger an update of all of the OTHER cancer dropdown
+    ## choices for each of the person's cancer UI modules
+    observeEvent(input[[paste0(id, '-CanOther')]], {
+
+      # get all of the OTHER cancers currently selected across this person's cancer UI modules
+      cans.selected <- as.character()
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]] != "Unknown/Not Listed"){
+          cans.selected <- c(cans.selected, input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]])
+        }
+      }
+
+      # update each of this person's cancer UI module OTHER cancer choice dropdowns to exclude the newly selected OTHER cancer
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        mod.cans.selected <- cans.selected[which(cans.selected != input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]])]
+        cans.avail <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% mod.cans.selected)]
+        updateSelectInput(session, paste0("rel", input$relSelect, "canModule", cn, '-CanOther'),
+                          choices = cans.avail,
+                          selected = input[[paste0("rel", input$relSelect, "canModule", cn, '-CanOther')]])
+      }
+    })
+    
+  })
   
   # add data to pedigree when user navigates off of the tab
   onCanTab <- reactiveVal(FALSE)
-  observeEvent(input$pedTabs, {
+  observeEvent(list(input$pedTabs), {
+    
+    # consolidate all cancer inputs into a single data frame by looping through each exiting module
+    can.df <- cancer.inputs.store
+    if(canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)] > 0){
+      for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == input$relSelect)]){
+        id <- paste0("rel", input$relSelect, "canModule", cn)
+        if(input[[paste0(id, '-Can')]] != "No cancer selected"){
+          can.df[cn, ] <- c(input[[paste0(id, '-Can')]],
+                            input[[paste0(id, '-CanAge')]],
+                            input[[paste0(id, '-CanOther')]])
+        }
+        
+        # check for CBC
+        hadCBC <- FALSE
+        CBCAge <- NA
+        if(input[[paste0(id, '-Can')]] == "Breast" & 
+           input[[paste0(id, "-CBC")]] == "Yes"){
+          hadCBC <- TRUE
+          CBCAge <- input[[paste0(id, "-CBCAge")]]
+        }
+      }
+      
+      # add CBC as last row of the data frame
+      if(hadCBC){
+        can.df[nrow(can.df)+1, ] <- c("Contralateral",
+                                      CBCAge,
+                                      "")
+      }
+      
+      # no cancer entered for this person, create 1 row placeholder data frame
+    } else {
+      can.df[1, ] <- c("No cancer selected", NA, "")
+    }
+    
+    # transfer information in the cancer data frame to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx"){
-      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cancers.and.ages = canReactive$df))
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cancers.and.ages = can.df))
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -1943,19 +1956,20 @@ server <- function(input, output, session) {
     if(input$numBro > 0){
       for(i in 1:input$numBro){
         PED(formatNewPerson(relation = "brother", tmp.ped = PED()))
+        
+        # assume, initially, brother's race/eth/ancestry match the proband's
+        PED(assumeBackground(PED()))
       }
-      
-      # assume, initially, brother's race/eth/ancestry match the proband's
-      PED(assumeBackground(PED()))
     }
     
     # add maternal aunts and uncles
     if(input$numMAunt > 0 | input$numMUnc > 0){
       
-      # first, create maternal grandparents
+      # first, create maternal grandparents, add a cancer counter for each
       # assume, initially, race/eth/ancestry match the proband's mother
       PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "m"))
       PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
+      
       PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "m"))
       PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
       
@@ -1982,10 +1996,11 @@ server <- function(input, output, session) {
     # add paternal aunts and uncles
     if(input$numPAunt > 0 | input$numPUnc > 0){
       
-      # first, create paternal grandparents
+      # first, create paternal grandparents, add a cancer counter,
       # assume, initially, race/eth/ancestry match the proband's father
       PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "p"))
       PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
+      
       PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "p"))
       PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
       
@@ -2007,6 +2022,11 @@ server <- function(input, output, session) {
           PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
         }
       }
+    }
+    
+    # initialize cancer counter for each new person added to the pedigree
+    for(np in PED()$ID[3:nrow(PED())]){
+      canReactive$canNums <- c(canReactive$canNums, setNames(c(0), np))
     }
     
     # update relative selector with all relatives in the pedigree
@@ -2053,7 +2073,7 @@ server <- function(input, output, session) {
       ## save data for the previously selected relative to pedigree
       # demographics
       if(input$pedTabs == "Demographics"){
-        PED(popPersonData(tmp.ped = t.ped, id = lastRel(), cur.age = input$Age, 
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), cur.age = input$Age, 
                           rc = input$race, et = input$eth, 
                           an.aj = input$ancAJ, an.it = input$ancIt)
             )
@@ -2062,15 +2082,49 @@ server <- function(input, output, session) {
       } else if(input$pedTabs == "Surgical Hx"){
         PED(popPersonData(tmp.ped = PED(), id = lastRel(), riskmods.and.ages = surgReactive$lst))
         
+        # cancer hx
+      } else if(input$pedTabs == "Cancer Hx"){
+        
+        # consolidate all cancer inputs into a single data frame by looping through each exiting module
+        can.df <- cancer.inputs.store
+        if(canReactive$canNums[which(names(canReactive$canNums) == lastRel())] > 0){
+          for(cn in 1:canReactive$canNums[which(names(canReactive$canNums) == lastRel())]){
+            id <- paste0("rel", lastRel(), "canModule", cn)
+            if(input[[paste0(id, '-Can')]] != "No cancer selected"){
+              can.df[cn, ] <- c(input[[paste0(id, '-Can')]],
+                                input[[paste0(id, '-CanAge')]],
+                                input[[paste0(id, '-CanOther')]])
+            }
+            
+            # check for CBC
+            hadCBC <- FALSE
+            CBCAge <- NA
+            if(input[[paste0(id, '-Can')]] == "Breast" & 
+               input[[paste0(id, "-CBC")]] == "Yes"){
+              hadCBC <- TRUE
+              CBCAge <- input[[paste0(id, "-CBCAge")]]
+            }
+          }
+          
+          # add CBC as last row of the data frame
+          if(hadCBC){
+            can.df[nrow(can.df)+1, ] <- c("Contralateral",
+                                          CBCAge,
+                                          "")
+          }
+            
+        } else {
+          can.df[1, ] <- c("No cancer selected", NA, "")
+        }
+        
+        # update pedigree from data frame of cancer information
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), cancers.and.ages = can.df))
+        
         # tumor markers
       } else if(input$pedTabs == "Tumor Markers"){
         PED(popPersonData(tmp.ped = PED(), id = lastRel(), 
                           er = input$ER, pr = input$PR, her2 = input$HER2,
                           ck5.6 = input$CK56, ck14 = input$CK14, msi = input$MSI))
-        
-        # cancer hx
-      } else if(input$pedTabs == "Cancer Hx"){
-        PED(popPersonData(tmp.ped = PED(), id = lastRel(), cancers.and.ages = canReactive$df))
         
         # genes
       } else if(input$pedTabs == "Genes"){
@@ -2085,7 +2139,7 @@ server <- function(input, output, session) {
       #### Re-populate data for new person ####
       rel.info <- PED()[which(PED()$ID == as.numeric(input$relSelect)),]
       
-      ##### Demographics ####
+      ## Demographics 
       # sex
       new.sex <- ifelse(rel.info$Sex == 0, "Female",
                         ifelse(rel.info$Sex == 1, "Male", NA))
@@ -2100,75 +2154,13 @@ server <- function(input, output, session) {
       updateCheckboxInput(session, "ancAJ", value = rel.info$NPP.AJ)
       updateCheckboxInput(session, "ancIt", value = rel.info$NPP.It)
       
-      ## surgical hx
+      ## Surgical Hx
       for(sg in c("Mast", "Ooph", "Hyst")){
         updateCheckboxInput(session, sg, value = rel.info[[paste0("riskmod", sg)]])
         updateNumericInput(session, paste0(sg,"Age"), value = rel.info[[paste0("interAge", sg)]])
       }
       
-      ##### Cancer Hx ####
-      # clear inputs and data frame
-      for(i in 1:CanCnt()){
-        
-        # update count of inputs
-        if(CanCnt() > 1){
-          CanCnt(CanCnt()-1)
-        }
-        
-        # remove UIs from memory to prevent duplication if they are recreated
-        # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-        remove_shiny_inputs(id = paste0("#Can",CanCnt()+1), input)
-        remove_shiny_inputs(id = paste0("#CanAge",CanCnt()+1), input)
-        remove_shiny_inputs(id = paste0("#CanOther",CanCnt()+1), input)
-      }
-      canReactive$df <- cancer.inputs.store
-      
-      # retrieve results for this person from the pedigree
-      can.aff.info <- rel.info %>% select(starts_with("isAff"))
-      cans.had.short <- sub(pattern = "isAff", replacement = "", colnames(can.aff.info)[which(can.aff.info == 1)])
-      # if(!is.na(rel.info$NPP.isAffX.AgeX)){
-      #   cans.had.short <- c(cans.had.short, "Other")
-      # }
-      cans.had.long <- CANCER.CHOICES$long[which(CANCER.CHOICES$short %in% cans.had.short)]
-      
-      # if there were results in the pedigree, loop through them
-      if(length(cans.had.short) > 0){
-
-        ## update data frame
-        # PanelPRO cancers
-        canReactive$df$Cancer[1:length(cans.had.long)] <- cans.had.long
-        can.ages <-
-          rel.info %>%
-          select(all_of(paste0("Age", cans.had.short)))
-        can.ages <- as.numeric(can.ages)
-        canReactive$df$Age[1:length(cans.had.long)] <- can.ages
-        
-        # non-PanelPRO (Other) cancers
-        
-        
-        # set choices based on what has already been selected
-        unselected.choices <-
-          CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% cans.had.long)]
-        for(cc in 1:length(cans.had.short)){
-          
-          # add another set of inputs
-          CanCnt(CanCnt()+1)
-          
-          # update inputs
-          if(length(unselected.choices) > 0){
-            u.choices <- unique(c(unselected.choices, cans.had.long[cc]))
-            u.choices <- CANCER.CHOICES$long[which(CANCER.CHOICES$long %in% u.choices)] # keep the order consistent
-          } else {
-            u.choices <- CANCER.CHOICES$long
-          }
-          updateSelectInput(session, paste0("Can",cc),
-                            choices = u.choices, selected = cans.had.long[cc])
-          updateNumericInput(session, paste0("CanAge",cc),
-                             value = can.ages[cc])
-        }
-      }
-      
-      ##### Tumor Markers ####
+      ## Tumor Markers 
       marks <- c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)
       for(m in marks){
         mval <- ifelse(is.na(rel.info[1,m]), "Not Tested",
