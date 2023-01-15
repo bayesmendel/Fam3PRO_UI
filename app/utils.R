@@ -490,7 +490,7 @@ popPersonData <- function(tmp.ped,
     # iterate through PanelPRO cancers
     if(nrow(pp.cans.df) > 0){
       for(row in 1:nrow(pp.cans.df)){
-        c.short <- CANCER.CHOICES$short[which(CANCER.CHOICES$long == pp.cans.df$Cancer[row])]
+        c.short <- c(CANCER.CHOICES$short, "CBC")[which(c(CANCER.CHOICES$long, "Contralateral") == pp.cans.df$Cancer[row])]
         tmp.ped[which(tmp.ped$ID == id), paste0("isAff", c.short)] <- 1
         tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- pp.cans.df$Age[row]
       }
@@ -863,3 +863,4 @@ remove_shiny_inputs <- function(id, .input) {
     })
   )
 }
+
