@@ -247,11 +247,6 @@ ui <- fixedPage(
                 contralateral breast cancer (CBC) then enter two cancers: one as 'Breast' with the first 
                 diagnosis age and a second as 'Contralateral' with the CBC diagnosis age."),
               
-              # # issue warning if the same cancer is listed more than once
-              # conditionalPanel("output.dupCancers",
-              #   h5("You have the same cancer listed more than once, please fix this.", style = "color:red")
-              # ),
-              
               # issue warning if any cancer age is not valid
               textOutput("validCanAges"),
               tags$head(tags$style("#validCanAges{color: red;}")),
@@ -375,19 +370,10 @@ ui <- fixedPage(
                         benign/likely benign (B/LP)</b>.")," Any genes not specified as P/LP, VUS, or B/LB
                         will be recorded as negative.", 
                         style = "margin-bottom:25px"),
-                      conditionalPanel("output.dupResultGene",
-                        h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
-                           Check for errors in the information you entered for gene results.", style = "color:red")
-                      ),
-                      conditionalPanel("output.dupPLP",
-                        h5("You have the same gene listed more than once as P/LP, please fix this.", style = "color:red")
-                      ),
-                      conditionalPanel("output.dupVUS",
-                        h5("You have the same gene listed more than once as VUS, please fix this.", style = "color:red")
-                      ),
-                      conditionalPanel("output.dupBLB",
-                        h5("You have the same gene listed more than once as B/LB, please fix this.", style = "color:red")
-                      ),
+                      # conditionalPanel("output.dupResultGene",
+                      #   h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
+                      #      Check for errors in the information you entered for gene results.", style = "color:red")
+                      # ),
                       
                       # create a tab for each result type to save space
                       tabsetPanel(id = "GeneResultTabs",
@@ -396,26 +382,32 @@ ui <- fixedPage(
                         tabPanel("P/LP",
                           wellPanel(style = "background:MistyRose",
                             h4(HTML("<b>Pathogenic/Likely Pathogenic (P/LP) genes</b>"), style = "color:black"),
-                            fluidRow(
-                              column(width = 3,
-                                     h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3, 
-                                     h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3,
-                                     h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3,
-                                     h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
+                            conditionalPanel("output.PLPHeader",
+                              fluidRow(
+                                column(width = 3,
+                                       h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3, 
+                                       h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3,
+                                       h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3,
+                                       h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                              )
                             ),
-                            uiOutput("plpGeneInfo"),
+                            
+                            # PLP gene modules will be added here
+                            tags$div(
+                              id = "genePLPContainer",
+                              style = "width:100%"
+                            ),
+                            
+                            # add a new PLP gene module to the UI
                             actionButton("addPLP", label = "Add P/LP Gene",
                                          icon = icon('plus'),
-                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                            actionButton("removePLP", label = "Remove Last P/LP Gene",
-                                         icon = icon('trash'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
                           )
                         ),
@@ -425,26 +417,32 @@ ui <- fixedPage(
                           wellPanel(style = "background:LightGreen",
                             h4(HTML("<b>Variant of Unknown Significance (VUS) genes</b>"), style = "color:black"),
                             fluidRow(
-                              column(width = 3,
-                                     h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3, 
-                                     h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3,
-                                     h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3,
-                                     h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
+                              conditionalPanel("output.VUSHeader",
+                                column(width = 3,
+                                       h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3, 
+                                       h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3,
+                                       h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3,
+                                       h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                )
+                              )
                             ),
-                            uiOutput("vusGeneInfo"),
+                            
+                            # VUS gene modules will be added here
+                            tags$div(
+                              id = "geneVUSContainer",
+                              style = "width:100%"
+                            ),
+                            
+                            # add a new VUS gene module to the UI
                             actionButton("addVUS", label = "Add VUS Gene",
                                          icon = icon('plus'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                            actionButton("removeVUS", label = "Remove Last VUS Gene",
-                                         icon = icon('trash'),
-                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
                           )
                         ),
                       
@@ -453,25 +451,31 @@ ui <- fixedPage(
                           wellPanel(style = "background:AliceBlue",
                             h4(HTML("<b>Benign/Likely Benign (B/LB) genes</b>"), style = "color:black"),
                             fluidRow(
-                              column(width = 3,
-                                     h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3, 
-                                     h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3,
-                                     h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
-                              column(width = 3,
-                                     h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                              ),
+                              conditionalPanel("output.BLBHeader",
+                                column(width = 3,
+                                       h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3, 
+                                       h5(HTML("<b>Variants</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3,
+                                       h5(HTML("<b>Proteins</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                ),
+                                column(width = 3,
+                                       h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+                                )
+                              )
                             ),
-                            uiOutput("blbGeneInfo"),
+                            
+                            # BLB gene modules will be added here
+                            tags$div(
+                              id = "geneBLBContainer",
+                              style = "width:100%"
+                            ),
+                            
+                            # add a new BLB gene module
                             actionButton("addBLB", label = "Add B/LB Gene",
                                          icon = icon('plus'),
-                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                            actionButton("removeBLB", label = "Remove Last BLB Gene",
-                                         icon = icon('trash'),
                                          style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
                           )
                         )
@@ -1108,20 +1112,19 @@ server <- function(input, output, session) {
   
   #### Genes ####
   
-  # create storage for each result type and for the genes in the selected panel
-  geneReactive <- reactiveValues(plp.df = gene.inputs.store,
-                                 vus.df = gene.inputs.store,
-                                 blb.df = gene.inputs.store,
+  # save the number of genes for each person, by result type
+  # also store the list of genes in the currently selected panel
+  geneReactive <- reactiveValues(PLPNums = setNames(rep(0,3), 1:3),
+                                 VUSNums = setNames(rep(0,3), 1:3),
+                                 BLBNums = setNames(rep(0,3), 1:3),
                                  panel.genes = as.character())
+  
   
   ##### Panel ####
   
   ### existing panel
   # reset storage contains when the panel changes
   observeEvent(input$existingPanels, {
-    geneReactive$plp.df <- gene.inputs.store
-    geneReactive$vus.df <- gene.inputs.store
-    geneReactive$blb.df <- gene.inputs.store
     geneReactive$panel.genes <- all.panels[[input$existingPanels]]
   }, ignoreInit = TRUE)
   
@@ -1129,771 +1132,398 @@ server <- function(input, output, session) {
   ### create new panel (PLACEHOLDER)
   
   
-  ##### UI ####
-  
-  ## count number of genes by result type
-  # PLP
-  PLPCnt <- reactiveVal(1)
-  observeEvent(input$addPLP, {
-    PLPCnt(PLPCnt()+1)
-  })
-  observeEvent(input$removePLP, {
-    if(PLPCnt() > 0){
-      
-      # update count
-      PLPCnt(PLPCnt()-1)
-      
-      # remove UIs from memory to prevent duplication if they are recreated
-      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-      remove_shiny_inputs(id = paste0("#PLPGene",PLPCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#PLPVarInfo",PLPCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#PLPProtInfo",PLPCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#PLPZygInfo",PLPCnt()+1), input)
-    }
-  })
-  
-  # VUS
-  VUSCnt <- reactiveVal(1)
-  observeEvent(input$addVUS, {
-    VUSCnt(VUSCnt()+1)
-  })
-  observeEvent(input$removeVUS, {
-    if(VUSCnt() > 0){
-      
-      # update count
-      VUSCnt(VUSCnt()-1)
-      
-      # remove UIs from memory to prevent duplication if they are recreated
-      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-      remove_shiny_inputs(id = paste0("#VUSGene",VUSCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#VUSVarInfo",VUSCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#VUSProtInfo",VUSCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#VUSZygInfo",VUSCnt()+1), input)
-    }
-  })
-  
-  # BLB
-  BLBCnt <- reactiveVal(1)
-  observeEvent(input$addBLB, {
-    BLBCnt(BLBCnt()+1)
-  })
-  observeEvent(input$removeBLB, {
-    if(BLBCnt() > 0){
-      
-      # update count
-      BLBCnt(BLBCnt()-1)
-      
-      # remove UIs from memory to prevent duplication if they are recreated
-      # see https://appsilon.com/how-to-safely-remove-a-dynamic-shiny-module/
-      remove_shiny_inputs(id = paste0("#BLBGene",BLBCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#BLBVarInfo",BLBCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#BLBProtInfo",BLBCnt()+1), input)
-      remove_shiny_inputs(id = paste0("#BLBZygInfo",BLBCnt()+1), input)
-    }
-  })
-  
-  ## dynamic data inputs for each gene by result type
-  # PLP
-  output$plpGeneInfo <- renderUI({
-      lapply(if(PLPCnt() > 0){1:PLPCnt()}else{1}, function(plpNum){
-        fluidRow(
-          column(width = 3,
-                 div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
-                     selectInput(paste0('PLPGene', plpNum),
-                                 label = NULL, 
-                                 choices = c("", geneReactive$panel.genes),
-                                 selected = "",
-                                 width = "125px")
-                     
-                 )
-          ),
-          conditionalPanel(paste0("input.PLPGene", plpNum, " != ''"),
-            column(width = 3,
-                   div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                       selectizeInput(paste0('PLPVarInfo', plpNum), 
-                                      label = NULL,
-                                      choices = "", 
-                                      selected = "",
-                                      multiple = TRUE, 
-                                      options = list(create=TRUE),
-                                      width = "130px")
-                   )
-            ),
-            column(width = 3,
-                   div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                       selectizeInput(paste0('PLPProtInfo', plpNum),
-                                      label = NULL,
-                                      choices = "",
-                                      selected = "",
-                                      multiple = TRUE,
-                                      options = list(create=TRUE),
-                                      width = "130px")
-                   )
-            ),
-            column(width = 3,
-                   div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
-                       selectInput(paste0('PLPZygInfo', plpNum),
-                                   label = NULL,
-                                   choices = zyg.choices,
-                                   selected = "Unk",
-                                   width = "100px")
-                   )
-            )
-          )
-        )
-      })
-  })
-  
-  # VUS
-  output$vusGeneInfo <- renderUI({
-    lapply(if(VUSCnt() > 0){1:VUSCnt()}else{1}, function(vusNum){
-      fluidRow(
-        column(width = 3,
-               div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
-                   selectInput(paste0('VUSGene', vusNum),
-                               label = NULL, 
-                               choices = c("", geneReactive$panel.genes),
-                               selected = "",
-                               width = "125px")
-                   
-               )
-        ),
-        conditionalPanel(paste0("input.VUSGene", vusNum, " != ''"),
-                         column(width = 3,
-                                div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('VUSVarInfo', vusNum), 
-                                                   label = NULL,
-                                                   choices = "", 
-                                                   selected = "",
-                                                   multiple = TRUE, 
-                                                   options = list(create=TRUE),
-                                                   width = "130px")
-                                )
-                         ),
-                         column(width = 3,
-                                div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('VUSProtInfo', vusNum),
-                                                   label = NULL,
-                                                   choices = "",
-                                                   selected = "",
-                                                   multiple = TRUE,
-                                                   options = list(create=TRUE),
-                                                   width = "130px")
-                                )
-                         ),
-                         column(width = 3,
-                                div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
-                                    selectInput(paste0('VUSZygInfo', vusNum),
-                                                label = NULL,
-                                                choices = zyg.choices,
-                                                selected = "Unk",
-                                                width = "100px")
-                                )
-                         )
-        )
-      )
-    })
-  })
-  
-  # BLB
-  output$blbGeneInfo <- renderUI({
-    lapply(if(BLBCnt() > 0){1:BLBCnt()}else{1}, function(blbNum){
-      fluidRow(
-        column(width = 3,
-               div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
-                   selectInput(paste0('BLBGene', blbNum),
-                               label = NULL, 
-                               choices = c("", geneReactive$panel.genes),
-                               selected = "",
-                               width = "125px")
-                   
-               )
-        ),
-        conditionalPanel(paste0("input.BLBGene", blbNum, " != ''"),
-                         column(width = 3,
-                                div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('BLBVarInfo', blbNum), 
-                                                   label = NULL,
-                                                   choices = "", 
-                                                   selected = "",
-                                                   multiple = TRUE, 
-                                                   options = list(create=TRUE),
-                                                   width = "130px")
-                                )
-                         ),
-                         column(width = 3,
-                                div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                                    selectizeInput(paste0('BLBProtInfo', blbNum),
-                                                   label = NULL,
-                                                   choices = "",
-                                                   selected = "",
-                                                   multiple = TRUE,
-                                                   options = list(create=TRUE),
-                                                   width = "130px")
-                                )
-                         ),
-                         column(width = 3,
-                                div(style = "margin-left:-25px;margin-right:-50px;margin-top:0px;margin-bottom:-10px",
-                                    selectInput(paste0('BLBZygInfo', blbNum),
-                                                label = NULL,
-                                                choices = zyg.choices,
-                                                selected = "Unk",
-                                                width = "100px")
-                                )
-                         )
-        )
-      )
-    })
-  })
-  
-  ## check for gene duplicate entries
-  # PLP
-  dupPLP <- reactiveVal(FALSE)
-  observeEvent(geneReactive$plp.df, {
-    gs <- geneReactive$plp.df$Gene[which(geneReactive$plp.df$Gene != "")]
-    if(length(gs) > 1){
-      if(any(table(gs) > 1)){
-        dupPLP(TRUE)
-      } else {
-        dupPLP(FALSE)
-      }
-    }
-  }, ignoreInit = TRUE)
-  output$dupPLP <- reactive({ dupPLP() })
-  outputOptions(output, 'dupPLP', suspendWhenHidden = FALSE)
-  
-  # VUS
-  dupVUS <- reactiveVal(FALSE)
-  observeEvent(geneReactive$vus.df, {
-    gs <- geneReactive$vus.df$Gene[which(geneReactive$vus.df$Gene != "")]
-    if(length(gs) > 1){
-      if(any(table(gs) > 1)){
-        dupVUS(TRUE)
-      } else {
-        dupVUS(FALSE)
-      }
-    }
-  }, ignoreInit = TRUE)
-  output$dupVUS <- reactive({ dupVUS() })
-  outputOptions(output, 'dupVUS', suspendWhenHidden = FALSE)
-  
-  # BLB
-  dupBLB <- reactiveVal(FALSE)
-  observeEvent(geneReactive$blb.df, {
-    gs <- geneReactive$blb.df$Gene[which(geneReactive$blb.df$Gene != "")]
-    if(length(gs) > 1){
-      if(any(table(gs) > 1)){
-        dupBLB(TRUE)
-      } else {
-        dupBLB(FALSE)
-      }
-    }
-  }, ignoreInit = TRUE)
-  output$dupBLB <- reactive({ dupBLB() })
-  outputOptions(output, 'dupBLB', suspendWhenHidden = FALSE)
-  
-  # warn user if a gene is listed in more than one result category (possible, but rare)
-  dupResultGene <- reactiveVal(FALSE)
-  observeEvent(list(geneReactive$plp.df, geneReactive$vus.df$Gene, geneReactive$blb.df$Gene), {
-    plp.g <- setdiff(geneReactive$plp.df$Gene, "")
-    vus.g <- setdiff(geneReactive$vus.df$Gene, "")
-    blb.g <- setdiff(geneReactive$blb.df$Gene, "")
-    
-    # if a gene is double listed in more than one result category, then warn the user
-    if(any(length(intersect(plp.g, vus.g)) > 0,
-           length(intersect(plp.g, blb.g)) > 0,
-           length(intersect(vus.g, blb.g)) > 0)){
-      dupResultGene(TRUE)
+  ##### PLP Genes ####
+  # add PLP input header/labels when at least one PLP gene module exists
+  PLPHeader <- reactiveVal(FALSE)
+  observeEvent(geneReactive$PLPNums, {
+    if(geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] > 0){
+      PLPHeader(TRUE)
     } else {
-      dupResultGene(FALSE)
+      PLPHeader(FALSE)
     }
-  }, ignoreInit = TRUE)
-  output$dupResultGene <- reactive({ dupResultGene() })
-  outputOptions(output, 'dupResultGene', suspendWhenHidden = FALSE)
+  })
+  output$PLPHeader <- reactive({ PLPHeader() })
+  outputOptions(output, 'PLPHeader', suspendWhenHidden = FALSE)
   
-  
-  # panel summary table
-  panelSum <- reactive({
-    tmp.plp <- 
-      geneReactive$plp.df[which(geneReactive$plp.df$Gene != ""),] %>%
-      mutate(Result = "P/LP", .after = "Gene") %>%
-      arrange(Gene)
-    tmp.vus <- 
-      geneReactive$vus.df[which(geneReactive$vus.df$Gene != ""),] %>%
-      mutate(Result = "VUS", .after = "Gene") %>%
-      arrange(Gene)
-    tmp.blb <- 
-      geneReactive$blb.df[which(geneReactive$blb.df$Gene != ""),] %>%
-      mutate(Result = "B/LB", .after = "Gene") %>%
-      arrange(Gene)
+  # add a PLP gene UI module on button click and advance the module counter
+  observeEvent(input$addPLP, {
     
-    # genes not listed in a result category are assumed negative
-    neg.g <- setdiff(geneReactive$panel.genes, c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene))
-    tmp.neg <- data.frame(Gene = neg.g,
-                          Result = rep("Neg", length(neg.g)),
-                          Variants = rep("", length(neg.g)),
-                          Proteins = rep("", length(neg.g)),
-                          Zygosity = rep("", length(neg.g)))
+    # increase this person's count of cancer input modules by 1
+    geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] <- 
+      geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] + 1
+    PLPNum <- geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]
     
-    # combine all result types
-    sum.df <- 
-      tmp.plp %>%
-      bind_rows(tmp.vus) %>%
-      bind_rows(tmp.blb) %>%
-      bind_rows(tmp.neg) 
-    
-    # ensure genes with multiple result types are stacked in the summary
-    if(dupResultGene()){
-      all.results <- c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene)
-      results.tbl <- table(all.results)
-      dups <- names(results.tbl)[which(results.tbl > 1)]
-      for(d in 1:length(dups)){
-        d.rows <- which(sum.df$Gene == dups[d])
-        move.rows <- d.rows[2:length(d.rows)]
-        other.rows <- setdiff(1:nrow(sum.df), c(1:d.rows[1], move.rows))
-        sum.df <- sum.df[c(1:(d.rows[1]), move.rows, other.rows),]
+    # create the unique module ID and insert the UI module
+    id <- paste0("rel", input$relSelect, "PLPgeneModule", PLPNum)
+    insertUI(
+      selector = "#genePLPContainer",
+      where = "beforeEnd",
+      ui = geneUI(id = id, rel = reactive(input$relSelect),
+                  panel.genes = reactive(geneReactive$panel.genes))
+    )
+
+    ### Gene UI Remove Observer
+    # create a remove module button observer for each UI module created
+    observeEvent(input[[paste0(id, '-removeGene')]], {
+
+      ## re-add deleted gene choice to dropdown choices of this person's other gene modules
+      # get all of the genes currently selected
+      genes.selected <- as.character()
+      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]] != "" &
+           input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]] != input[[paste0(id, '-Gene')]]){
+          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+        }
       }
-    }
-    sum.df
+
+      # update all PLP gene choices
+      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
+        
+        # get PLP gene dropdown choices available for this PLP gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene'),
+                          choices = genes.avail,
+                          selected = input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+      }
+      
+      ## delete the module and UI
+      # remove the module from the UI
+      removeUI(selector = paste0("#geneSubContainer",id))
+      
+      # remove the module's inputs from memory
+      remove_shiny_inputs(id, input)
+      
+      ## decrease the PLP gene count for this person by 1
+      if(geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] > 0){
+        geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] <-
+          geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] - 1
+      }
+    })
+    
+    ## create a PLP gene selection observer which will trigger an update of all of the PLP gene dropdown
+    ## choices for each of the person's PLP gene UI modules
+    observeEvent(input[[paste0(id, '-Gene')]], {
+      
+      # get all of the PLP genes currently selected across this person's PLP gene UI modules
+      genes.selected <- as.character()
+      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]] != ""){
+          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+        }
+      }
+      
+      # update each of this person's PLP gene UI module PLP gene choice dropdowns to exclude the newly selected PLP gene
+      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
+        
+        # get PLP gene dropdown choices available for this PLP gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene'),
+                          choices = genes.avail,
+                          selected = input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+      }
+    })
+    
   })
   
-  # output formatted data table colored by result type
-  output$panelSum <- renderDataTable({
-    datatable(panelSum()) %>%
-      formatStyle('Result',
-                  backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
-                                               c("MistyRose","LightGreen","AliceBlue","white")),
-                  fontWeight = 'bold')
+  ##### VUS Genes ####
+  # add VUS input header/labels when at least one VUS gene module exists
+  VUSHeader <- reactiveVal(FALSE)
+  observeEvent(geneReactive$VUSNums, {
+    if(geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)] > 0){
+      VUSHeader(TRUE)
+    } else {
+      VUSHeader(FALSE)
+    }
   })
+  output$VUSHeader <- reactive({ VUSHeader() })
+  outputOptions(output, 'VUSHeader', suspendWhenHidden = FALSE)
+  
+  # add a VUS gene UI module on button click and advance the module counter
+  observeEvent(input$addVUS, {
+    
+    # increase this person's count of cancer input modules by 1
+    geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)] <- 
+      geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)] + 1
+    VUSNum <- geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)]
+    
+    # create the unique module ID and insert the UI module
+    id <- paste0("rel", input$relSelect, "VUSgeneModule", VUSNum)
+    insertUI(
+      selector = "#geneVUSContainer",
+      where = "beforeEnd",
+      ui = geneUI(id = id, rel = reactive(input$relSelect),
+                  panel.genes = reactive(geneReactive$panel.genes))
+    )
+    
+    ### Gene UI Remove Observer
+    # create a remove module button observer for each UI module created
+    observeEvent(input[[paste0(id, '-removeGene')]], {
+      
+      ## re-add deleted gene choice to dropdown choices of this person's other gene modules
+      # get all of the genes currently selected
+      genes.selected <- as.character()
+      for(gn in 1:geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]] != "" &
+           input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]] != input[[paste0(id, '-Gene')]]){
+          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]])
+        }
+      }
+      
+      # update all VUS gene choices
+      for(gn in 1:geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)]){
+        
+        # get VUS gene dropdown choices available for this VUS gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene'),
+                          choices = genes.avail,
+                          selected = input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]])
+      }
+      
+      ## delete the module and UI
+      # remove the module from the UI
+      removeUI(selector = paste0("#geneSubContainer",id))
+      
+      # remove the module's inputs from memory
+      remove_shiny_inputs(id, input)
+      
+      ## decrease the VUS gene count for this person by 1
+      if(geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)] > 0){
+        geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)] <-
+          geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)] - 1
+      }
+    })
+    
+    ## create a VUS gene selection observer which will trigger an update of all of the VUS gene dropdown
+    ## choices for each of the person's VUS gene UI modules
+    observeEvent(input[[paste0(id, '-Gene')]], {
+      
+      # get all of the VUS genes currently selected across this person's VUS gene UI modules
+      genes.selected <- as.character()
+      for(gn in 1:geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]] != ""){
+          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]])
+        }
+      }
+      
+      # update each of this person's VUS gene UI module VUS gene choice dropdowns to exclude the newly selected VUS gene
+      for(gn in 1:geneReactive$VUSNums[which(names(geneReactive$VUSNums) == input$relSelect)]){
+        
+        # get VUS gene dropdown choices available for this VUS gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene'),
+                          choices = genes.avail,
+                          selected = input[[paste0("rel", input$relSelect, "VUSgeneModule", gn, '-Gene')]])
+      }
+    })
+    
+  })
+  
+  ##### BLB Genes ####
+  # add BLB input header/labels when at least one BLB gene module exists
+  BLBHeader <- reactiveVal(FALSE)
+  observeEvent(geneReactive$BLBNums, {
+    if(geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)] > 0){
+      BLBHeader(TRUE)
+    } else {
+      BLBHeader(FALSE)
+    }
+  })
+  output$BLBHeader <- reactive({ BLBHeader() })
+  outputOptions(output, 'BLBHeader', suspendWhenHidden = FALSE)
+  
+  # add a BLB gene UI module on button click and advance the module counter
+  observeEvent(input$addBLB, {
+    
+    # increase this person's count of cancer input modules by 1
+    geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)] <- 
+      geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)] + 1
+    BLBNum <- geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)]
+    
+    # create the unique module ID and insert the UI module
+    id <- paste0("rel", input$relSelect, "BLBgeneModule", BLBNum)
+    insertUI(
+      selector = "#geneBLBContainer",
+      where = "beforeEnd",
+      ui = geneUI(id = id, rel = reactive(input$relSelect),
+                  panel.genes = reactive(geneReactive$panel.genes))
+    )
+    
+    ### Gene UI Remove Observer
+    # create a remove module button observer for each UI module created
+    observeEvent(input[[paste0(id, '-removeGene')]], {
+      
+      ## re-add deleted gene choice to dropdown choices of this person's other gene modules
+      # get all of the genes currently selected
+      genes.selected <- as.character()
+      for(gn in 1:geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]] != "" &
+           input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]] != input[[paste0(id, '-Gene')]]){
+          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]])
+        }
+      }
+      
+      # update all BLB gene choices
+      for(gn in 1:geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)]){
+        
+        # get BLB gene dropdown choices available for this BLB gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene'),
+                          choices = genes.avail,
+                          selected = input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]])
+      }
+      
+      ## delete the module and UI
+      # remove the module from the UI
+      removeUI(selector = paste0("#geneSubContainer",id))
+      
+      # remove the module's inputs from memory
+      remove_shiny_inputs(id, input)
+      
+      ## decrease the BLB gene count for this person by 1
+      if(geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)] > 0){
+        geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)] <-
+          geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)] - 1
+      }
+    })
+    
+    ## create a BLB gene selection observer which will trigger an update of all of the BLB gene dropdown
+    ## choices for each of the person's BLB gene UI modules
+    observeEvent(input[[paste0(id, '-Gene')]], {
+      
+      # get all of the BLB genes currently selected across this person's BLB gene UI modules
+      genes.selected <- as.character()
+      for(gn in 1:geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)]){
+        if(input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]] != ""){
+          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]])
+        }
+      }
+      
+      # update each of this person's BLB gene UI module BLB gene choice dropdowns to exclude the newly selected BLB gene
+      for(gn in 1:geneReactive$BLBNums[which(names(geneReactive$BLBNums) == input$relSelect)]){
+        
+        # get BLB gene dropdown choices available for this BLB gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene'),
+                          choices = genes.avail,
+                          selected = input[[paste0("rel", input$relSelect, "BLBgeneModule", gn, '-Gene')]])
+      }
+    })
+    
+  })
+  
+  ##### Summary Table ####
+  
+  # # warn user if a gene is listed in more than one result category (possible, but rare)
+  # dupResultGene <- reactiveVal(FALSE)
+  # observeEvent(list(geneReactive$plp.df, geneReactive$vus.df$Gene, geneReactive$blb.df$Gene), {
+  #   plp.g <- setdiff(geneReactive$plp.df$Gene, "")
+  #   vus.g <- setdiff(geneReactive$vus.df$Gene, "")
+  #   blb.g <- setdiff(geneReactive$blb.df$Gene, "")
+  #   
+  #   # if a gene is double listed in more than one result category, then warn the user
+  #   if(any(length(intersect(plp.g, vus.g)) > 0,
+  #          length(intersect(plp.g, blb.g)) > 0,
+  #          length(intersect(vus.g, blb.g)) > 0)){
+  #     dupResultGene(TRUE)
+  #   } else {
+  #     dupResultGene(FALSE)
+  #   }
+  # }, ignoreInit = TRUE)
+  # output$dupResultGene <- reactive({ dupResultGene() })
+  # outputOptions(output, 'dupResultGene', suspendWhenHidden = FALSE)
+  
+  
+  # # panel summary table
+  # panelSum <- reactive({
+  #   tmp.plp <- 
+  #     geneReactive$plp.df[which(geneReactive$plp.df$Gene != ""),] %>%
+  #     mutate(Result = "P/LP", .after = "Gene") %>%
+  #     arrange(Gene)
+  #   tmp.vus <- 
+  #     geneReactive$vus.df[which(geneReactive$vus.df$Gene != ""),] %>%
+  #     mutate(Result = "VUS", .after = "Gene") %>%
+  #     arrange(Gene)
+  #   tmp.blb <- 
+  #     geneReactive$blb.df[which(geneReactive$blb.df$Gene != ""),] %>%
+  #     mutate(Result = "B/LB", .after = "Gene") %>%
+  #     arrange(Gene)
+  #   
+  #   # genes not listed in a result category are assumed negative
+  #   neg.g <- setdiff(geneReactive$panel.genes, c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene))
+  #   tmp.neg <- data.frame(Gene = neg.g,
+  #                         Result = rep("Neg", length(neg.g)),
+  #                         Variants = rep("", length(neg.g)),
+  #                         Proteins = rep("", length(neg.g)),
+  #                         Zygosity = rep("", length(neg.g)))
+  #   
+  #   # combine all result types
+  #   sum.df <- 
+  #     tmp.plp %>%
+  #     bind_rows(tmp.vus) %>%
+  #     bind_rows(tmp.blb) %>%
+  #     bind_rows(tmp.neg) 
+  #   
+  #   # ensure genes with multiple result types are stacked in the summary
+  #   if(dupResultGene()){
+  #     all.results <- c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene)
+  #     results.tbl <- table(all.results)
+  #     dups <- names(results.tbl)[which(results.tbl > 1)]
+  #     for(d in 1:length(dups)){
+  #       d.rows <- which(sum.df$Gene == dups[d])
+  #       move.rows <- d.rows[2:length(d.rows)]
+  #       other.rows <- setdiff(1:nrow(sum.df), c(1:d.rows[1], move.rows))
+  #       sum.df <- sum.df[c(1:(d.rows[1]), move.rows, other.rows),]
+  #     }
+  #   }
+  #   sum.df
+  # })
+  
+  # # output formatted data table colored by result type
+  # output$panelSum <- renderDataTable({
+  #   datatable(panelSum()) %>%
+  #     formatStyle('Result',
+  #                 backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
+  #                                              c("MistyRose","LightGreen","AliceBlue","white")),
+  #                 fontWeight = 'bold')
+  # })
   
   
   ##### Storage ####
   
-  ## store gene names in the order they are entered
-  # PLP
-  observe(
-    lapply(1:PLPCnt(), 
-           function(plpc){
-             observeEvent(input[[paste0("PLPGene",plpc)]], {
-               if(input[[paste0("PLPGene",plpc)]] != ""){
-                 geneReactive$plp.df$Gene[plpc] <- input[[paste0("PLPGene",plpc)]]
-               }
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # VUS
-  observe(
-    lapply(1:VUSCnt(), 
-           function(vusc){
-             observeEvent(input[[paste0("VUSGene",vusc)]], {
-               if(input[[paste0("VUSGene",vusc)]] != ""){
-                 geneReactive$vus.df$Gene[vusc] <- input[[paste0("VUSGene",vusc)]]
-               }
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # BLB
-  observe(
-    lapply(1:BLBCnt(), 
-           function(blbc){
-             observeEvent(input[[paste0("BLBGene",blbc)]], {
-               if(input[[paste0("BLBGene",blbc)]] != ""){
-                 geneReactive$blb.df$Gene[blbc] <- input[[paste0("BLBGene",blbc)]]
-               }
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  ## store variants in the order they are entered
-  # PLP
-  observe(
-    lapply(1:PLPCnt(), 
-           function(plpc){
-             observeEvent(input[[paste0("PLPVarInfo",plpc)]], {
-               geneReactive$plp.df$Variants[plpc] <- paste0(input[[paste0("PLPVarInfo",plpc)]], collapse = ", ")
-             }, ignoreInit = TRUE, ignoreNULL = FALSE)
-           }
-    )
-  )
-  
-  # VUS
-  observe(
-    lapply(1:VUSCnt(), 
-           function(vusc){
-             observeEvent(input[[paste0("VUSVarInfo",vusc)]], {
-               geneReactive$vus.df$Variants[vusc] <- paste0(input[[paste0("VUSVarInfo",vusc)]], collapse = ", ")
-             }, ignoreInit = TRUE, ignoreNULL = FALSE)
-           }
-    )
-  )
-  
-  # BLB
-  observe(
-    lapply(1:BLBCnt(), 
-           function(blbc){
-             observeEvent(input[[paste0("BLBVarInfo",blbc)]], {
-               geneReactive$blb.df$Variants[blbc] <- paste0(input[[paste0("BLBVarInfo",blbc)]], collapse = ", ")
-             }, ignoreInit = TRUE, ignoreNULL = FALSE)
-           }
-    )
-  )
-  
-  ## store proteins in the order they are entered
-  # PLP
-  observe(
-    lapply(1:PLPCnt(), 
-           function(plpc){
-             observeEvent(input[[paste0("PLPProtInfo",plpc)]], {
-               geneReactive$plp.df$Proteins[plpc] <- paste0(input[[paste0("PLPProtInfo",plpc)]], collapse = ", ")
-             }, ignoreInit = TRUE, ignoreNULL = FALSE)
-           }
-    )
-  )
-  
-  # VUS
-  observe(
-    lapply(1:VUSCnt(), 
-           function(vusc){
-             observeEvent(input[[paste0("VUSProtInfo",vusc)]], {
-               geneReactive$vus.df$Proteins[vusc] <- paste0(input[[paste0("VUSProtInfo",vusc)]], collapse = ", ")
-             }, ignoreInit = TRUE, ignoreNULL = FALSE)
-           }
-    )
-  )
-  
-  # BLB
-  observe(
-    lapply(1:BLBCnt(), 
-           function(blbc){
-             observeEvent(input[[paste0("BLBProtInfo",blbc)]], {
-               geneReactive$blb.df$Proteins[blbc] <- paste0(input[[paste0("BLBProtInfo",blbc)]], collapse = ", ")
-             }, ignoreInit = TRUE, ignoreNULL = FALSE)
-           }
-    )
-  )
-  
-  ## store homo/hetero in the order they are entered
-  # PLP
-  observe(
-    lapply(1:PLPCnt(), 
-           function(plpc){
-             observeEvent(input[[paste0("PLPZygInfo",plpc)]], {
-               geneReactive$plp.df$Zygosity[plpc] <- input[[paste0("PLPZygInfo",plpc)]]
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # VUS
-  observe(
-    lapply(1:VUSCnt(), 
-           function(vusc){
-             observeEvent(input[[paste0("VUSZygInfo",vusc)]], {
-               geneReactive$vus.df$Zygosity[vusc] <- input[[paste0("VUSZygInfo",vusc)]]
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  # BLB
-  observe(
-    lapply(1:BLBCnt(), 
-           function(blbc){
-             observeEvent(input[[paste0("BLBZygInfo",blbc)]], {
-               geneReactive$blb.df$Zygosity[blbc] <- input[[paste0("BLBZygInfo",blbc)]]
-             }, ignoreInit = TRUE)
-           }
-    )
-  )
-  
-  ## repopulate gene inputs when a gene is added or deleted and remove previously selected genes from dropdown choices
-  # PLP
-  observeEvent(list(input$addPLP, input$removePLP, geneReactive$plp.df), {
-    unselected.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
-                                                      setdiff(geneReactive$plp.df$Gene[1:PLPCnt()], ""))]
-    if(PLPCnt() > 0){
-      for(plpc in 1:PLPCnt()){
-        
-        # genes
-        if(length(unselected.choices) > 0){
-          u.choices <- unique(c(unselected.choices, input[[paste0("PLPGene", plpc)]]))
-          u.choices <- geneReactive$panel.genes[which(geneReactive$panel.genes %in% u.choices)] # keep the order consistent
-        } else {
-          u.choices <- geneReactive$panel.genes
-        }
-        updateSelectInput(session, paste0("PLPGene",plpc), selected = geneReactive$plp.df$Gene[plpc], choices = u.choices)
-        
-        # variant/protein
-        if(geneReactive$plp.df$Gene[plpc] != ""){
-          tmp.var.prot <-
-            strsplit(c(geneReactive$plp.df$Variants[plpc],
-                       geneReactive$plp.df$Proteins[plpc]),
-                     split = ", ")
-
-          # replace missing variant/protein values with blank
-          for(el in 1:length(tmp.var.prot)){
-            if(length(tmp.var.prot[[el]]) == 0){
-              tmp.var.prot[[el]] <- ""
-            }
-          }
-        } else {
-          tmp.var.prot <- list("","")
-        }
-
-        updateSelectInput(session, paste0("PLPVarInfo",plpc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
-        updateSelectInput(session, paste0("PLPProtInfo",plpc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
-        
-        # homo/hetero
-        updateSelectInput(session, paste0("PLPZygInfo",plpc), selected = geneReactive$plp.df$Zygosity[plpc])
-      }
-    }
-  }, ignoreInit = TRUE)
-  
-  # VUS
-  observeEvent(list(input$addVUS, input$removeVUS, geneReactive$vus.df), {
-    unselected.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
-                                                           setdiff(geneReactive$vus.df$Gene[1:VUSCnt()], ""))]
-    if(VUSCnt() > 0){
-      for(vusc in 1:VUSCnt()){
-        
-        # genes
-        if(length(unselected.choices) > 0){
-          u.choices <- unique(c(unselected.choices, input[[paste0("VUSGene", vusc)]]))
-          u.choices <- geneReactive$panel.genes[which(geneReactive$panel.genes %in% u.choices)] # keep the order consistent
-        } else {
-          u.choices <- geneReactive$panel.genes
-        }
-        updateSelectInput(session, paste0("VUSGene",vusc), selected = geneReactive$vus.df$Gene[vusc], choices = u.choices)
-        
-        # variant/protein
-        if(geneReactive$vus.df$Gene[vusc] != ""){
-          tmp.var.prot <-
-            strsplit(c(geneReactive$vus.df$Variants[vusc],
-                       geneReactive$vus.df$Proteins[vusc]),
-                     split = ", ")
-          
-          # replace missing variant/protein values with blank
-          for(el in 1:length(tmp.var.prot)){
-            if(length(tmp.var.prot[[el]]) == 0){
-              tmp.var.prot[[el]] <- ""
-            }
-          }
-        } else {
-          tmp.var.prot <- list("","")
-        }
-        
-        updateSelectInput(session, paste0("VUSVarInfo",vusc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
-        updateSelectInput(session, paste0("VUSProtInfo",vusc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
-        
-        # homo/hetero
-        updateSelectInput(session, paste0("VUSZygInfo",vusc), selected = geneReactive$vus.df$Zygosity[vusc])
-      }
-    }
-  }, ignoreInit = TRUE)
-  
-  # BLB
-  observeEvent(list(input$addBLB, input$removeBLB, geneReactive$blb.df), {
-    unselected.choices <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% 
-                                                           setdiff(geneReactive$blb.df$Gene[1:BLBCnt()], ""))]
-    if(BLBCnt() > 0){
-      for(blbc in 1:BLBCnt()){
-        
-        # genes
-        if(length(unselected.choices) > 0){
-          u.choices <- unique(c(unselected.choices, input[[paste0("BLBGene", blbc)]]))
-          u.choices <- geneReactive$panel.genes[which(geneReactive$panel.genes %in% u.choices)] # keep the order consistent
-        } else {
-          u.choices <- geneReactive$panel.genes
-        }
-        updateSelectInput(session, paste0("BLBGene",blbc), selected = geneReactive$blb.df$Gene[blbc], choices = u.choices)
-        
-        # variant/protein
-        if(geneReactive$blb.df$Gene[blbc] != ""){
-          tmp.var.prot <-
-            strsplit(c(geneReactive$blb.df$Variants[blbc],
-                       geneReactive$blb.df$Proteins[blbc]),
-                     split = ", ")
-          
-          # replace missing variant/protein values with blank
-          for(el in 1:length(tmp.var.prot)){
-            if(length(tmp.var.prot[[el]]) == 0){
-              tmp.var.prot[[el]] <- ""
-            }
-          }
-        } else {
-          tmp.var.prot <- list("","")
-        }
-        
-        updateSelectInput(session, paste0("BLBVarInfo",blbc), selected = tmp.var.prot[[1]], choices = tmp.var.prot[[1]])
-        updateSelectInput(session, paste0("BLBProtInfo",blbc), selected = tmp.var.prot[[2]], choices = tmp.var.prot[[2]])
-        
-        # homo/hetero
-        updateSelectInput(session, paste0("BLBZygInfo",blbc), selected = geneReactive$blb.df$Zygosity[blbc])
-      }
-    }
-  }, ignoreInit = TRUE)
-  
-  ## remove gene from temporary storage when the input is deleted
-  # PLP
-  observeEvent(input$removePLP, {
-    geneReactive$plp.df$Gene[PLPCnt()+1] <- ""
-    geneReactive$plp.df$Variants[PLPCnt()+1] <- ""
-    geneReactive$plp.df$Proteins[PLPCnt()+1]  <- ""
-    geneReactive$plp.df$Zygosity[PLPCnt()+1]  <- "Unk"
-  }, ignoreInit = TRUE)
-  
-  # VUS
-  observeEvent(input$removeVUS, {
-    geneReactive$vus.df$Gene[VUSCnt()+1] <- ""
-    geneReactive$vus.df$Variants[VUSCnt()+1] <- ""
-    geneReactive$vus.df$Proteins[VUSCnt()+1]  <- ""
-    geneReactive$vus.df$Zygosity[VUSCnt()+1]  <- "Unk"
-  }, ignoreInit = TRUE)
-  
-  # BLB
-  observeEvent(input$removeBLB, {
-    geneReactive$blb.df$Gene[BLBCnt()+1] <- ""
-    geneReactive$blb.df$Variants[BLBCnt()+1] <- ""
-    geneReactive$blb.df$Proteins[BLBCnt()+1]  <- ""
-    geneReactive$blb.df$Zygosity[BLBCnt()+1]  <- "Unk"
-  }, ignoreInit = TRUE)
-  
-  ### store variant/protein/homo-hetero information by result type
-  # PLP
-  observe(
-    if(length(input$PLPGenes) > 0 & !(all(input$PLPGenes == ""))){
-      lapply(1:length(input$PLPGenes),
-             function(plpNum){
-               plp.g.name <- input$PLPGenes[plpNum]
-               
-               # variants: store variants as one string
-               observeEvent(input[[paste0('PLPVarInfo', plpNum)]], {
-                 if(is.null(input[[paste0('PLPVarInfo', plpNum)]])){
-                   tmp.var <- ""
-                 } else {
-                   tmp.var <- input[[paste0('PLPVarInfo', plpNum)]]
-                 }
-                 geneReactive$plp.df$Variants[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
-                   paste0(unique(tmp.var), collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-               
-               # proteins: store proteins as one string
-               observeEvent(input[[paste0('PLPProtInfo', plpNum)]], {
-                 if(is.null(input[[paste0('PLPProtInfo', plpNum)]])){
-                   tmp.prot <- ""
-                 } else {
-                   tmp.prot <- input[[paste0('PLPProtInfo', plpNum)]]
-                 }
-                 geneReactive$plp.df$Proteins[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
-                   paste0(unique(tmp.prot), collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-               
-               # homo/hetero
-               observeEvent(input[[paste0('PLPZygInfo', plpNum)]], {
-                 geneReactive$plp.df$Zygosity[which(geneReactive$plp.df$Gene == plp.g.name & geneReactive$plp.df$Result == 1)] <- 
-                   paste0(input[[paste0('PLPZygInfo', plpNum)]], collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-             })
-    }
-  )
-  
-  # VUS
-  observe(
-    if(length(input$VUSGenes) > 0 & !(all(input$VUSGenes == ""))){
-      lapply(1:length(input$VUSGenes),
-             function(vusNum){
-               vus.g.name <- input$VUSGenes[vusNum]
-               
-               # variants: store variants as one string
-               observeEvent(input[[paste0('VUSVarInfo', vusNum)]], {
-                 if(is.null(input[[paste0('VUSVarInfo', vusNum)]])){
-                   tmp.var <- ""
-                 } else {
-                   tmp.var <- input[[paste0('VUSVarInfo', vusNum)]]
-                 }
-                 geneReactive$vus.df$Variants[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
-                   paste0(unique(tmp.var), collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-               
-               # proteins: store proteins as one string
-               observeEvent(input[[paste0('VUSProtInfo', vusNum)]], {
-                 if(is.null(input[[paste0('VUSProtInfo', vusNum)]])){
-                   tmp.prot <- ""
-                 } else {
-                   tmp.prot <- input[[paste0('VUSProtInfo', vusNum)]]
-                 }
-                 geneReactive$vus.df$Proteins[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
-                   paste0(unique(tmp.prot), collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-               
-               # homo/hetero
-               observeEvent(input[[paste0('VUSZygInfo', vusNum)]], {
-                 geneReactive$vus.df$Zygosity[which(geneReactive$vus.df$Gene == vus.g.name & geneReactive$vus.df$Result == 1)] <- 
-                   paste0(input[[paste0('VUSZygInfo', vusNum)]], collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-             })
-    }
-  )
-  
-  # BLB
-  observe(
-    if(length(input$BLBGenes) > 0 & !(all(input$BLBGenes == ""))){
-      lapply(1:length(input$BLBGenes),
-             function(blbNum){
-               blb.g.name <- input$BLBGenes[blbNum]
-               
-               # variants: store variants as one string
-               observeEvent(input[[paste0('BLBVarInfo', blbNum)]], {
-                 if(is.null(input[[paste0('BLBVarInfo', blbNum)]])){
-                   tmp.var <- ""
-                 } else {
-                   tmp.var <- input[[paste0('BLBVarInfo', blbNum)]]
-                 }
-                 geneReactive$blb.df$Variants[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
-                   paste0(unique(tmp.var), collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-               
-               # proteins: store proteins as one string
-               observeEvent(input[[paste0('BLBProtInfo', blbNum)]], {
-                 if(is.null(input[[paste0('BLBProtInfo', blbNum)]])){
-                   tmp.prot <- ""
-                 } else {
-                   tmp.prot <- input[[paste0('BLBProtInfo', blbNum)]]
-                 }
-                 geneReactive$blb.df$Proteins[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
-                   paste0(unique(tmp.prot), collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-               
-               # homo/hetero
-               observeEvent(input[[paste0('BLBZygInfo', blbNum)]], {
-                 geneReactive$blb.df$Zygosity[which(geneReactive$blb.df$Gene == blb.g.name & geneReactive$blb.df$Result == 1)] <- 
-                   paste0(input[[paste0('BLBZygInfo', blbNum)]], collapse = ", ")
-               }, ignoreInit = TRUE, ignoreNULL = FALSE)
-             })
-    }
-  )
-  
-  # add data to pedigree when user navigates off of the tab
-  onGeneTab <- reactiveVal(FALSE)
-  observeEvent(input$pedTabs, {
-    if(onGeneTab() & input$pedTabs != "Genes"){
-      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
-                        gene.results = panelSum(), 
-                        panel.name = input$existingPanels))
-    }
-    
-    # update the reactive value to detect if the current tab is the target tab
-    if(input$pedTabs == "Genes"){
-      onGeneTab(TRUE)
-    } else {
-      onGeneTab(FALSE)
-    }
-  }, ignoreInit = TRUE)
+  # # add data to pedigree when user navigates off of the tab
+  # onGeneTab <- reactiveVal(FALSE)
+  # observeEvent(input$pedTabs, {
+  #   if(onGeneTab() & input$pedTabs != "Genes"){
+  #     PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
+  #                       gene.results = panelSum(), 
+  #                       panel.name = input$existingPanels))
+  #   }
+  #   
+  #   # update the reactive value to detect if the current tab is the target tab
+  #   if(input$pedTabs == "Genes"){
+  #     onGeneTab(TRUE)
+  #   } else {
+  #     onGeneTab(FALSE)
+  #   }
+  # }, ignoreInit = TRUE)
   
   #### Add Children, Siblings, Aunts/Uncles ####
   
