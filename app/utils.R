@@ -834,18 +834,47 @@ modLinkInfo <- function(tmp.ped, id, is.proband = FALSE, new.id = NULL,
 
 # validate age values are between min.age and m
 validateAge <- function(in.age, cur.age){
-  if(!is.na(in.age) & !is.na(cur.age)){
+  if(!is.na(in.age)){
     isNum <- is.numeric(in.age)
-    need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
     if(isNum){
       inRange <- (in.age >= min.age & in.age <= max.age)
       isInt <- in.age %% 1 == 0
-      noConflict <- in.age <= cur.age
-      if(!noConflict){
-        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age))
+      if(inRange & isInt & !is.na(cur.age)){
+        noConflict <- in.age <= cur.age
+        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
       } else {
         need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ",max.age,"."))
       }
+    } else {
+      need(isNum, paste0("Ages must be integers from ", min.age," to ", max.age,"."))
+    }
+  }
+}
+
+# validate CBC ages are valid and between the 1st BC age and current age
+validateCBCAge <- function(can, cbc.age, bc.age, cur.age){
+  if(can == "Breast" & !is.na(cbc.age)){
+    isNum <- is.numeric(cbc.age)
+    if(isNum){
+      inRange <- (cbc.age >= min.age & cbc.age <= max.age)
+      isInt <- cbc.age %% 1 == 0
+      if(isInt & inRange){
+        if(is.na(bc.age) & !is.na(cur.age)){
+          noCurAgeConflict <- cbc.age <= cur.age
+          need(noCurAgeConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
+        } else if(!is.na(bc.age) & is.na(cur.age)){
+          noBCAgeConflict <- cbc.age > bc.age
+          need(noBCAgeConflict, paste0("CBC age must be greater than 1st BC age."))
+        } else if(!is.na(bc.age) & !is.na(cur.age)){
+          noConflict <- (cbc.age > bc.age & cbc.age <= cur.age)
+          need(noConflict, paste0("CBC age must be greater than the 1st BC age, ",bc.age,", to the current age, ",cur.age,"."))
+        }
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+      }
+      
+    } else {
+      need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
     }
   }
 }

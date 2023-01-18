@@ -34,6 +34,10 @@ canUI <- function(id, rel){
                                width = "100px"),
                   style = "margin-left:-75px"
               ),
+              
+              # issue warning if the cancer age is not valid
+              textOutput(ns("valCanAge")),
+              tags$head(tags$style(paste0("#",ns("valCanAge"),"{color: red;margin-left:-250px}")))
             )
           ),
           
@@ -93,6 +97,10 @@ canUI <- function(id, rel){
                                    width = "100px"),
                       style = "margin-left:-40px"
                   ),
+                  
+                  # issue warning if the cancer age is not valid
+                  textOutput(ns("valCBCAge")),
+                  tags$head(tags$style(paste0("#",ns("valCBCAge"),"{color: red;margin-left:-250px}")))
               )
             ) # end of conditionalPanel for CBC age 
           ) # end of fluidRow for CBC
@@ -100,6 +108,24 @@ canUI <- function(id, rel){
       ) # end of conditionalPanel for person's inputs
     ) # end of tagList
   ) # end of div
+}
+
+validateCanAgeServer <- function(id, in.age, cur.age) {
+  moduleServer(
+    id,
+    function(input, output, session){
+      output$valCanAge <- renderText(validate(validateAge(in.age(), cur.age())))
+    }
+  )
+}
+
+validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
+  moduleServer(
+    id,
+    function(input, output, session){
+      output$valCBCAge <- renderText(validate(validateCBCAge(can(), cbc.age(), bc.age(), cur.age())))
+    }
+  )
 }
 
 

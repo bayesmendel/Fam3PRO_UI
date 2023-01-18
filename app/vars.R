@@ -97,6 +97,14 @@ gene.inputs.store <- data.frame(Gene     = rep(""   , 1000),
                                 Proteins = rep(""   , 1000),
                                 Zygosity = rep("Unk", 1000))
 
+# gene module tracker template, see trackCans.init comments above for description
+trackGenes.init <- list("1" = list(dict = setNames(c(NA),1),
+                                   mx = 0),
+                        "2" = list(dict = setNames(c(NA),1),
+                                   mx = 0),
+                        "3" = list(dict = setNames(c(NA),1),
+                                   mx = 0))
+
 # master genes lists
 all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMPR1A', 
                'BRCA1', 'BRCA2', 'BRIP1', 'CASR', 'CDC73', 'CDH1', 'CDK4', 'CDKN1B', 

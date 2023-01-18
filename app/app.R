@@ -242,14 +242,11 @@ ui <- fixedPage(
             ###### Cancer Hx ####
             tabPanel("Cancer Hx",
               h3("Cancer History"),
-              p("List all primary cancers the person has or had with the age of diagnosis. If a cancer reoccurred in the same 
-                organ, list that cancer only once and only provide the first diagnosis age. However, if the patient was diagnosed with 
-                contralateral breast cancer (CBC) then enter two cancers: one as 'Breast' with the first 
-                diagnosis age and a second as 'Contralateral' with the CBC diagnosis age."),
+              p("List all first primary cancers the person has or had with the age of diagnosis."),
               
-              # issue warning if any cancer age is not valid
-              textOutput("validCanAges"),
-              tags$head(tags$style("#validCanAges{color: red;}")),
+              # # issue warning if any cancer age is not valid
+              # textOutput("validCanAges"),
+              # tags$head(tags$style("#validCanAges{color: red;}")),
               
               # enter cancers
               tags$div(
@@ -342,7 +339,7 @@ ui <- fixedPage(
                        
                     # select existing panel
                     h4("Step 1a: Specify the Panel of Genes Tested"),
-                    p("You can select an existing panel of genes from the drop down. If you need to create a 
+                    p("Select an existing panel of genes from the drop down. If you need to create a 
                       custom panel select 'Create new'."),
                     selectInput("existingPanels", label = NULL,
                                 choices = all.panel.names, selected = "No panel selected",
@@ -859,14 +856,6 @@ server <- function(input, output, session) {
   # save the number of cancers for each person in the pedigree
   canReactive <- reactiveValues(canNums = trackCans.init)
   
-  observeEvent(canReactive$canNums$`1`, {
-    print("NEW")
-    print("active")
-    print(canReactive$canNums$`1`$dict)
-    print("max")
-    print(canReactive$canNums$`1`$mx)
-  })
-  
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
     
@@ -897,6 +886,18 @@ server <- function(input, output, session) {
       where = "beforeEnd",
       ui = canUI(id = id, rel = reactive(input$relSelect))
     )
+    
+    # add a server for checking the validity of the entered cancer age
+    validateCanAgeServer(id,
+                         in.age = reactive(input[[paste0(id, "-CanAge")]]),
+                         cur.age = reactive(input$Age))
+    
+    # add a server for checking the validity of the entered CBC age
+    validateCBCAgeServer(id,
+                         can = reactive(input[[paste0(id, "-Can")]]),
+                         cbc.age = reactive(input[[paste0(id, "-CBCAge")]]),
+                         bc.age = reactive(input[[paste0(id, "-CanAge")]]),
+                         cur.age = reactive(input$Age))
     
     ### Cancer UI Remove Observer
     # create a remove module button observer for each UI module created
@@ -1044,6 +1045,28 @@ server <- function(input, output, session) {
       }
     })
     
+    # # cancer age observer to check for validity
+    # observeEvent(input[[paste0(id, "-CanAge")]], {
+    #   
+    #   vAgeWarn <- reactiveVal(FALSE)
+    #   
+    #   if(input[[paste0(id, "-Can")]] != "No cancer selected" & 
+    #      !is.na(input[[paste0(id, "-CanAge")]])){
+    #     v.age <- validateAge(in.age = input[[paste0(id, "-CanAge")]],
+    #                          cur.age = input$Age)
+    #     if(length(v.age) > 0){
+    #       vAgeWarn(TRUE)
+    #     } else {
+    #       vAgeWarn(FALSE)
+    #     }
+    #   } else {
+    #     vAgeWarn(FALSE)
+    #   }
+    #   
+    #   
+    #   
+    # })
+    
   })
   
   # add data to pedigree when user navigates off of the tab
@@ -1172,9 +1195,9 @@ server <- function(input, output, session) {
   
   # save the number of genes for each person, by result type
   # also store the list of genes in the currently selected panel
-  geneReactive <- reactiveValues(PLPNums = setNames(rep(0,3), 1:3),
-                                 VUSNums = setNames(rep(0,3), 1:3),
-                                 BLBNums = setNames(rep(0,3), 1:3),
+  geneReactive <- reactiveValues(PLPNums = trackGenes.init,
+                                 VUSNums = trackGenes.init,
+                                 BLBNums = trackGenes.init,
                                  panel.genes = as.character())
   
   
@@ -1191,10 +1214,10 @@ server <- function(input, output, session) {
   
   
   ##### PLP Genes ####
-  # add PLP input header/labels when at least one PLP gene module exists
+  # add PLP input header/labels when at least one active PLP gene module exists
   PLPHeader <- reactiveVal(FALSE)
-  observeEvent(geneReactive$PLPNums, {
-    if(geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] > 0){
+  observeEvent(geneReactive$PLPNums[[input$relSelect]]$dict, {
+    if(!is.na(geneReactive$PLPNums[[input$relSelect]]$dict[1])){
       PLPHeader(TRUE)
     } else {
       PLPHeader(FALSE)
@@ -1206,13 +1229,28 @@ server <- function(input, output, session) {
   # add a PLP gene UI module on button click and advance the module counter
   observeEvent(input$addPLP, {
     
-    # increase this person's count of cancer input modules by 1
-    geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] <- 
-      geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] + 1
-    PLPNum <- geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]
+    # look-up the maximum number of created PLP gene UI modules for the current 
+    # relative and the order of active PLP gene UI modules
+    trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
+    trackMax <- geneReactive$PLPNums[[input$relSelect]]$mx
+    
+    # increase this person's count of PLP gene input modules by 1
+    if(length(trackInputs) == 1 & is.na(trackInputs[1])){
+      trackInputs[1] <- trackMax + 1
+    } else {
+      next.slot <- max(as.numeric(names(trackInputs))) + 1
+      trackInputs <- c(trackInputs, setNames(trackMax + 1, next.slot))
+    }
+    
+    # increase total number of created PLP gene UI modules for this person
+    trackMax <- trackMax + 1
+    
+    # update PLPNums for this person
+    geneReactive$PLPNums[[input$relSelect]] <- list(dict = trackInputs,
+                                                    mx = trackMax)
     
     # create the unique module ID and insert the UI module
-    id <- paste0("rel", input$relSelect, "PLPgeneModule", PLPNum)
+    id <- paste0("rel", input$relSelect, "PLPgeneModule", trackMax)
     insertUI(
       selector = "#genePLPContainer",
       where = "beforeEnd",
@@ -1223,28 +1261,36 @@ server <- function(input, output, session) {
     ### Gene UI Remove Observer
     # create a remove module button observer for each UI module created
     observeEvent(input[[paste0(id, '-removeGene')]], {
-
-      ## re-add deleted gene choice to dropdown choices of this person's other gene modules
-      # get all of the genes currently selected
+      
+      # get current version of active PLP gene modules
+      tmp.trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
+      
+      ## re-add deleted PLP gene choice to dropdown choices of this person's other PLP gene modules
+      # get all of the PLP genes currently selected
       genes.selected <- as.character()
-      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
-        if(input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]] != "" &
-           input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]] != input[[paste0(id, '-Gene')]]){
-          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+      if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+        for(gn in as.numeric(names(tmp.trackInputs))){
+          tmp.id <- paste0("rel", input$relSelect, "PLPgeneModule", tmp.trackInputs[gn], "-Gene")
+          if(input[[tmp.id]] != "" &
+             input[[tmp.id]] != input[[paste0(id, "-Gene")]]){
+            genes.selected <- c(genes.selected, input[[tmp.id]])
+          }
         }
-      }
-
-      # update all PLP gene choices
-      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
         
-        # get PLP gene dropdown choices available for this PLP gene name input
-        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])]
-        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
         
-        # update the input dropdown
-        updateSelectInput(session, paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene'),
-                          choices = genes.avail,
-                          selected = input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+        # update all PLP gene choices
+        for(gn in as.numeric(names(tmp.trackInputs))){
+          tmp.id <- paste0("rel", input$relSelect, "PLPgeneModule", tmp.trackInputs[gn], "-Gene")
+          
+          # get PLP gene dropdown choices available for this PLP gene name input
+          mod.genes.selected <- genes.selected[which(genes.selected != input[[tmp.id]])]
+          genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+          
+          # update the input dropdown
+          updateSelectInput(session, tmp.id, 
+                            choices = genes.avail, 
+                            selected = input[[tmp.id]])
+        }
       }
       
       ## delete the module and UI
@@ -1254,45 +1300,330 @@ server <- function(input, output, session) {
       # remove the module's inputs from memory
       remove_shiny_inputs(id, input)
       
-      ## decrease the PLP gene count for this person by 1
-      if(geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] > 0){
-        geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] <-
-          geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)] - 1
-      }
+      ## remove module's index from the vector of active modules
+      ## decrease the active PLP gene module count by one
+      ## shift remaining active PLP gene modules to different slots
+      if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
+        tmp.trackInputs[1] <- NA
+      } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+        
+        # if the input to be removed is not the last one, iterate through the active inputs to update them
+        if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
+          for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
+            tmp.trackInputs[el] <- tmp.trackInputs[el+1]
+          }
+        }
+        tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
+      } 
+      geneReactive$PLPNums[[input$relSelect]]$dict <- tmp.trackInputs
     })
     
     ## create a PLP gene selection observer which will trigger an update of all of the PLP gene dropdown
     ## choices for each of the person's PLP gene UI modules
     observeEvent(input[[paste0(id, '-Gene')]], {
       
+      # get current version of active PLP gene modules
+      tmp.trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
+      
       # get all of the PLP genes currently selected across this person's PLP gene UI modules
       genes.selected <- as.character()
-      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
-        if(input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]] != ""){
-          genes.selected <- c(genes.selected, input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+      for(gn in as.numeric(names(tmp.trackInputs))){
+        tmp.id <- paste0("rel", input$relSelect, "PLPgeneModule", tmp.trackInputs[gn], '-Gene')
+        if(input[[tmp.id]] != ""){
+          genes.selected <- c(genes.selected, input[[tmp.id]])
         }
       }
       
       # update each of this person's PLP gene UI module PLP gene choice dropdowns to exclude the newly selected PLP gene
-      for(gn in 1:geneReactive$PLPNums[which(names(geneReactive$PLPNums) == input$relSelect)]){
+      for(gn in as.numeric(names(tmp.trackInputs))){
+        tmp.id <- paste0("rel", input$relSelect, "PLPgeneModule", tmp.trackInputs[gn], '-Gene')
         
         # get PLP gene dropdown choices available for this PLP gene name input
-        mod.genes.selected <- genes.selected[which(genes.selected != input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])]
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[tmp.id]])]
         genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
         
         # update the input dropdown
-        updateSelectInput(session, paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene'),
+        updateSelectInput(session, tmp.id,
                           choices = genes.avail,
-                          selected = input[[paste0("rel", input$relSelect, "PLPgeneModule", gn, '-Gene')]])
+                          selected = input[[tmp.id]])
       }
     })
-    
   })
   
   ##### VUS Genes ####
+  # add VUS input header/labels when at least one active VUS gene module exists
+  VUSHeader <- reactiveVal(FALSE)
+  observeEvent(geneReactive$VUSNums[[input$relSelect]]$dict, {
+    if(!is.na(geneReactive$VUSNums[[input$relSelect]]$dict[1])){
+      VUSHeader(TRUE)
+    } else {
+      VUSHeader(FALSE)
+    }
+  })
+  output$VUSHeader <- reactive({ VUSHeader() })
+  outputOptions(output, 'VUSHeader', suspendWhenHidden = FALSE)
+  
+  # add a VUS gene UI module on button click and advance the module counter
+  observeEvent(input$addVUS, {
+    
+    # look-up the maximum number of created VUS gene UI modules for the current 
+    # relative and the order of active VUS gene UI modules
+    trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
+    trackMax <- geneReactive$VUSNums[[input$relSelect]]$mx
+    
+    # increase this person's count of VUS gene input modules by 1
+    if(length(trackInputs) == 1 & is.na(trackInputs[1])){
+      trackInputs[1] <- trackMax + 1
+    } else {
+      next.slot <- max(as.numeric(names(trackInputs))) + 1
+      trackInputs <- c(trackInputs, setNames(trackMax + 1, next.slot))
+    }
+    
+    # increase total number of created VUS gene UI modules for this person
+    trackMax <- trackMax + 1
+    
+    # update VUSNums for this person
+    geneReactive$VUSNums[[input$relSelect]] <- list(dict = trackInputs,
+                                                    mx = trackMax)
+    
+    # create the unique module ID and insert the UI module
+    id <- paste0("rel", input$relSelect, "VUSgeneModule", trackMax)
+    insertUI(
+      selector = "#geneVUSContainer",
+      where = "beforeEnd",
+      ui = geneUI(id = id, rel = reactive(input$relSelect),
+                  panel.genes = reactive(geneReactive$panel.genes))
+    )
+    
+    ### Gene UI Remove Observer
+    # create a remove module button observer for each UI module created
+    observeEvent(input[[paste0(id, '-removeGene')]], {
+      
+      # get current version of active VUS gene modules
+      tmp.trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
+      
+      ## re-add deleted VUS gene choice to dropdown choices of this person's other VUS gene modules
+      # get all of the VUS genes currently selected
+      genes.selected <- as.character()
+      if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+        for(gn in as.numeric(names(tmp.trackInputs))){
+          tmp.id <- paste0("rel", input$relSelect, "VUSgeneModule", tmp.trackInputs[gn], "-Gene")
+          if(input[[tmp.id]] != "" &
+             input[[tmp.id]] != input[[paste0(id, "-Gene")]]){
+            genes.selected <- c(genes.selected, input[[tmp.id]])
+          }
+        }
+        
+        
+        # update all VUS gene choices
+        for(gn in as.numeric(names(tmp.trackInputs))){
+          tmp.id <- paste0("rel", input$relSelect, "VUSgeneModule", tmp.trackInputs[gn], "-Gene")
+          
+          # get VUS gene dropdown choices available for this VUS gene name input
+          mod.genes.selected <- genes.selected[which(genes.selected != input[[tmp.id]])]
+          genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+          
+          # update the input dropdown
+          updateSelectInput(session, tmp.id, 
+                            choices = genes.avail, 
+                            selected = input[[tmp.id]])
+        }
+      }
+      
+      ## delete the module and UI
+      # remove the module from the UI
+      removeUI(selector = paste0("#geneSubContainer",id))
+      
+      # remove the module's inputs from memory
+      remove_shiny_inputs(id, input)
+      
+      ## remove module's index from the vector of active modules
+      ## decrease the active VUS gene module count by one
+      ## shift remaining active VUS gene modules to different slots
+      if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
+        tmp.trackInputs[1] <- NA
+      } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+        
+        # if the input to be removed is not the last one, iterate through the active inputs to update them
+        if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
+          for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
+            tmp.trackInputs[el] <- tmp.trackInputs[el+1]
+          }
+        }
+        tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
+      } 
+      geneReactive$VUSNums[[input$relSelect]]$dict <- tmp.trackInputs
+    })
+    
+    ## create a VUS gene selection observer which will trigger an update of all of the VUS gene dropdown
+    ## choices for each of the person's VUS gene UI modules
+    observeEvent(input[[paste0(id, '-Gene')]], {
+      
+      # get current version of active VUS gene modules
+      tmp.trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
+      
+      # get all of the VUS genes currently selected across this person's VUS gene UI modules
+      genes.selected <- as.character()
+      for(gn in as.numeric(names(tmp.trackInputs))){
+        tmp.id <- paste0("rel", input$relSelect, "VUSgeneModule", tmp.trackInputs[gn], '-Gene')
+        if(input[[tmp.id]] != ""){
+          genes.selected <- c(genes.selected, input[[tmp.id]])
+        }
+      }
+      
+      # update each of this person's VUS gene UI module VUS gene choice dropdowns to exclude the newly selected VUS gene
+      for(gn in as.numeric(names(tmp.trackInputs))){
+        tmp.id <- paste0("rel", input$relSelect, "VUSgeneModule", tmp.trackInputs[gn], '-Gene')
+        
+        # get VUS gene dropdown choices available for this VUS gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[tmp.id]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, tmp.id,
+                          choices = genes.avail,
+                          selected = input[[tmp.id]])
+      }
+    })
+  })
   
   
   ##### BLB Genes ####
+  # add BLB input header/labels when at least one active BLB gene module exists
+  BLBHeader <- reactiveVal(FALSE)
+  observeEvent(geneReactive$BLBNums[[input$relSelect]]$dict, {
+    if(!is.na(geneReactive$BLBNums[[input$relSelect]]$dict[1])){
+      BLBHeader(TRUE)
+    } else {
+      BLBHeader(FALSE)
+    }
+  })
+  output$BLBHeader <- reactive({ BLBHeader() })
+  outputOptions(output, 'BLBHeader', suspendWhenHidden = FALSE)
+  
+  # add a BLB gene UI module on button click and advance the module counter
+  observeEvent(input$addBLB, {
+    
+    # look-up the maximum number of created BLB gene UI modules for the current 
+    # relative and the order of active BLB gene UI modules
+    trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
+    trackMax <- geneReactive$BLBNums[[input$relSelect]]$mx
+    
+    # increase this person's count of BLB gene input modules by 1
+    if(length(trackInputs) == 1 & is.na(trackInputs[1])){
+      trackInputs[1] <- trackMax + 1
+    } else {
+      next.slot <- max(as.numeric(names(trackInputs))) + 1
+      trackInputs <- c(trackInputs, setNames(trackMax + 1, next.slot))
+    }
+    
+    # increase total number of created BLB gene UI modules for this person
+    trackMax <- trackMax + 1
+    
+    # update BLBNums for this person
+    geneReactive$BLBNums[[input$relSelect]] <- list(dict = trackInputs,
+                                                    mx = trackMax)
+    
+    # create the unique module ID and insert the UI module
+    id <- paste0("rel", input$relSelect, "BLBgeneModule", trackMax)
+    insertUI(
+      selector = "#geneBLBContainer",
+      where = "beforeEnd",
+      ui = geneUI(id = id, rel = reactive(input$relSelect),
+                  panel.genes = reactive(geneReactive$panel.genes))
+    )
+    
+    ### Gene UI Remove Observer
+    # create a remove module button observer for each UI module created
+    observeEvent(input[[paste0(id, '-removeGene')]], {
+      
+      # get current version of active BLB gene modules
+      tmp.trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
+      
+      ## re-add deleted BLB gene choice to dropdown choices of this person's other BLB gene modules
+      # get all of the BLB genes currently selected
+      genes.selected <- as.character()
+      if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+        for(gn in as.numeric(names(tmp.trackInputs))){
+          tmp.id <- paste0("rel", input$relSelect, "BLBgeneModule", tmp.trackInputs[gn], "-Gene")
+          if(input[[tmp.id]] != "" &
+             input[[tmp.id]] != input[[paste0(id, "-Gene")]]){
+            genes.selected <- c(genes.selected, input[[tmp.id]])
+          }
+        }
+        
+        
+        # update all BLB gene choices
+        for(gn in as.numeric(names(tmp.trackInputs))){
+          tmp.id <- paste0("rel", input$relSelect, "BLBgeneModule", tmp.trackInputs[gn], "-Gene")
+          
+          # get BLB gene dropdown choices available for this BLB gene name input
+          mod.genes.selected <- genes.selected[which(genes.selected != input[[tmp.id]])]
+          genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+          
+          # update the input dropdown
+          updateSelectInput(session, tmp.id, 
+                            choices = genes.avail, 
+                            selected = input[[tmp.id]])
+        }
+      }
+      
+      ## delete the module and UI
+      # remove the module from the UI
+      removeUI(selector = paste0("#geneSubContainer",id))
+      
+      # remove the module's inputs from memory
+      remove_shiny_inputs(id, input)
+      
+      ## remove module's index from the vector of active modules
+      ## decrease the active BLB gene module count by one
+      ## shift remaining active BLB gene modules to different slots
+      if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
+        tmp.trackInputs[1] <- NA
+      } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+        
+        # if the input to be removed is not the last one, iterate through the active inputs to update them
+        if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
+          for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
+            tmp.trackInputs[el] <- tmp.trackInputs[el+1]
+          }
+        }
+        tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
+      } 
+      geneReactive$BLBNums[[input$relSelect]]$dict <- tmp.trackInputs
+    })
+    
+    ## create a BLB gene selection observer which will trigger an update of all of the BLB gene dropdown
+    ## choices for each of the person's BLB gene UI modules
+    observeEvent(input[[paste0(id, '-Gene')]], {
+      
+      # get current version of active BLB gene modules
+      tmp.trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
+      
+      # get all of the BLB genes currently selected across this person's BLB gene UI modules
+      genes.selected <- as.character()
+      for(gn in as.numeric(names(tmp.trackInputs))){
+        tmp.id <- paste0("rel", input$relSelect, "BLBgeneModule", tmp.trackInputs[gn], '-Gene')
+        if(input[[tmp.id]] != ""){
+          genes.selected <- c(genes.selected, input[[tmp.id]])
+        }
+      }
+      
+      # update each of this person's BLB gene UI module BLB gene choice dropdowns to exclude the newly selected BLB gene
+      for(gn in as.numeric(names(tmp.trackInputs))){
+        tmp.id <- paste0("rel", input$relSelect, "BLBgeneModule", tmp.trackInputs[gn], '-Gene')
+        
+        # get BLB gene dropdown choices available for this BLB gene name input
+        mod.genes.selected <- genes.selected[which(genes.selected != input[[tmp.id]])]
+        genes.avail <- geneReactive$panel.genes[which(!geneReactive$panel.genes %in% mod.genes.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(session, tmp.id,
+                          choices = genes.avail,
+                          selected = input[[tmp.id]])
+      }
+    })
+  })
   
   
   ##### Summary Table ####
