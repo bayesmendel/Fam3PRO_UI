@@ -164,89 +164,10 @@ ui <- fixedPage(
               )
             ), # end of demographics tab
             
-            ###### Surgical Hx ####
-            tabPanel("Surgical Hx",
-              h3("Prophylactic Surgical History"),
-              
-              # message for proph surgery is Female sex is not selected
-              conditionalPanel("input.Sex != 'Female'",
-                h5("Prophylactic surgery information is only required for females.")
-              ),
-              
-              # for females
-              conditionalPanel("input.Sex == 'Female'",
-                p("Check each surgery the person has had and enter the age at surgery."),
-                
-                # mastecomties
-                fluidRow(
-                  column(width = 6, 
-                    checkboxInput("Mast", label = "Bilateral Mastectomy",
-                                  width = "150px")
-                  ),
-                  column(width = 6, 
-                    conditionalPanel("input.Mast",
-                      div(style = "margin-left:-75px",
-                        numericInput("MastAge",
-                                     label = h5("Age at Mastectomy:"),
-                                     value = NA, min = min.age, max = max.age, step = 1,
-                                     width = "150px"),
-                        textOutput("validMastAge"),
-                        tags$head(tags$style("#validMastAge{color: red;}"))
-                      )
-                    )
-                  ),
-                ),
-                
-                # hysterectomies
-                fluidRow(
-                  column(width = 6, 
-                    checkboxInput("Hyst", label = "Hysterectomy",
-                                  width = "150px")
-                  ),
-                  column(width = 6, 
-                    conditionalPanel("input.Hyst",
-                      div(style = "margin-left:-75px",
-                        numericInput("HystAge",
-                                     label = h5("Age at Hysterectomy:"),
-                                     value = NA, min = min.age, max = max.age, step = 1,
-                                     width = "150px"),
-                        textOutput("validHystAge"),
-                        tags$head(tags$style("#validHystAge{color: red;}"))
-                      )
-                    )
-                  ),
-                ),
-                
-                # oophorectomies
-                fluidRow(
-                  column(width = 6, 
-                    checkboxInput("Ooph", label = "Bilateral Oophorectomy",
-                                  width = "250px")
-                  ),
-                  column(width = 6, 
-                    conditionalPanel("input.Ooph",
-                      div(style = "margin-left:-75px",
-                        numericInput("OophAge",
-                                     label = h5("Age at Oophorectomy:"),
-                                     value = NA, min = min.age, max = max.age, step = 1,
-                                     width = "150px"),
-                        textOutput("validOophAge"),
-                        tags$head(tags$style("#validOophAge{color: red;}"))
-                      )
-                    )
-                  )
-                )
-              ) # end of female conditionalPanel for surgical history information
-            ), # end of surgery tab
-            
             ###### Cancer Hx ####
             tabPanel("Cancer Hx",
               h3("Cancer History"),
               p("List all first primary cancers the person has or had with the age of diagnosis."),
-              
-              # # issue warning if any cancer age is not valid
-              # textOutput("validCanAges"),
-              # tags$head(tags$style("#validCanAges{color: red;}")),
               
               # enter cancers
               tags$div(
@@ -323,6 +244,82 @@ ui <- fixedPage(
                 ) # end of conditionalPanel to CRC tumor markers
               ) # end of conditionalPanel to display any tumor markers
             ), # end of tumor marker tab
+            
+            
+            ###### Surgical Hx ####
+            tabPanel("Surgical Hx",
+                     h3("Prophylactic Surgical History"),
+                     
+                     # message for proph surgery is Female sex is not selected
+                     conditionalPanel("input.Sex != 'Female'",
+                                      h5("Prophylactic surgery information is only required for females.")
+                     ),
+                     
+                     # for females
+                     conditionalPanel("input.Sex == 'Female'",
+                                      p("Check each surgery the person has had and enter the age at surgery."),
+                                      
+                                      # mastecomties
+                                      fluidRow(
+                                        column(width = 6, 
+                                               checkboxInput("Mast", label = "Bilateral Mastectomy",
+                                                             width = "150px")
+                                        ),
+                                        column(width = 6, 
+                                               conditionalPanel("input.Mast",
+                                                                div(style = "margin-left:-75px",
+                                                                    numericInput("MastAge",
+                                                                                 label = h5("Age at Mastectomy:"),
+                                                                                 value = NA, min = min.age, max = max.age, step = 1,
+                                                                                 width = "150px"),
+                                                                    textOutput("validMastAge"),
+                                                                    tags$head(tags$style("#validMastAge{color: red;}"))
+                                                                )
+                                               )
+                                        ),
+                                      ),
+                                      
+                                      # hysterectomies
+                                      fluidRow(
+                                        column(width = 6, 
+                                               checkboxInput("Hyst", label = "Hysterectomy",
+                                                             width = "150px")
+                                        ),
+                                        column(width = 6, 
+                                               conditionalPanel("input.Hyst",
+                                                                div(style = "margin-left:-75px",
+                                                                    numericInput("HystAge",
+                                                                                 label = h5("Age at Hysterectomy:"),
+                                                                                 value = NA, min = min.age, max = max.age, step = 1,
+                                                                                 width = "150px"),
+                                                                    textOutput("validHystAge"),
+                                                                    tags$head(tags$style("#validHystAge{color: red;}"))
+                                                                )
+                                               )
+                                        ),
+                                      ),
+                                      
+                                      # oophorectomies
+                                      fluidRow(
+                                        column(width = 6, 
+                                               checkboxInput("Ooph", label = "Bilateral Oophorectomy",
+                                                             width = "250px")
+                                        ),
+                                        column(width = 6, 
+                                               conditionalPanel("input.Ooph",
+                                                                div(style = "margin-left:-75px",
+                                                                    numericInput("OophAge",
+                                                                                 label = h5("Age at Oophorectomy:"),
+                                                                                 value = NA, min = min.age, max = max.age, step = 1,
+                                                                                 width = "150px"),
+                                                                    textOutput("validOophAge"),
+                                                                    tags$head(tags$style("#validOophAge{color: red;}"))
+                                                                )
+                                               )
+                                        )
+                                      )
+                     ) # end of female conditionalPanel for surgical history information
+            ), # end of surgery tab
             
             ###### Genes ####
             tabPanel("Genes",
@@ -621,39 +618,13 @@ ui <- fixedPage(
 #### Server ####
 server <- function(input, output, session) {
   
-  #### Validate Age Inputs ####
+  #### Demographics / Create Pedigree ####
   
-  ## age
+  # validate current age
   validAge <- reactive({
-    validate(validateAge(input$Age, input$Age))
+    validate(validateAge(input$Age))
   })
   output$validAge <- renderText({ validAge() })
-  
-  ## surgery ages
-  # Oophorectomy age
-  validOophAge <- reactive({
-    validate(validateAge(input$OophAge, input$Age))
-  })
-  output$validOophAge <- renderText({ validOophAge() })
-  # Mastectomy age
-  validMastAge <- reactive({
-    validate(validateAge(input$MastAge, input$Age))
-  })
-  output$validMastAge <- renderText({ validMastAge() })
-  # Hysterectomy age
-  validHystAge <- reactive({
-    validate(validateAge(input$HystAge, input$Age))
-  })
-  output$validHystAge <- renderText({ validHystAge() })
-  
-  # ## cancer ages
-  # validCanAges <- reactive({
-  #   v.age <- canReactive$df$Age[which(canReactive$df$Cancer != "No cancer selected")]
-  #   validate(unlist(lapply(v.age, validateAge, cur.age = input$Age))[1])
-  # })
-  # output$validCanAges <- renderText({ validCanAges() })
-  
-  #### Demographics / Create Pedigree ####
   
   # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
   pbMinInfo <- reactiveVal(FALSE)
@@ -775,81 +746,6 @@ server <- function(input, output, session) {
   
   # FOR TESTING: VIEW PEDIGREE EVERY TIME IT CHANGES
   observeEvent(PED(), { View(PED()) })
-  
-  
-  
-  
-  #### Surgical History ####
-  
-  # store for prophylactic surgeries
-  surgReactive <- reactiveValues(lst = riskmods.inputs.store)
-  observeEvent(list(input$Mast, input$MastAge), {
-    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "mast")] <- input$Mast
-    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "mast")] <- input$MastAge
-  }, ignoreInit = TRUE)
-  observeEvent(list(input$Hyst, input$HystAge), {
-    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "hyst")] <- input$Hyst
-    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "hyst")] <- input$HystAge
-  }, ignoreInit = TRUE)
-  observeEvent(list(input$Ooph, input$OophAge), {
-    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "ooph")] <- input$Ooph
-    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "ooph")] <- input$OophAge
-  }, ignoreInit = TRUE)
-  
-  ## if a surgery is unchecked, reset the surgery age value
-  # Mast
-  observeEvent(input$Mast, {
-    if(!input$Mast){
-      updateNumericInput(session, "MastAge", value = NA)
-    }
-  })
-  
-  # Ooph
-  observeEvent(input$Ooph, {
-    if(!input$Ooph){
-      updateNumericInput(session, "OophAge", value = NA)
-    }
-  })
-  
-  # Hyst
-  observeEvent(input$Hyst, {
-    if(!input$Hyst){
-      updateNumericInput(session, "HystAge", value = NA)
-    }
-  })
-  
-  # if sex is changed from female to male, clear all surgical data from inputs and ped
-  observeEvent(list(input$Sex), {
-    if(!is.null(PED())){
-      if(PED()$Sex[which(PED()$ID == input$relSelect)] == 0){
-        if(input$Sex == "Male"){
-          for(sg in c("Mast", "Hyst", "Ooph")){
-            updateCheckboxInput(session, sg, value = FALSE)
-            updateNumericInput(session, paste0(sg,"Age"), value = NA)
-            tmp.ped <- PED()
-            tmp.ped[[paste0("riskmod", sg)]][which(tmp.ped$ID == input$relSelect)] <- 0
-            tmp.ped[[paste0("interAge", sg)]][which(tmp.ped$ID == input$relSelect)] <- NA
-            PED(tmp.ped)
-          }
-        }
-      }
-    }
-  })
-  
-  # add data to pedigree when user navigates off of the tab
-  onSurgTab <- reactiveVal(FALSE)
-  observeEvent(input$pedTabs, {
-    if(onSurgTab() & input$pedTabs != "Surgical Hx"){
-      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, riskmods.and.ages = surgReactive$lst))
-    }
-    
-    # update the reactive value to detect if the current tab is the target tab
-    if(input$pedTabs == "Surgical Hx"){
-      onSurgTab(TRUE)
-    } else {
-      onSurgTab(FALSE)
-    }
-  }, ignoreInit = TRUE)
   
   
   #### Cancer History ####
@@ -1045,28 +941,6 @@ server <- function(input, output, session) {
       }
     })
     
-    # # cancer age observer to check for validity
-    # observeEvent(input[[paste0(id, "-CanAge")]], {
-    #   
-    #   vAgeWarn <- reactiveVal(FALSE)
-    #   
-    #   if(input[[paste0(id, "-Can")]] != "No cancer selected" & 
-    #      !is.na(input[[paste0(id, "-CanAge")]])){
-    #     v.age <- validateAge(in.age = input[[paste0(id, "-CanAge")]],
-    #                          cur.age = input$Age)
-    #     if(length(v.age) > 0){
-    #       vAgeWarn(TRUE)
-    #     } else {
-    #       vAgeWarn(FALSE)
-    #     }
-    #   } else {
-    #     vAgeWarn(FALSE)
-    #   }
-    #   
-    #   
-    #   
-    # })
-    
   })
   
   # add data to pedigree when user navigates off of the tab
@@ -1187,6 +1061,96 @@ server <- function(input, output, session) {
       onMarkerTab(TRUE)
     } else {
       onMarkerTab(FALSE)
+    }
+  }, ignoreInit = TRUE)
+  
+  
+  #### Surgical History ####
+  
+  # store for prophylactic surgeries
+  surgReactive <- reactiveValues(lst = riskmods.inputs.store)
+  observeEvent(list(input$Mast, input$MastAge), {
+    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "mast")] <- input$Mast
+    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "mast")] <- input$MastAge
+  }, ignoreInit = TRUE)
+  observeEvent(list(input$Hyst, input$HystAge), {
+    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "hyst")] <- input$Hyst
+    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "hyst")] <- input$HystAge
+  }, ignoreInit = TRUE)
+  observeEvent(list(input$Ooph, input$OophAge), {
+    surgReactive$lst[["riskmod"]][which(names(surgReactive$lst[["riskmod"]]) == "ooph")] <- input$Ooph
+    surgReactive$lst[["interAge"]][which(names(surgReactive$lst[["interAge"]]) == "ooph")] <- input$OophAge
+  }, ignoreInit = TRUE)
+  
+  ## if a surgery is unchecked, reset the surgery age value
+  # Mast
+  observeEvent(input$Mast, {
+    if(!input$Mast){
+      updateNumericInput(session, "MastAge", value = NA)
+    }
+  })
+  
+  # Ooph
+  observeEvent(input$Ooph, {
+    if(!input$Ooph){
+      updateNumericInput(session, "OophAge", value = NA)
+    }
+  })
+  
+  # Hyst
+  observeEvent(input$Hyst, {
+    if(!input$Hyst){
+      updateNumericInput(session, "HystAge", value = NA)
+    }
+  })
+  
+  # if sex is changed from female to male, clear all surgical data from inputs and ped
+  observeEvent(list(input$Sex), {
+    if(!is.null(PED())){
+      if(PED()$Sex[which(PED()$ID == input$relSelect)] == 0){
+        if(input$Sex == "Male"){
+          for(sg in c("Mast", "Hyst", "Ooph")){
+            updateCheckboxInput(session, sg, value = FALSE)
+            updateNumericInput(session, paste0(sg,"Age"), value = NA)
+            tmp.ped <- PED()
+            tmp.ped[[paste0("riskmod", sg)]][which(tmp.ped$ID == input$relSelect)] <- 0
+            tmp.ped[[paste0("interAge", sg)]][which(tmp.ped$ID == input$relSelect)] <- NA
+            PED(tmp.ped)
+          }
+        }
+      }
+    }
+  })
+  
+  ## validate surgery ages
+  # Oophorectomy age
+  validOophAge <- reactive({
+    validate(validateSurgAge(input$OophAge, input$Age, PED()$AgeOC[which(PED()$ID == input$relSelect)]))
+  })
+  output$validOophAge <- renderText({ validOophAge() })
+  # Mastectomy age
+  validMastAge <- reactive({
+    validate(validateSurgAge(input$MastAge, input$Age, PED()$AgeCBC[which(PED()$ID == input$relSelect)]))
+  })
+  output$validMastAge <- renderText({ validMastAge() })
+  # Hysterectomy age
+  validHystAge <- reactive({
+    validate(validateSurgAge(input$HystAge, input$Age, PED()$AgeENDO[which(PED()$ID == input$relSelect)]))
+  })
+  output$validHystAge <- renderText({ validHystAge() })
+  
+  # add data to pedigree when user navigates off of the tab
+  onSurgTab <- reactiveVal(FALSE)
+  observeEvent(input$pedTabs, {
+    if(onSurgTab() & input$pedTabs != "Surgical Hx"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, riskmods.and.ages = surgReactive$lst))
+    }
+    
+    # update the reactive value to detect if the current tab is the target tab
+    if(input$pedTabs == "Surgical Hx"){
+      onSurgTab(TRUE)
+    } else {
+      onSurgTab(FALSE)
     }
   }, ignoreInit = TRUE)
   
@@ -1905,10 +1869,6 @@ server <- function(input, output, session) {
                           an.aj = input$ancAJ, an.it = input$ancIt)
             )
         
-        # surgical hx
-      } else if(input$pedTabs == "Surgical Hx"){
-        PED(popPersonData(tmp.ped = PED(), id = lastRel(), riskmods.and.ages = surgReactive$lst))
-        
         # cancer hx
       } else if(input$pedTabs == "Cancer Hx"){
         
@@ -1953,6 +1913,10 @@ server <- function(input, output, session) {
         PED(popPersonData(tmp.ped = PED(), id = lastRel(), 
                           er = input$ER, pr = input$PR, her2 = input$HER2,
                           ck5.6 = input$CK56, ck14 = input$CK14, msi = input$MSI))
+        
+        # surgical hx
+      } else if(input$pedTabs == "Surgical Hx"){
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(), riskmods.and.ages = surgReactive$lst))
         
         # genes
       } else if(input$pedTabs == "Genes"){

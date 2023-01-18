@@ -114,7 +114,7 @@ validateCanAgeServer <- function(id, in.age, cur.age) {
   moduleServer(
     id,
     function(input, output, session){
-      output$valCanAge <- renderText(validate(validateAge(in.age(), cur.age())))
+      output$valCanAge <- renderText(validate(validateCanAge(in.age(), cur.age())))
     }
   )
 }

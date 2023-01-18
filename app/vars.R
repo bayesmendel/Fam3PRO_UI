@@ -37,13 +37,6 @@ et.choices <- c("Unreported/Both" = "Other_Ethnicity",
                 "Hispanic" = "Hispanic", 
                 "Non-Hispanic" = "Non-Hispanic")
 
-#### Surgeries ####
-RISKMOD.TYPES <- c("mast","hyst","ooph")
-
-# template list of prophylactic surgery statuses and ages
-riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
-                              interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
-
 #### Cancers ####
 # cancer choices from PanelPRO
 CANCER.CHOICES <- PanelPRO:::CANCER_NAME_MAP
@@ -88,6 +81,15 @@ trackCans.init <- list("1" = list(dict = setNames(c(NA),1),
 #### Tumor Markers ####
 # result choices
 marker.result.choices <- c("Not Tested", "Positive", "Negative")
+
+
+#### Surgeries ####
+RISKMOD.TYPES <- c("mast","hyst","ooph")
+
+# template list of prophylactic surgery statuses and ages
+riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
+                              interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
+
 
 #### Genes ####
 
