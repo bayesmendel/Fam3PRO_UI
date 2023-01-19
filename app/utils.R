@@ -382,9 +382,6 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' - `$interAge`: named numeric vector of with the same names as `$riskmod`. 
 #' If the corresponding surgery did not occur, the age value is `NA`, otherwise 
 #' the value is an age between `min.age` and `max.age`.
-#' @param t.markers named numeric vector of tumor marker results of length 6 where 
-#' with the names: `c("ER","PR","CK14","CK5.6","HER2","MSI")`. The values are `NA` for 
-#' no test, `0` for negative and `1` for positive.
 #' @param cancers.and.ages list of cancer affection statuses and diagnosis ages 
 #' with two components: 
 #' - `$isAff`: named binary vector of cancer affection statuses with names: 
@@ -392,6 +389,12 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' Values are either `0` for not affected or `1` for affected.
 #' - `$Age`: named numeric vector of cancer diagnosis ages where names are the 
 #' same as `$isAff` and values are ages from `min.age` to `max.age`.
+#' @param er string, ER tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param pr string, PR tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param her2 string, HER2 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param ck5.6 string, CK5.6 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param ck14 string, CK14 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
+#' @param msi string, MSI tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
 #' @param gene.results named numeric vector of gene test results with names 
 #' `PanelPRO:::GENE_TYPES` and length `length(PanelPRO:::GENE_TYPES)`. The values 
 #' are `NA` for no test, `0` for negative/B/LP, `1` for P/LP, and `2` for VUS.  
@@ -414,8 +417,13 @@ popPersonData <- function(tmp.ped,
                           an.aj = NULL,
                           an.it = NULL,
                           riskmods.and.ages = NULL,
-                          t.markers = NULL,
                           cancers.and.ages = NULL,
+                          er = NULL,
+                          pr = NULL,
+                          her2 = NULL,
+                          ck5.6 = NULL,
+                          ck14 = NULL,
+                          msi = NULL,
                           gene.results = NULL,
                           panel.name = NULL){
   
@@ -447,6 +455,61 @@ popPersonData <- function(tmp.ped,
     tmp.ped$NPP.It[which(tmp.ped$ID == id)] <- an.it
   }
   
+  # cancer hx
+  if(!is.null(cancers.and.ages)){
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", setdiff(CANCER.CHOICES$short, c("No cancer selected", "Other")))] <- 0
+    tmp.ped[which(tmp.ped$ID == id), paste0("Age", setdiff(CANCER.CHOICES$short, c("No cancer selected", "Other")))] <- NA
+    tmp.ped[which(tmp.ped$ID == id), "NPP.isAffX.AgeX"] <- NA
+    
+    # create two data frames: 1) PanelPRO cancers 2) non-PanelPRO ("Other") cancers
+    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected","Other")),]
+    other.can.df <- cancers.and.ages[which(cancers.and.ages$Cancer == "Other"),]
+    
+    # iterate through PanelPRO cancers
+    if(nrow(pp.cans.df) > 0){
+      for(row in 1:nrow(pp.cans.df)){
+        c.short <- c(CANCER.CHOICES$short, "CBC")[which(c(CANCER.CHOICES$long, "Contralateral") == pp.cans.df$Cancer[row])]
+        tmp.ped[which(tmp.ped$ID == id), paste0("isAff", c.short)] <- 1
+        tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- pp.cans.df$Age[row]
+      }
+    }
+    
+    # make a json string for the other cancers
+    if(nrow(other.can.df)){
+      other.can.df <-
+        other.can.df %>%
+        mutate(String = paste0(ifelse(Other == "Unknown/Not Listed", "UnkType", Other), ":'", Age,"'"))
+      other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
+      tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
+    }
+    
+    # reset cancer specific tumor marker values
+    if(tmp.ped$isAffBC[which(tmp.ped$ID == id)] == 0){
+      tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$BC$MARKERS] <- NA
+    }
+    if(tmp.ped$isAffCOL[which(tmp.ped$ID == id)] == 0){
+      tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$COL$MARKERS] <- NA
+    }
+  }
+  
+  # tumor markers
+  bc.mark.vec <- c(ER = er, PR = pr, HER2 = her2, CK5.6 = ck5.6, CK14 = ck14)
+  crc.mark.vec <- c(MSI = msi)
+  mark.vec <- c(bc.mark.vec, crc.mark.vec)
+  if(any(!is.null(mark.vec))){
+    
+    # clear existing values
+    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
+    
+    # populate new values
+    for(m in 1:length(mark.vec)){
+      tmp.ped[which(tmp.ped$ID == id), names(mark.vec)[m]] <- ifelse(mark.vec[m] == "Positive", 1,
+                                                                     ifelse(mark.vec[m] == "Negative", 0, NA))
+    }
+  }
+  
   # surgical hx
   if(!is.null(riskmods.and.ages)){
     
@@ -465,54 +528,6 @@ popPersonData <- function(tmp.ped,
       riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
     tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- 
       riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
-  }
-  
-  # tumor markers
-  if(!is.null(t.markers)){
-    
-    # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
-    
-    # subset storage to only populated values
-    v.t.markers <- t.markers[which(t.markers$Mark != "No marker selected" & t.markers$Result != "Not Tested"),]
-    if(nrow(v.t.markers) > 0){
-      for(row in 1:nrow(v.t.markers)){
-        tmp.ped[which(tmp.ped$ID == id), v.t.markers$Mark[row]] <- 
-          ifelse(v.t.markers$Result[row] == "Negative", 0, 
-                 ifelse(v.t.markers$Result[row] == "Positive", 1, NA))
-      }
-    }
-  }
-  
-  # cancer hx
-  if(!is.null(cancers.and.ages)){
-    
-    # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", setdiff(CANCER.CHOICES$short, c("No cancer selected", "Other")))] <- 0
-    tmp.ped[which(tmp.ped$ID == id), paste0("Age", setdiff(CANCER.CHOICES$short, c("No cancer selected", "Other")))] <- NA
-    tmp.ped[which(tmp.ped$ID == id), "NPP.isAffX.AgeX"] <- NA
-    
-    # create two data frames: 1) PanelPRO cancers 2) non-PanelPRO ("Other") cancers
-    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected","Other")),]
-    other.can.df <- cancers.and.ages[which(cancers.and.ages$Cancer == "Other"),]
-    
-    # iterate through PanelPRO cancers
-    if(nrow(pp.cans.df) > 0){
-      for(row in 1:nrow(pp.cans.df)){
-        c.short <- CANCER.CHOICES$short[which(CANCER.CHOICES$long == pp.cans.df$Cancer[row])]
-        tmp.ped[which(tmp.ped$ID == id), paste0("isAff", c.short)] <- 1
-        tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- pp.cans.df$Age[row]
-      }
-    }
-    
-    # make a json string for the other cancers
-    if(nrow(other.can.df)){
-      other.can.df <-
-        other.can.df %>%
-        mutate(String = paste0(ifelse(Other == "", "UnkType", Other), ":'", Age,"'"))
-      other.cans <- paste0("{", paste0(other.can.df$String, collapse = ", "), "}")
-      tmp.ped$NPP.isAffX.AgeX[which(tmp.ped$ID == id)] <- other.cans
-    }
   }
   
   # gene results
@@ -818,18 +833,86 @@ modLinkInfo <- function(tmp.ped, id, is.proband = FALSE, new.id = NULL,
 }
 
 # validate age values are between min.age and m
-validateAge <- function(in.age, cur.age){
-  if(!is.na(in.age) & !is.na(cur.age)){
+validateAge <- function(cur.age){
+  if(!is.na(cur.age)){
+    isNum <- is.numeric(cur.age)
+    if(isNum){ 
+      inRange <- (cur.age >= min.age & cur.age <= max.age)
+      isInt <- cur.age %% 1 == 0
+      need(all(isInt, inRange), paste0("Age must be an integer from ", min.age," to ",max.age,"."))
+    } else {
+      need(isNum, paste0("Age must an integer from ", min.age," to ", max.age,"."))
+    }
+  }
+}
+
+# validate cancer age (excluding CBC)
+validateCanAge <- function(in.age, cur.age){
+  if(!is.na(in.age)){
     isNum <- is.numeric(in.age)
-    need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
     if(isNum){
       inRange <- (in.age >= min.age & in.age <= max.age)
       isInt <- in.age %% 1 == 0
-      noConflict <- in.age <= cur.age
-      if(!noConflict){
-        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age))
+      if(inRange & isInt & !is.na(cur.age)){
+        noConflict <- in.age <= cur.age
+        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
       } else {
         need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ",max.age,"."))
+      }
+    } else {
+      need(isNum, paste0("Ages must be integers from ", min.age," to ", max.age,"."))
+    }
+  }
+}
+
+# validate CBC ages are valid and between the 1st BC age and current age
+validateCBCAge <- function(can, cbc.age, bc.age, cur.age){
+  if(can == "Breast" & !is.na(cbc.age)){
+    isNum <- is.numeric(cbc.age)
+    if(isNum){
+      inRange <- (cbc.age >= min.age & cbc.age <= max.age)
+      isInt <- cbc.age %% 1 == 0
+      if(isInt & inRange){
+        if(is.na(bc.age) & !is.na(cur.age)){
+          noCurAgeConflict <- cbc.age <= cur.age
+          need(noCurAgeConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
+        } else if(!is.na(bc.age) & is.na(cur.age)){
+          noBCAgeConflict <- cbc.age > bc.age
+          need(noBCAgeConflict, paste0("CBC age must be greater than 1st BC age."))
+        } else if(!is.na(bc.age) & !is.na(cur.age)){
+          noConflict <- (cbc.age > bc.age & cbc.age <= cur.age)
+          need(noConflict, paste0("CBC age must be greater than the 1st BC age, ",bc.age,", to the current age, ",cur.age,"."))
+        }
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+      }
+      
+    } else {
+      need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+    }
+  }
+}
+
+# validate surgery ages
+validateSurgAge <- function(surg.age, cur.age, can.age){
+  if(!is.na(surg.age)){
+    isNum <- is.numeric(surg.age)
+    if(isNum){
+      inRange <- (surg.age >= min.age & surg.age <= max.age)
+      isInt <- surg.age %% 1 == 0
+      if(isInt & inRange){
+        if(is.na(can.age) & !is.na(cur.age)){
+          noCurAgeConflict <- surg.age <= cur.age
+          need(noCurAgeConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
+        } else if(!is.na(can.age) & is.na(cur.age)){
+          noCanAgeConflict <- surg.age < can.age
+          need(noCanAgeConflict, paste0("Prophylactic surgery age must be less than the related cancer age, ", can.age,"."))
+        } else if(!is.na(can.age) & !is.na(cur.age)){
+          noConflict <- (surg.age < can.age & surg.age <= cur.age)
+          need(noConflict, paste0("Prophylactic surgery age must be less than the related cancer age, ", can.age, ", and less than or equal to the current age, ",cur.age,"."))
+        }
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ", max.age,"."))
       }
     }
   }
@@ -848,3 +931,4 @@ remove_shiny_inputs <- function(id, .input) {
     })
   )
 }
+
