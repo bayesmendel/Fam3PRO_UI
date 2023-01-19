@@ -37,13 +37,6 @@ et.choices <- c("Unreported/Both" = "Other_Ethnicity",
                 "Hispanic" = "Hispanic", 
                 "Non-Hispanic" = "Non-Hispanic")
 
-#### Surgeries ####
-RISKMOD.TYPES <- c("mast","hyst","ooph")
-
-# template list of prophylactic surgery statuses and ages
-riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
-                              interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
-
 #### Cancers ####
 # cancer choices from PanelPRO
 CANCER.CHOICES <- PanelPRO:::CANCER_NAME_MAP
@@ -57,18 +50,56 @@ OTHER.CANCER.CHOICES <- c("Unknown/Not Listed", non.pp.cancers)
 cancer.inputs.store <- as.data.frame(matrix(, nrow = 0, ncol = 3))
 colnames(cancer.inputs.store) <- c("Cancer","Age","Other")
 
+# template list for storing cancer module numbers / number of cancers by subject
+# list names are relative ID numbers in the pedigree
+# each element of the list contains a named vector where the values are the index number
+# of a cancer UI module and the names are a set of numbers 1, 2, 3, ... where the names 
+# represent the counts of the cancer UI modules
+# the highest named element of the vector represents the number of cancer input modules
+# a relative currently has active.
+# when the length of a named vector is one and the value is NA then there are 0 cancer UI modules
+
+# list of lists for keeping track of cancer UI modules for each relative
+# the top level names are the ID numbers of the relatives 
+# each relative has a list with two elements:
+# 1) dict: a named numeric vector where each element is the index number of an active (not previously deleted) 
+# cancer UI module for the person and the names are an enumerated set of numbers 1,2,3,... 
+# indicating the order of the active cancer UI modules. If there are three active UI modules then 
+# dict will be length 3 with names 1, 2, and 3. If there is just one active UI module then dict will 
+# be length 1 with element name of "1". If there are no active UI modules then a special case occurs 
+# where the length is 1 but the value of the single element is NA.
+# 2) mx: a number indicating the all time maximum number of cancer UI modules created for a relative.
+# mx includes even deleted/removed UI modules where dict only tracks active UI modules
+trackCans.init <- list("1" = list(dict = setNames(c(NA),1),
+                                  mx = 0),
+                       "2" = list(dict = setNames(c(NA),1),
+                                  mx = 0),
+                       "3" = list(dict = setNames(c(NA),1),
+                                  mx = 0))
+
 
 #### Tumor Markers ####
 # result choices
 marker.result.choices <- c("Not Tested", "Positive", "Negative")
 
+
+#### Surgeries ####
+RISKMOD.TYPES <- c("mast","hyst","ooph")
+
+# template list of prophylactic surgery statuses and ages
+riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
+                              interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
+
+
 #### Genes ####
 
-# template data frame for storing gene results
-gene.inputs.store <- data.frame(Gene     = rep(""   , 1000),
-                                Variants = rep(""   , 1000),
-                                Proteins = rep(""   , 1000),
-                                Zygosity = rep("Unk", 1000))
+# gene module tracker template, see trackCans.init comments above for description
+trackGenes.init <- list("1" = list(dict = setNames(c(NA),1),
+                                   mx = 0),
+                        "2" = list(dict = setNames(c(NA),1),
+                                   mx = 0),
+                        "3" = list(dict = setNames(c(NA),1),
+                                   mx = 0))
 
 # master genes lists
 all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMPR1A', 

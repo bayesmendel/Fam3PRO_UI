@@ -1,24 +1,10 @@
 #### Cancer Hx ####
 
 # module to enter data for one cancer
-canUI <- function(id, rel, cancer = NULL, age = NULL, other = NULL){
+canUI <- function(id, rel){
   
   # reserve a local namespace for cancer hx
   ns <- NS(id)
-  
-  # initial input values
-  can.select <- "No cancer selected"
-  can.age <- NA
-  can.other <- "Unknown/Not Listed"
-  if(!is.null(cancer)){
-    can.select <- cancer
-  } 
-  if(!is.null(age)){
-    can.age <- age
-  }
-  if(!is.null(other)){
-    can.other <- other
-  }
   
   # UI
   tags$div(id = paste0("canSubContainer", id),
@@ -35,7 +21,7 @@ canUI <- function(id, rel, cancer = NULL, age = NULL, other = NULL){
             selectInput(inputId = ns("Can"), 
                         label = h5(paste0("Cancer:")),
                         choices = CANCER.CHOICES$long,
-                        selected = can.select,
+                        selected = "No cancer selected",
                         width = "200px")
           ),
           
@@ -44,10 +30,14 @@ canUI <- function(id, rel, cancer = NULL, age = NULL, other = NULL){
             conditionalPanel(sprintf("input['%s'] != 'No cancer selected'", ns("Can")),
               div(numericInput(inputId = ns("CanAge"), 
                                label = h5("Diagnosis Age:"),
-                               min = min.age, max = max.age, step = 1, value = can.age,
+                               min = min.age, max = max.age, step = 1, value = NA,
                                width = "100px"),
                   style = "margin-left:-75px"
               ),
+              
+              # issue warning if the cancer age is not valid
+              textOutput(ns("valCanAge")),
+              tags$head(tags$style(paste0("#",ns("valCanAge"),"{color: red;margin-left:-250px}")))
             )
           ),
           
@@ -68,7 +58,7 @@ canUI <- function(id, rel, cancer = NULL, age = NULL, other = NULL){
               div(selectizeInput(inputId = ns("CanOther"), 
                                  label = NULL,
                                  choices = OTHER.CANCER.CHOICES, 
-                                 selected = can.other,
+                                 selected = "Unknown/Not Listed",
                                  multiple = FALSE, 
                                  options = list(create=TRUE),
                                  width = "225px"),
@@ -103,10 +93,14 @@ canUI <- function(id, rel, cancer = NULL, age = NULL, other = NULL){
               column(width = 3,
                   div(numericInput(inputId = ns("CBCAge"), 
                                    label = NULL,
-                                   min = min.age, max = max.age, step = 1, value = can.age,
+                                   min = min.age, max = max.age, step = 1, value = NA,
                                    width = "100px"),
                       style = "margin-left:-40px"
                   ),
+                  
+                  # issue warning if the cancer age is not valid
+                  textOutput(ns("valCBCAge")),
+                  tags$head(tags$style(paste0("#",ns("valCBCAge"),"{color: red;margin-left:-250px}")))
               )
             ) # end of conditionalPanel for CBC age 
           ) # end of fluidRow for CBC
@@ -116,8 +110,99 @@ canUI <- function(id, rel, cancer = NULL, age = NULL, other = NULL){
   ) # end of div
 }
 
+validateCanAgeServer <- function(id, in.age, cur.age) {
+  moduleServer(
+    id,
+    function(input, output, session){
+      output$valCanAge <- renderText(validate(validateCanAge(in.age(), cur.age())))
+    }
+  )
+}
+
+validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
+  moduleServer(
+    id,
+    function(input, output, session){
+      output$valCBCAge <- renderText(validate(validateCBCAge(can(), cbc.age(), bc.age(), cur.age())))
+    }
+  )
+}
 
 
+#### Genes ####
+
+geneUI <- function(id, rel, panel.genes){
+  
+  # reserve local namespace for gene results
+  ns <- NS(id)
+  
+  tags$div(id = paste0("geneSubContainer", id),
+    tagList(
+      
+      # only show module's inputs for the currently selected relative
+      conditionalPanel(paste0("input.relSelect == ", rel()),
+        
+        fluidRow(
+          column(width = 3,
+            div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
+                selectInput(ns('Gene'),
+                            label = NULL, 
+                            choices = c("", panel.genes()),
+                            selected = "",
+                            width = "125px")
+            )
+          ),
+          conditionalPanel(sprintf("input['%s'] != ''", ns('Gene')),
+            column(width = 3,
+              div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
+                  selectizeInput(ns('VarInfo'), 
+                                 label = NULL,
+                                 choices = "", 
+                                 selected = "",
+                                 multiple = TRUE, 
+                                 options = list(create=TRUE),
+                                 width = "130px")
+              )
+            ),
+            column(width = 3,
+              div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
+                  selectizeInput(ns('ProtInfo'),
+                                 label = NULL,
+                                 choices = "",
+                                 selected = "",
+                                 multiple = TRUE,
+                                 options = list(create=TRUE),
+                                 width = "130px")
+              )
+            ),
+            column(width = 2,
+              div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
+                  selectInput(ns('ZygInfo'),
+                              label = NULL,
+                              choices = zyg.choices,
+                              selected = "Unk",
+                              width = "85px")
+              )
+            )
+          ), # end of conditionalPanel for displaying variant, protein, and zygous inputs
+          
+          # insert spacer between gene and delete button if no gene is selected
+          conditionalPanel(sprintf("input['%s'] == ''", ns('Gene')),
+            column(width = 8)
+          ),
+          
+          # delete button
+          column(width = 1,
+            actionButton(inputId = ns("removeGene"),
+                         label = NULL,
+                         icon = icon('trash'),
+                         style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-20px; margin-top:0px")
+          )
+        ) # end of fluidRow for all inputs
+      ) # end of conditionalPanel for relative's gene data
+    ) # end of tagList
+  ) # end of tags$div
+}
 
 
 

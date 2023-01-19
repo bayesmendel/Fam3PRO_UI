@@ -455,26 +455,6 @@ popPersonData <- function(tmp.ped,
     tmp.ped$NPP.It[which(tmp.ped$ID == id)] <- an.it
   }
   
-  # surgical hx
-  if(!is.null(riskmods.and.ages)){
-    
-    # surgery status
-    tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- 
-      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
-    tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- 
-      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
-    tmp.ped$riskmodOoph[which(tmp.ped$ID == id)] <- 
-      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "ooph")]
-    
-    # surgery age
-    tmp.ped$interAgeMast[which(tmp.ped$ID == id)] <- 
-      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "mast")]
-    tmp.ped$interAgeHyst[which(tmp.ped$ID == id)] <- 
-      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
-    tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- 
-      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
-  }
-  
   # cancer hx
   if(!is.null(cancers.and.ages)){
     
@@ -528,6 +508,26 @@ popPersonData <- function(tmp.ped,
       tmp.ped[which(tmp.ped$ID == id), names(mark.vec)[m]] <- ifelse(mark.vec[m] == "Positive", 1,
                                                                      ifelse(mark.vec[m] == "Negative", 0, NA))
     }
+  }
+  
+  # surgical hx
+  if(!is.null(riskmods.and.ages)){
+    
+    # surgery status
+    tmp.ped$riskmodMast[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "mast")]
+    tmp.ped$riskmodHyst[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "hyst")]
+    tmp.ped$riskmodOoph[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$riskmod[which(names(riskmods.and.ages$riskmod) == "ooph")]
+    
+    # surgery age
+    tmp.ped$interAgeMast[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "mast")]
+    tmp.ped$interAgeHyst[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "hyst")]
+    tmp.ped$interAgeOoph[which(tmp.ped$ID == id)] <- 
+      riskmods.and.ages$interAge[which(names(riskmods.and.ages$interAge) == "ooph")]
   }
   
   # gene results
@@ -833,18 +833,86 @@ modLinkInfo <- function(tmp.ped, id, is.proband = FALSE, new.id = NULL,
 }
 
 # validate age values are between min.age and m
-validateAge <- function(in.age, cur.age){
-  if(!is.na(in.age) & !is.na(cur.age)){
+validateAge <- function(cur.age){
+  if(!is.na(cur.age)){
+    isNum <- is.numeric(cur.age)
+    if(isNum){ 
+      inRange <- (cur.age >= min.age & cur.age <= max.age)
+      isInt <- cur.age %% 1 == 0
+      need(all(isInt, inRange), paste0("Age must be an integer from ", min.age," to ",max.age,"."))
+    } else {
+      need(isNum, paste0("Age must an integer from ", min.age," to ", max.age,"."))
+    }
+  }
+}
+
+# validate cancer age (excluding CBC)
+validateCanAge <- function(in.age, cur.age){
+  if(!is.na(in.age)){
     isNum <- is.numeric(in.age)
-    need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
     if(isNum){
       inRange <- (in.age >= min.age & in.age <= max.age)
       isInt <- in.age %% 1 == 0
-      noConflict <- in.age <= cur.age
-      if(!noConflict){
-        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age))
+      if(inRange & isInt & !is.na(cur.age)){
+        noConflict <- in.age <= cur.age
+        need(noConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
       } else {
         need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ",max.age,"."))
+      }
+    } else {
+      need(isNum, paste0("Ages must be integers from ", min.age," to ", max.age,"."))
+    }
+  }
+}
+
+# validate CBC ages are valid and between the 1st BC age and current age
+validateCBCAge <- function(can, cbc.age, bc.age, cur.age){
+  if(can == "Breast" & !is.na(cbc.age)){
+    isNum <- is.numeric(cbc.age)
+    if(isNum){
+      inRange <- (cbc.age >= min.age & cbc.age <= max.age)
+      isInt <- cbc.age %% 1 == 0
+      if(isInt & inRange){
+        if(is.na(bc.age) & !is.na(cur.age)){
+          noCurAgeConflict <- cbc.age <= cur.age
+          need(noCurAgeConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
+        } else if(!is.na(bc.age) & is.na(cur.age)){
+          noBCAgeConflict <- cbc.age > bc.age
+          need(noBCAgeConflict, paste0("CBC age must be greater than 1st BC age."))
+        } else if(!is.na(bc.age) & !is.na(cur.age)){
+          noConflict <- (cbc.age > bc.age & cbc.age <= cur.age)
+          need(noConflict, paste0("CBC age must be greater than the 1st BC age, ",bc.age,", to the current age, ",cur.age,"."))
+        }
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+      }
+      
+    } else {
+      need(isNum, paste0("Ages must be integers from ",min.age," to ",max.age,"."))
+    }
+  }
+}
+
+# validate surgery ages
+validateSurgAge <- function(surg.age, cur.age, can.age){
+  if(!is.na(surg.age)){
+    isNum <- is.numeric(surg.age)
+    if(isNum){
+      inRange <- (surg.age >= min.age & surg.age <= max.age)
+      isInt <- surg.age %% 1 == 0
+      if(isInt & inRange){
+        if(is.na(can.age) & !is.na(cur.age)){
+          noCurAgeConflict <- surg.age <= cur.age
+          need(noCurAgeConflict, paste0("Ages must be at or below the person's current age of ", cur.age,"."))
+        } else if(!is.na(can.age) & is.na(cur.age)){
+          noCanAgeConflict <- surg.age < can.age
+          need(noCanAgeConflict, paste0("Prophylactic surgery age must be less than the related cancer age, ", can.age,"."))
+        } else if(!is.na(can.age) & !is.na(cur.age)){
+          noConflict <- (surg.age < can.age & surg.age <= cur.age)
+          need(noConflict, paste0("Prophylactic surgery age must be less than the related cancer age, ", can.age, ", and less than or equal to the current age, ",cur.age,"."))
+        }
+      } else {
+        need(all(isInt, inRange), paste0("Ages must be integers from ", min.age," to ", max.age,"."))
       }
     }
   }
