@@ -364,10 +364,6 @@ ui <- fixedPage(
                         benign/likely benign (B/LP)</b>.")," Any genes not specified as P/LP, VUS, or B/LB
                         will be recorded as negative.", 
                         style = "margin-bottom:25px"),
-                      # conditionalPanel("output.dupResultGene",
-                      #   h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
-                      #      Check for errors in the information you entered for gene results.", style = "color:red")
-                      # ),
                       
                       # create a tab for each result type to save space
                       tabsetPanel(id = "GeneResultTabs",
@@ -488,6 +484,11 @@ ui <- fixedPage(
                     h5("The table below is a summary of the result you have entered so far. In only lists the 
                        genes in the panel you specified. Genes are marked a negative until they are recorded as 
                        P/LP, VUS, or B/LP on the left."),
+                    
+                    conditionalPanel("output.dupResultGene",
+                      h5("Warning: you have the same gene listed in more than one result category, this possible but not common. 
+                         Check for errors in the information you entered for gene results.", style = "color:red")
+                    ),
                     
                     # data frame with panel summary information
                     dataTableOutput("panelSum")
@@ -1590,101 +1591,148 @@ server <- function(input, output, session) {
   })
   
   
-  ##### Summary Table ####
+  ##### Summary Table & Store ####
   
-  # # warn user if a gene is listed in more than one result category (possible, but rare)
-  # dupResultGene <- reactiveVal(FALSE)
-  # observeEvent(list(geneReactive$plp.df, geneReactive$vus.df$Gene, geneReactive$blb.df$Gene), {
-  #   plp.g <- setdiff(geneReactive$plp.df$Gene, "")
-  #   vus.g <- setdiff(geneReactive$vus.df$Gene, "")
-  #   blb.g <- setdiff(geneReactive$blb.df$Gene, "")
-  #   
-  #   # if a gene is double listed in more than one result category, then warn the user
-  #   if(any(length(intersect(plp.g, vus.g)) > 0,
-  #          length(intersect(plp.g, blb.g)) > 0,
-  #          length(intersect(vus.g, blb.g)) > 0)){
-  #     dupResultGene(TRUE)
-  #   } else {
-  #     dupResultGene(FALSE)
-  #   }
-  # }, ignoreInit = TRUE)
-  # output$dupResultGene <- reactive({ dupResultGene() })
-  # outputOptions(output, 'dupResultGene', suspendWhenHidden = FALSE)
+  # indicator to display warning a gene is listed in more than one result category
+  dupResultGene <- reactiveVal(FALSE)
+  output$dupResultGene <- reactive({ dupResultGene() })
+  outputOptions(output, 'dupResultGene', suspendWhenHidden = FALSE)
   
+  # panel summary table
+  panelSum <- reactive({
+    
+    # get current version of active gene modules
+    trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
+    
+    # create a data frame of PLP genes by looping through the active PLP gene modules
+    tmp.plp <- data.frame(Gene = "", Variants = "", Proteins = "", Zygosity = "")
+    if(!is.na(trackInputs[1])){
+      for(gn in names(trackInputs)){
+        id <- paste0("rel", input$relSelect, "PLPgeneModule", trackInputs[gn])
+        tmp.plp[gn,] <- c(input[[paste0(id,"-Gene")]],
+                          ifelse(is.null(input[[paste0(id,"-VarInfo")]]) == "", "", 
+                                 paste0(input[[paste0(id,"-VarInfo")]], collapse = ", ")),
+                          ifelse(is.null(input[[paste0(id,"-ProtInfo")]]) == "", "", 
+                                 paste0(input[[paste0(id,"-ProtInfo")]], collapse = ", ")),
+                          input[[paste0(id,"-ZygInfo")]])
+      }
+      tmp.plp <-
+        tmp.plp %>%
+        mutate(Result = "P/LP", .after = "Gene") %>%
+        arrange(Gene)
+    } 
+    
+    # get current version of active gene modules
+    trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
+    
+    # create a data frame of VUS genes by looping through the active VUS gene modules
+    tmp.vus <- data.frame(Gene = "", Variants = "", Proteins = "", Zygosity = "")
+    if(!is.na(trackInputs[1])){
+      tmp.vus <- gene.inputs.store
+      for(gn in names(trackInputs)){
+        id <- paste0("rel", input$relSelect, "VUSgeneModule", trackInputs[gn])
+        tmp.vus[gn,] <- c(input[[paste0(id,"-Gene")]],
+                          ifelse(is.null(input[[paste0(id,"-VarInfo")]]) == "", "", 
+                                 paste0(input[[paste0(id,"-VarInfo")]], collapse = ", ")),
+                          ifelse(is.null(input[[paste0(id,"-ProtInfo")]]) == "", "", 
+                                 paste0(input[[paste0(id,"-ProtInfo")]], collapse = ", ")),
+                          input[[paste0(id,"-ZygInfo")]])
+      }
+      tmp.vus <-
+        tmp.vus %>%
+        mutate(Result = "VUS", .after = "Gene") %>%
+        arrange(Gene)
+    }
+    
+    # get current version of active gene modules
+    trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
+    
+    # create a data frame of BLB genes by looping through the active BLB gene modules
+    tmp.blb <- data.frame(Gene = "", Variants = "", Proteins = "", Zygosity = "")
+    if(!is.na(trackInputs[1])){
+      tmp.blb <- gene.inputs.store
+      for(gn in names(trackInputs)){
+        id <- paste0("rel", input$relSelect, "BLBgeneModule", trackInputs[gn])
+        tmp.blb[gn,] <- c(input[[paste0(id,"-Gene")]],
+                          ifelse(is.null(input[[paste0(id,"-VarInfo")]]) == "", "", 
+                                 paste0(input[[paste0(id,"-VarInfo")]], collapse = ", ")),
+                          ifelse(is.null(input[[paste0(id,"-ProtInfo")]]) == "", "", 
+                                 paste0(input[[paste0(id,"-ProtInfo")]], collapse = ", ")),
+                          input[[paste0(id,"-ZygInfo")]])
+      }
+      tmp.blb <-
+        tmp.blb %>%
+        mutate(Result = "B/LB", .after = "Gene") %>%
+        arrange(Gene)
+    }
+    
+    # genes not listed in a result category are assumed negative
+    neg.g <- setdiff(geneReactive$panel.genes, c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene))
+    tmp.neg <- data.frame(Gene = neg.g,
+                          Result = rep("Neg", length(neg.g)),
+                          Variants = rep("", length(neg.g)),
+                          Proteins = rep("", length(neg.g)),
+                          Zygosity = rep("", length(neg.g)))
+    
+    # combine all result types
+    sum.df <-
+      tmp.plp %>%
+      bind_rows(tmp.vus) %>%
+      bind_rows(tmp.blb) %>%
+      bind_rows(tmp.neg) %>%
+      filter(Gene != "")
+    
+    # check if any genes are listed in more than one category which will warn the user
+    if(length(intersect(setdiff(tmp.plp$Gene, ""), setdiff(tmp.vus$Gene, ""))) > 0 |
+       length(intersect(setdiff(tmp.plp$Gene, ""), setdiff(tmp.blb$Gene, ""))) > 0 |
+       length(intersect(setdiff(tmp.vus$Gene, ""), setdiff(tmp.blb$Gene, ""))) > 0){
+      dupResultGene(TRUE)
+    } else {
+      dupResultGene(FALSE)
+    }
+    
+    # ensure genes with multiple result types are stacked in the summary
+    if(dupResultGene()){
+      all.results <- c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene)
+      results.tbl <- table(all.results)
+      dups <- names(results.tbl)[which(results.tbl > 1)]
+      for(d in 1:length(dups)){
+        d.rows <- which(sum.df$Gene == dups[d])
+        move.rows <- d.rows[2:length(d.rows)]
+        other.rows <- setdiff(1:nrow(sum.df), c(1:d.rows[1], move.rows))
+        sum.df <- sum.df[c(1:(d.rows[1]), move.rows, other.rows),]
+      }
+    }
+    
+    rownames(sum.df) <- 1:nrow(sum.df)
+    sum.df
+  })
   
-  # # panel summary table
-  # panelSum <- reactive({
-  #   tmp.plp <- 
-  #     geneReactive$plp.df[which(geneReactive$plp.df$Gene != ""),] %>%
-  #     mutate(Result = "P/LP", .after = "Gene") %>%
-  #     arrange(Gene)
-  #   tmp.vus <- 
-  #     geneReactive$vus.df[which(geneReactive$vus.df$Gene != ""),] %>%
-  #     mutate(Result = "VUS", .after = "Gene") %>%
-  #     arrange(Gene)
-  #   tmp.blb <- 
-  #     geneReactive$blb.df[which(geneReactive$blb.df$Gene != ""),] %>%
-  #     mutate(Result = "B/LB", .after = "Gene") %>%
-  #     arrange(Gene)
-  #   
-  #   # genes not listed in a result category are assumed negative
-  #   neg.g <- setdiff(geneReactive$panel.genes, c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene))
-  #   tmp.neg <- data.frame(Gene = neg.g,
-  #                         Result = rep("Neg", length(neg.g)),
-  #                         Variants = rep("", length(neg.g)),
-  #                         Proteins = rep("", length(neg.g)),
-  #                         Zygosity = rep("", length(neg.g)))
-  #   
-  #   # combine all result types
-  #   sum.df <- 
-  #     tmp.plp %>%
-  #     bind_rows(tmp.vus) %>%
-  #     bind_rows(tmp.blb) %>%
-  #     bind_rows(tmp.neg) 
-  #   
-  #   # ensure genes with multiple result types are stacked in the summary
-  #   if(dupResultGene()){
-  #     all.results <- c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene)
-  #     results.tbl <- table(all.results)
-  #     dups <- names(results.tbl)[which(results.tbl > 1)]
-  #     for(d in 1:length(dups)){
-  #       d.rows <- which(sum.df$Gene == dups[d])
-  #       move.rows <- d.rows[2:length(d.rows)]
-  #       other.rows <- setdiff(1:nrow(sum.df), c(1:d.rows[1], move.rows))
-  #       sum.df <- sum.df[c(1:(d.rows[1]), move.rows, other.rows),]
-  #     }
-  #   }
-  #   sum.df
-  # })
+  # output formatted data table colored by result type
+  output$panelSum <- renderDataTable({
+    datatable(panelSum()) %>%
+      formatStyle('Result',
+                  backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
+                                               c("MistyRose","LightGreen","AliceBlue","white")),
+                  fontWeight = 'bold')
+  })
   
-  # # output formatted data table colored by result type
-  # output$panelSum <- renderDataTable({
-  #   datatable(panelSum()) %>%
-  #     formatStyle('Result',
-  #                 backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
-  #                                              c("MistyRose","LightGreen","AliceBlue","white")),
-  #                 fontWeight = 'bold')
-  # })
-  
-  
-  ##### Storage ####
-  
-  # # add data to pedigree when user navigates off of the tab
-  # onGeneTab <- reactiveVal(FALSE)
-  # observeEvent(input$pedTabs, {
-  #   if(onGeneTab() & input$pedTabs != "Genes"){
-  #     PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
-  #                       gene.results = panelSum(), 
-  #                       panel.name = input$existingPanels))
-  #   }
-  #   
-  #   # update the reactive value to detect if the current tab is the target tab
-  #   if(input$pedTabs == "Genes"){
-  #     onGeneTab(TRUE)
-  #   } else {
-  #     onGeneTab(FALSE)
-  #   }
-  # }, ignoreInit = TRUE)
+  # add data to pedigree when user navigates off of the tab
+  onGeneTab <- reactiveVal(FALSE)
+  observeEvent(input$pedTabs, {
+    if(onGeneTab() & input$pedTabs != "Genes"){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
+                        gene.results = panelSum(),
+                        panel.name = input$existingPanels))
+    }
+
+    # update the reactive value to detect if the current tab is the target tab
+    if(input$pedTabs == "Genes"){
+      onGeneTab(TRUE)
+    } else {
+      onGeneTab(FALSE)
+    }
+  }, ignoreInit = TRUE)
   
   #### Add Children, Siblings, Aunts/Uncles ####
   

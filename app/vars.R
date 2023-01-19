@@ -93,12 +93,6 @@ riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), 
 
 #### Genes ####
 
-# template data frame for storing gene results
-gene.inputs.store <- data.frame(Gene     = rep(""   , 1000),
-                                Variants = rep(""   , 1000),
-                                Proteins = rep(""   , 1000),
-                                Zygosity = rep("Unk", 1000))
-
 # gene module tracker template, see trackCans.init comments above for description
 trackGenes.init <- list("1" = list(dict = setNames(c(NA),1),
                                    mx = 0),
