@@ -155,11 +155,11 @@ geneUI <- function(id, rel, panel.genes){
           conditionalPanel(sprintf("input['%s'] != ''", ns('Gene')),
             column(width = 3,
               div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                  selectizeInput(ns('VarInfo'), 
+                  selectizeInput(ns('NucInfo'), 
                                  label = NULL,
                                  choices = "", 
                                  selected = "",
-                                 multiple = TRUE, 
+                                 multiple = FALSE, 
                                  options = list(create=TRUE),
                                  width = "130px")
               )
@@ -170,7 +170,7 @@ geneUI <- function(id, rel, panel.genes){
                                  label = NULL,
                                  choices = "",
                                  selected = "",
-                                 multiple = TRUE,
+                                 multiple = FALSE,
                                  options = list(create=TRUE),
                                  width = "130px")
               )
@@ -184,7 +184,7 @@ geneUI <- function(id, rel, panel.genes){
                               width = "85px")
               )
             )
-          ), # end of conditionalPanel for displaying variant, protein, and zygous inputs
+          ), # end of conditionalPanel for displaying nucleotide, protein, and zygous inputs
           
           # insert spacer between gene and delete button if no gene is selected
           conditionalPanel(sprintf("input['%s'] == ''", ns('Gene')),

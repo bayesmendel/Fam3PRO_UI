@@ -123,9 +123,9 @@ all.panels <- list("HBOC" = sort(hboc.genes),
                    "GB Rossi Pancreatic Cancer Study" = sort(all.genes))
 all.panel.names <- c("No panel selected", "Create new", sort(names(all.panels)))
 
-# genes with specific variants
-varCHEK2plp <- "1100delC"
-varNBNplp <- "657del5"
+# genes with specific nucleotides
+nucCHEK2plp <- "1100delC"
+nucNBNplp <- "657del5"
 
 # genes with specific proteins
 protCDKN2Aplp <- "p16"
