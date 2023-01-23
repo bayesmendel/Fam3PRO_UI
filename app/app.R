@@ -104,63 +104,19 @@ ui <- fixedPage(
               textOutput("validAge"),
               tags$head(tags$style("#validAge{color: red;}")),
               
-              # create maternal and paternal race, ethnicity, and ancestry columns
-              # for the proband (before pedigree is visualized)
-              conditionalPanel("!input.visPed",
-                fluidRow(
-                  
-                  # maternal race, ethnicity, ancestry column
-                  column(width = 6, 
-                    selectInput("RaceM", label = h5("Mother's Race:"),
-                                choices = rc.choices,
-                                selected = "Other or Unreported",
-                                width = "95%"),
-                    selectInput("EthM", label = h5("Mother's Hispanic Ethnicity:"),
-                                choices = et.choices,
-                                selected = "Other or Unreported",
-                                width = "95%"),
-                    h5("Mother's Ancestry (check all that apply):"),
-                    div(style = "margin-left:25px",
-                      checkboxInput("AncAJM", label = "Ashkenazi Jewish"),
-                      checkboxInput("AncItM", label = "Italian")
-                    )
-                  ),
-                  
-                  # paternal race, ethnicity, ancestry column
-                  column(width = 6, 
-                    selectInput("RaceF", label = h5("Father's Race:"),
-                                choices = rc.choices,
-                                selected = "Other or Unreported",
-                                width = "95%"),
-                    selectInput("EthF", label = h5("Father's Hispanic Ethnicity:"),
-                                choices = et.choices,
-                                selected = "Other or Unreported",
-                                width = "95%"),
-                    h5("Father's Ancestry (check all that apply):"),
-                    div(style = "margin-left:25px",
-                      checkboxInput("AncAJF", label = "Ashkenazi Jewish"),
-                      checkboxInput("AncItF", label = "Italian")
-                    )
-                  ),
-                ) # end of fluidRow for race and ancestry
-              ), # end of conditionalPanel for when pedigree is not visualized
-              
               # create subject's individual race, ethnicity, and ancestry inputs
-              # after pedigree is visualized this is for all relatives and the proband
-              conditionalPanel("input.visPed",
-                selectInput("race", label = h5("Race:"),
-                            choices = rc.choices,
-                            selected = "Other or Unreported",
-                            width = "45%"),
-                selectInput("eth", label = h5("Hispanic Ethnicity:"),
-                            choices = et.choices,
-                            selected = "Other or Unreported",
-                            width = "45%"),
-                h5("Ancestry (check all that apply):"),
-                div(style = "margin-left:25px",
-                  checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
-                  checkboxInput("ancIt", label = "Italian")
-                )
+              selectInput("race", label = h5("Race:"),
+                          choices = rc.choices,
+                          selected = "Other or Unreported",
+                          width = "45%"),
+              selectInput("eth", label = h5("Hispanic Ethnicity:"),
+                          choices = et.choices,
+                          selected = "Other or Unreported",
+                          width = "45%"),
+              h5("Ancestry (check all that apply):"),
+              div(style = "margin-left:25px",
+                checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
+                checkboxInput("ancIt", label = "Italian")
               )
             ), # end of demographics tab
             
@@ -670,7 +626,9 @@ server <- function(input, output, session) {
     if(onDemoTab() & input$pedTabs != "Demographics" & pbMinInfo()){
       
       # initialize new pedigree with proband and parents if no pedigree exists
+      create.parents <- FALSE
       if(is.null(PED())){
+        create.parents <- TRUE
         if(input$Sex == "Female"){
           ps <- 0
         } else if(input$Sex == "Male"){
@@ -681,52 +639,28 @@ server <- function(input, output, session) {
         PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
       }
       
-      # combine proband's mother and father race, ethnicity, and ancestry information
-      if(input$RaceM != input$RaceF){
-        pb.rc <- "All_Races"
-      } else if(input$RaceM == input$RaceF){
-        pb.rc <- input$RaceM
-      }
-      if(input$EthM == input$EthF){
-        pb.et <- input$EthM
-      } else if(all(c(input$EthM, input$EthP) != "Other_Ethnicity")){
-        pb.et <- "Hispanic"
-      } else {
-        pb.et <- "Other_Ethnicity"
-      }
-      if(input$AncAJM | input$AncAJF){
-        pb.an.aj <- TRUE
-      } else {
-        pb.an.aj <- FALSE
-      }
-      if(input$AncItM | input$AncItF){
-        pb.an.it <- TRUE
-      } else {
-        pb.an.it <- FALSE
-      }
-      
       # populate proband's demographics data and PedigreeID
       t.ped <- PED()
       t.ped <- popPersonData(tmp.ped = t.ped, id = input$relSelect, cur.age = input$Age, 
-                             rc = pb.rc, et = pb.et, an.aj = pb.an.aj, an.it = pb.an.it)
+                             rc = input$race, et = input$eth, 
+                             an.aj = input$ancAJ, an.it = input$ancIt)
       
-      # populate mother's race and Ancestry information
-      t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
-                             rc = input$RaceM, et = input$EthM, 
-                             an.aj = input$AncAJM, an.it = input$AncItM)
+      # if this is this is the initialization of the three person pedigree, add the parents
+      if(create.parents){
       
-      # populate father's race and Ancestry information
-      t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$FatherID[which(t.ped$isProband == 1)], 
-                             rc = input$RaceF, et = input$EthF, 
-                             an.aj = input$AncAJF, an.it = input$AncItF)
+        # populate mother's race and Ancestry information
+        t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
+                               rc = input$race, et = input$eth, 
+                               an.aj = input$ancAJ, an.it = input$ancIt)
+        
+        # populate father's race and Ancestry information
+        t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$FatherID[which(t.ped$isProband == 1)], 
+                               rc = input$race, et = input$eth, 
+                               an.aj = input$ancAJ, an.it = input$ancIt)
+      }
+      
+      # update the pedigree
       PED(t.ped)
-      
-      # update the race, ethnicity, and ancestry inputs for the proband
-      # which will be displayed after the pedigree is visualized (vs the ones for their mother and father)
-      updateSelectInput(session, "race", selected = pb.rc)
-      updateSelectInput(session, "eth", selected = pb.et)
-      updateCheckboxInput(session, "ancAJ", value = pb.an.aj)
-      updateCheckboxInput(session, "ancIt", value = pb.an.it)
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -1683,10 +1617,10 @@ server <- function(input, output, session) {
       # first, create maternal grandparents, add a cancer counter for each
       # assume, initially, race/eth/ancestry match the proband's mother
       PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "m"))
-      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
+      PED(assumeBackground(PED()))
       
       PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "m"))
-      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
+      PED(assumeBackground(PED()))
       
       # add maternal aunts iteratively
       if(input$numMAunt > 0){
@@ -1694,7 +1628,7 @@ server <- function(input, output, session) {
           PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "m"))
           
           # assume, initially, aunt's race/eth/ancestry match the proband's mother
-          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
+          PED(assumeBackground(PED()))
         }
       }
       # add maternal uncles iteratively
@@ -1703,7 +1637,7 @@ server <- function(input, output, session) {
           PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "m"))
           
           # assume, initially, uncle's race/eth/ancestry match the proband's mother
-          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "mother")]))
+          PED(assumeBackground(PED()))
         }
       }
     }
@@ -1714,10 +1648,10 @@ server <- function(input, output, session) {
       # first, create paternal grandparents, add a cancer counter,
       # assume, initially, race/eth/ancestry match the proband's father
       PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "p"))
-      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
+      PED(assumeBackground(PED()))
       
       PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "p"))
-      PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
+      PED(assumeBackground(PED()))
       
       # add paternal aunts iteratively
       if(input$numPAunt > 0){
@@ -1725,7 +1659,7 @@ server <- function(input, output, session) {
           PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "p"))
           
           # assume, initially, aunt's race/eth/ancestry match the proband's father
-          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
+          PED(assumeBackground(PED()))
         }
       }
       # add paternal uncles iteratively
@@ -1734,7 +1668,7 @@ server <- function(input, output, session) {
           PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "p"))
           
           # assume, initially, uncle's race/eth/ancestry match the proband's father
-          PED(assumeBackground(PED(), PED()$ID[which(PED()$relation == "father")]))
+          PED(assumeBackground(PED()))
         }
       }
     }
