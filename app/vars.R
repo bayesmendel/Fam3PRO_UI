@@ -15,7 +15,7 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
               "NPP.isAffX.AgeX",
-              PanelPRO:::GENE_TYPES,"panel.name","PP.gene.info", "NPP.gene.info"
+              PanelPRO:::GENE_TYPES,"panel.names","PP.gene.info", "NPP.gene.info"
               )
 
 #### Demographics ####
@@ -93,13 +93,71 @@ riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), 
 
 #### Genes ####
 
-# gene module tracker template, see trackCans.init comments above for description
-trackGenes.init <- list("1" = list(dict = setNames(c(NA),1),
-                                   mx = 0),
-                        "2" = list(dict = setNames(c(NA),1),
-                                   mx = 0),
-                        "3" = list(dict = setNames(c(NA),1),
-                                   mx = 0))
+## Gene module tracker template: next list with 6 levels
+# The first level names are relative IDs in the pedigree; 
+# every relative will have one even if they have no panels.
+# The first level elements are nested lists of length three that contain the aggregate 
+# panel information for a relative.
+# The second level nested list names are 'dict', 'mx', and 'panels':
+# - 'dict' is a named vector where the names of the vector numbers corresponding to 
+#  the order of the active panelUIs for the relative (1,2,3,...).
+#  The values of 'dict' are unique numbers that correspond to unique id numbers of the 
+#  panelUI module that the panel corresponds to. 
+#  A special case of 'dict' occurs when a relative has no active panels in which case 'dict' 
+#  will be of length 1 where the names(dict)[1] is '1' and dict[1] is NA.
+# - 'mx' is a number between 0 to infinity that contains the id number of the last
+#  panelUI module created for this relative. 
+#  It strictly increases by 1 every time a new panelUI is inserted.
+# - 'panels' contains a third level nested list where each element contains panel-specific
+#  information for 1 panel of the relative. The names of this third level of list follow 
+#  the pattern panel1, panel2, panel3, ... For each panel there is a fourth level nested 
+#  list with three named elements: 'name', 'genes', 'results':
+#  - 'name' contains the panel name. A special case of 'dict' occurs when a 
+#   relative has no active panels in which case the panel1 name element will take the 
+#   value 'No panel selected'
+#  - 'genes' contains a unique vector of gene names that make up the panel. A special 
+#   case of 'genes' occurs when a relative has no active panels, in which case the panel1
+#   genes element will be an empty vector.
+#  - 'results' is a fifth level nested list of length three with names: 'PLP', 'VUS', and 'BLB'. 
+#   The structure of each of the three elements is identical and each element is used to track 
+#   the modularized geneUI inputs for the PLP, VUS, and BLB result types, respectively. Each 
+#   contains a 6th level nested list with two elements named 'dict' and 'mx':
+#   - 'dict' is a named vector where the names of the vector numbers corresponding to 
+#    the order of the active geneUI for this panel and relative (1,2,3,...).
+#    The values of 'dict' are unique numbers that correspond to unique id numbers of the 
+#    geneUI module for this panel and relative. 
+#    A special case of 'dict' occurs when a relative has no active panels in which 'dict' 
+#    will be of length 1 where the names(dict)[1] is '1' and dict[1] is NA.
+#   - 'mx' is a number between 0 to infinity that contains the id number of the last
+#    geneUI module created for this relative and panel. 
+#    It strictly increases by 1 every time a new geneUI is inserted. 
+#    A special case of 'mx' occurs when the relative has no panel in which case the panel1
+#    'mx' element will be 0.
+new.dict <- setNames(c(NA),1)
+new.mx <- 0
+
+# 5th level contains an element for each result type (excluding negative)
+# 6th level contains information for managing the geneUI modeles for each result type
+geneResultsTemplate <- list(PLP = list(dict = new.dict,
+                                       mx = new.mx),
+                            VUS = list(dict = new.dict,
+                                       mx = new.mx),
+                            BLB = list(dict = new.dict,
+                                       mx = new.mx))
+
+# 2nd level contains the aggregated panel information for tracking panelUI modules
+# 3rd level contains an entry for each panel
+# 4th level contains information specific to one panel
+relTemplate.trackGenes <- list(dict = new.dict,
+                               mx = new.mx,
+                               panels = list(panel1 = list(name = "No panel selected",
+                                                           genes = as.character(),
+                                                           results = geneResultsTemplate)))
+
+# 1st level of relatives
+trackGenes.init <- list("1" = relTemplate.trackGenes,
+                        "2" = relTemplate.trackGenes,
+                        "3" = relTemplate.trackGenes)
 
 # master genes lists
 all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMPR1A', 
@@ -123,9 +181,9 @@ all.panels <- list("HBOC" = sort(hboc.genes),
                    "GB Rossi Pancreatic Cancer Study" = sort(all.genes))
 all.panel.names <- c("No panel selected", "Create new", sort(names(all.panels)))
 
-# genes with specific variants
-varCHEK2plp <- "1100delC"
-varNBNplp <- "657del5"
+# genes with specific nucleotides
+nucCHEK2plp <- "1100delC"
+nucNBNplp <- "657del5"
 
 # genes with specific proteins
 protCDKN2Aplp <- "p16"

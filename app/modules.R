@@ -131,23 +131,68 @@ validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
 
 #### Genes ####
 
-geneUI <- function(id, rel, panel.genes){
+geneHeaderUI <- function(){
+  tagList(
+    fluidRow(
+      column(width = 3,
+             h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+      ),
+      column(width = 3, 
+             h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+      ),
+      column(width = 3,
+             h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+      ),
+      column(width = 3,
+             h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+      )
+    )
+  )
+}
+
+panelUI <- function(id, rel, panelName){
   
   # reserve local namespace for gene results
   ns <- NS(id)
   
-  tags$div(id = paste0("geneSubContainer", id),
+  tags$div(id = paste0(id, "Cont"),
+    tagList(
+       
+      # only show module's inputs for the currently selected relative
+      conditionalPanel(paste0("input.relSelect == '", rel, "'"),
+        fluidRow(
+          column(offset = 1, width = 5,
+            h5(panelName)
+          ),
+          column(width = 2,
+            actionButton(inputId = ns("removePanel"),
+                         label = NULL,
+                         icon = icon('trash'),
+                         style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-20px; margin-top:0px")
+          )
+        )
+      )
+    )
+  )
+}
+
+geneUI <- function(id, rel, panelName, panelGenes){
+  
+  # reserve local namespace for gene results
+  ns <- NS(id)
+  
+  tags$div(id = paste0(id, "Cont"),
     tagList(
       
-      # only show module's inputs for the currently selected relative
-      conditionalPanel(paste0("input.relSelect == ", rel()),
+      # only show module's inputs for the currently selected relative and panel
+      conditionalPanel(paste0("input.relSelect == '", rel, "' & input.editPanel == '", panelName,"'"),
         
         fluidRow(
           column(width = 3,
             div(style = "margin-left:0px;margin-top:0px;margin-bottom:-10px",
                 selectInput(ns('Gene'),
                             label = NULL, 
-                            choices = c("", panel.genes()),
+                            choices = c("", panelGenes),
                             selected = "",
                             width = "125px")
             )
@@ -155,11 +200,11 @@ geneUI <- function(id, rel, panel.genes){
           conditionalPanel(sprintf("input['%s'] != ''", ns('Gene')),
             column(width = 3,
               div(style = "margin-left:-25px;margin-right:0px;margin-top:0px;margin-bottom:-10px",
-                  selectizeInput(ns('VarInfo'), 
+                  selectizeInput(ns('NucInfo'), 
                                  label = NULL,
                                  choices = "", 
                                  selected = "",
-                                 multiple = TRUE, 
+                                 multiple = FALSE, 
                                  options = list(create=TRUE),
                                  width = "130px")
               )
@@ -170,7 +215,7 @@ geneUI <- function(id, rel, panel.genes){
                                  label = NULL,
                                  choices = "",
                                  selected = "",
-                                 multiple = TRUE,
+                                 multiple = FALSE,
                                  options = list(create=TRUE),
                                  width = "130px")
               )
@@ -184,7 +229,7 @@ geneUI <- function(id, rel, panel.genes){
                               width = "85px")
               )
             )
-          ), # end of conditionalPanel for displaying variant, protein, and zygous inputs
+          ), # end of conditionalPanel for displaying nucleotide, protein, and zygous inputs
           
           # insert spacer between gene and delete button if no gene is selected
           conditionalPanel(sprintf("input['%s'] == ''", ns('Gene')),
@@ -196,10 +241,10 @@ geneUI <- function(id, rel, panel.genes){
             actionButton(inputId = ns("removeGene"),
                          label = NULL,
                          icon = icon('trash'),
-                         style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-20px; margin-top:0px")
+                         style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-20px; margin-top:0px; margin-right:0px")
           )
         ) # end of fluidRow for all inputs
-      ) # end of conditionalPanel for relative's gene data
+      ) # end of conditionalPanel for relative's panel data
     ) # end of tagList
   ) # end of tags$div
 }
