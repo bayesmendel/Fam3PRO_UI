@@ -161,7 +161,7 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
   tmp.person <-
     tmp.person %>%
     mutate(across(everything(), ~is.numeric(.))) %>%
-    mutate(across(.cols = c(race, Ancestry, NPP.race, NPP.eth, panel.name), 
+    mutate(across(.cols = c(race, Ancestry, NPP.race, NPP.eth, panel.names), 
                   ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
     mutate(ID = tmp.id) %>%
@@ -172,7 +172,7 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     mutate(Ancestry = "nonAJ") %>%
     mutate(NPP.race = "All_Races") %>%
     mutate(NPP.eth = "Other_Ethnicity") %>%
-    mutate(panel.name = "none") %>%
+    mutate(panel.names = "none") %>%
     mutate(across(.cols = c(isProband, isDead, Twins, NPP.AJ, NPP.It,
                             starts_with("riskmod"), starts_with("isAff")), 
                   ~ 0)) %>%
@@ -395,12 +395,8 @@ getPPAncestry <- function(aj.anc, it.anc){
 #' @param ck5.6 string, CK5.6 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
 #' @param ck14 string, CK14 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
 #' @param msi string, MSI tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
-#' @param gene.results named numeric vector of gene test results with names 
-#' `PanelPRO:::GENE_TYPES` and length `length(PanelPRO:::GENE_TYPES)`. The values 
-#' are `NA` for no test, `0` for negative/B/LP, `1` for P/LP, and `2` for VUS.  
-#' Must be provided when `panel.name` is not `NULL`.
-#' @param panel.name string, name of the panel tested. Must be provided when 
-#' `gene.results` is not `NULL`.
+#' @param gene.results data frame that contains a summary of all panel test results 
+#' with six columns: Gene, Result, Nucleotide, Protein, Zygosity, and Panel.
 #' @returns a modified version of `tmp.ped` where the person with `id` has updated 
 #' values based on the arguments supplied.
 #' @details This function cannot be used to modify `PedigreeID`, a person's `ID`,
@@ -424,8 +420,7 @@ popPersonData <- function(tmp.ped,
                           ck5.6 = NULL,
                           ck14 = NULL,
                           msi = NULL,
-                          gene.results = NULL,
-                          panel.name = NULL){
+                          gene.results = NULL){
   
   # check for a pedigree
   if(is.null(tmp.ped)){
@@ -531,19 +526,23 @@ popPersonData <- function(tmp.ped,
   }
   
   # gene results
-  if(!is.null(gene.results) & !is.null(panel.name)){
+  if(!is.null(gene.results)){
     
     # clear existing values
     tmp.ped[which(tmp.ped$ID == id), PanelPRO:::GENE_TYPES] <- NA
-    tmp.ped[which(tmp.ped$ID == id), "panel.name"] <- "none"
+    tmp.ped[which(tmp.ped$ID == id), "panel.names"] <- "none"
     tmp.ped[which(tmp.ped$ID == id), "PP.gene.info"] <- NA
     tmp.ped[which(tmp.ped$ID == id), "NPP.gene.info"] <- NA
     
     # populate pedigree data
-    if(panel.name != "No panel selected"){
+    if(gene.results$Gene[1] != ""){
       
       # update panel name
-      tmp.ped$panel.name[which(tmp.ped$ID == id)] <- panel.name
+      tmp.ped$panel.names[which(tmp.ped$ID == id)] <- paste0(unique(gene.results$Panel), collapse = ", ")
+      
+      
+      View(gene.results)
+      
       
       # remove slash from result codings and add json string column by result type
       gene.results <-
@@ -568,82 +567,102 @@ popPersonData <- function(tmp.ped,
         # initialize category's JSON string
         cat.json <- "{"
         
-        # iterate through unique genes
-        u.genes <- unique(cat.df$Gene)
-        for(gcnt in 1:length(u.genes)){
+        # iterate through the panels
+        pnames <- unique(cat.df$Panel)
+        for(pname in pnames){
+          pan.df <- filter(cat.df, Panel == pname)
           
-          # subset the data frame for all rows matching the gene
-          gene.df <- filter(cat.df, Gene == u.genes[gcnt])
+          # initialize panel's JSON string
+          pan.json <- paste0(pname, ":{")
           
-          # initialize gene's JSON string section for a gene
-          gene.json <- paste0(u.genes[gcnt],":")
-          
-          # check if no results were found for this gene (negative)
-          if(gene.df$Result[1] == "Neg"){
-            gene.json <- paste0(gene.json, "'Neg'")
+          # iterate through unique genes
+          u.genes <- unique(pan.df$Gene)
+          for(gcnt in 1:length(u.genes)){
             
-            # if there was at least a PLP, VUS, or BLB results then iterate through each result type for a gene
-          } else {
+            # subset the data frame for all rows matching the gene
+            gene.df <- filter(pan.df, Gene == u.genes[gcnt])
             
-            # add a bracket to the gene JSON
-            gene.json <- paste0(gene.json, "{")
+            # initialize gene's JSON string section for a gene
+            gene.json <- paste0(u.genes[gcnt],":")
             
-            rtypes <- c("PLP","VUS","BLB")
-            rtypes.gene <- rtypes[which(rtypes %in% setdiff(unique(gene.df$Result), "Neg"))]
-            for(rtype in rtypes.gene){
+            # check if no results were found for this gene (negative)
+            if(gene.df$Result[1] == "Neg"){
+              gene.json <- paste0(gene.json, "'Neg'")
               
-              # subset the data frame again for all rows matching the gene AND the result type
-              rtype.df <- filter(gene.df, Result == rtype)
+              # if there was at least a PLP, VUS, or BLB results then iterate through each result type for a gene
+            } else {
               
-              # initialize the result type json string
-              rtype.json <- paste0(rtype, ":{")
+              # add a bracket to the gene JSON
+              gene.json <- paste0(gene.json, "{")
               
-              # iterate through the rows to get the JSON sub-string section specific to 1 variant
-              for(vcnt in 1:nrow(rtype.df)){
+              rtypes <- c("PLP","VUS","BLB")
+              rtypes.gene <- rtypes[which(rtypes %in% setdiff(unique(gene.df$Result), "Neg"))]
+              for(rtype in rtypes.gene){
                 
-                # variant's json subsection
-                v.json <- paste0("var", vcnt, ":{nuc:'" , rtype.df$Nucleotide[vcnt], "',",
-                                                "prot:'", rtype.df$Protein[vcnt]  , "',",
-                                                "zyg:'" , rtype.df$Zygosity[vcnt]  , "'",
-                                                "}")
+                # subset the data frame again for all rows matching the gene AND the result type
+                rtype.df <- filter(gene.df, Result == rtype)
                 
-                # add comma separator if it is not the last variant
-                if(vcnt < nrow(rtype.df)){
-                  v.json <- paste0(v.json, ",")
+                # initialize the result type json string
+                rtype.json <- paste0(rtype, ":{")
+                
+                # iterate through the rows to get the JSON sub-string section specific to 1 variant
+                for(vcnt in 1:nrow(rtype.df)){
+                  
+                  # variant's json subsection
+                  v.json <- paste0("var", vcnt, ":{nuc:'" , rtype.df$Nucleotide[vcnt], "',",
+                                                  "prot:'", rtype.df$Protein[vcnt]  , "',",
+                                                  "zyg:'" , rtype.df$Zygosity[vcnt]  , "'",
+                                                  "}")
+                  
+                  # add comma separator if it is not the last variant
+                  if(vcnt < nrow(rtype.df)){
+                    v.json <- paste0(v.json, ",")
+                  }
+                  
+                  # add this 1 variant to the result type JSON sub-string
+                  rtype.json <- paste0(rtype.json, v.json)
                 }
                 
-                # add this 1 variant to the result type JSON sub-string
-                rtype.json <- paste0(rtype.json, v.json)
-              }
+                # terminate the result type json string
+                rtype.json <- paste0(rtype.json, "}")
+                
+                # add a comma separator if it is not the last result type
+                if(rtype != rtypes.gene[length(rtypes.gene)]){
+                  rtype.json <- paste0(rtype.json, ",")
+                }
+                
+                # add result type sub-section to the gene section of the json string
+                gene.json <- paste0(gene.json, rtype.json)
+                
+              } # end of for loop for PLP, VUS, or BLB result type
               
-              # terminate the result type json string
-              rtype.json <- paste0(rtype.json, "}")
+              # terminate json section for this gene
+              gene.json <- paste0(gene.json, "}")
               
-              # add a comma separator if it is not the last result type
-              if(rtype != rtypes.gene[length(rtypes.gene)]){
-                rtype.json <- paste0(rtype.json, ",")
-              }
-              
-              # add result type sub-section to the gene section of the json string
-              gene.json <- paste0(gene.json, rtype.json)
-              
-            } # end of for loop for PLP, VUS, or BLB result type
+            } # end of if else for Neg result versus other
             
+            # add comma separator between genes in the JSON string if its not the last gene
+            if(gcnt < length(u.genes)){
+              gene.json <- paste0(gene.json, ",")
+            }
             
-            # terminate json section for this gene
-            gene.json <- paste0(gene.json, "}")
+            # add gene section to the panel's json string
+            pan.json <- paste0(pan.json, gene.json)
             
-          } # end of if else for Neg result versus other
+          } # end of for loop for genes
           
-          # add comma separator between genes in the JSON string if its not the last gene
-          if(gcnt < length(u.genes)){
-            gene.json <- paste0(gene.json, ",")
+          # terminate json section for this panel
+          pan.json <- paste0(pan.json, "}")
+          
+          # add comma separator between panels in the JSON string if its not the last gene
+          if(pname != pnames[length(pnames)]){
+            pan.json <- paste0(pan.json, ",")
           }
           
-          # add gene section to the gene category's json string
-          cat.json <- paste0(cat.json, gene.json)
+          # add panel section to the category's json string
+          cat.json <- paste0(cat.json, pan.json)
           
-        } # end of for loop for genes
+        } # end of for loop for panels
         
         # terminate category's JSON string
         cat.json <- paste0(cat.json, "}")
@@ -663,56 +682,54 @@ popPersonData <- function(tmp.ped,
 
         # only consider PLP genes
         plp.pp.genes.df <- filter(pp.genes.df, Result == "PLP")
-
-        # iterate through PanelPRO genes to assign results status (1 or 0 only)
-        for(row in 1:nrow(plp.pp.genes.df)){
-          for.PP <- TRUE
+        
+        # initialize list of unique P/LP PanelPRO genes
+        pp.mark.pos <- as.character()
+        
+        # iterate through the unique genes P/LP genes in the data frame
+        u.plp <- unique(plp.pp.genes.df$Gene)
+        for(ug in u.plp){
           
-          ### check for P/LP genes that have nucleotides, proteins, or zygosity not handled by PanelPRO
-          ### assume missing values are compatible with the PanelPRO
-          ## Genes where the nuciant type matters
-          # CHEK2
-          if(plp.pp.genes.df$Gene[row] == "CHEK2"){
-            if(!plp.pp.genes.df$Nucleotide[row] %in% c("", nucCHEK2plp)){
-              for.PP <- FALSE
-            } 
-            
-            # NBN
-          } else if(plp.pp.genes.df$Gene[row] == "NBN"){
-            if(!plp.pp.genes.df$Nucleotide[row] %in% c("", nucNBNplp)){
-              for.PP <- FALSE
+          # start by assuming the gene should not be marked as positive
+          add.ug <- FALSE
+          
+          ### check for P/LP genes that have nucleotides, proteins, or zygosity 
+          ### not handled by PanelPRO, assume missing values are compatible with the PanelPRO
+          special.plp.cases <- c("CHEK2", "NBN", "CDKN2A", "MUTYH")
+          if(ug %in% special.plp.cases){
+            sc.df <- filter(plp.pp.genes.df, Gene == ug)
+            if(ug == "CHEK2" & (any(sc.df$Nucleotide == nucCHEK2plp) | any(sc.df$Nucleotide == ""))){
+              add.ug <- TRUE
+            } else if(ug == "NBN" & (any(sc.df$Nucleotide == nucNBNplp) | any(sc.df$Nucleotide == ""))){
+              add.ug <- TRUE
+            } else if(ug == "CDKN2A" & (any(sc.df$Protein == protCDKN2Aplp) | any(sc.df$Protein == ""))){
+              add.ug <- TRUE
+            } else if(ug == "MUTYH" & (any(sc.df$Zygosity == zygMUTYHplp) | any(sc.df$Zygosity == "Unk"))){
+              add.ug <- TRUE
             }
             
-            ## genes where the protein matters
-            # CDKN2A
-          } else if(plp.pp.genes.df$Gene[row] == "CDKN2A"){
-            if(!plp.pp.genes.df$Protein[row] %in% c("", protCDKN2Aplp)){
-              for.PP <- FALSE
-            }
-            
-            ## genes where the zygosity matters
-            # MUTYH
-          } else if(plp.pp.genes.df$Gene[row] == "MUTYH"){
-            if(!plp.pp.genes.df$Zygosity[row] %in% c("Unk", zygMUTYHplp)){
-              for.PP <- FALSE
-            }
+            # not a special case, so mark it as positive
+          } else {
+            add.ug <- TRUE
           }
           
-          # mark PanelPRO gene columns in pedigree with results
-          if(for.PP){
-            tmp.ped[which(tmp.ped$ID == id), plp.pp.genes.df$Gene[row]] <- 1
-          }
-        } # end of for loop to iterate through the rows of the PanelPRO gene df
-      } # end of if statement to check if there are rows in the PanelPRO gene df
-      
-      # populate PanelPRO gene columns with negative genes
-      non.plp.pp.genes.df <- filter(pp.genes.df, Result != "PLP")
-      non.plp.pp.genes <- unique(non.plp.pp.genes.df$Gene)
-      tmp.ped[which(tmp.ped$ID == id), non.plp.pp.genes] <- 0
-      
+          # add qualified gene to the list of positive genes
+          if(add.ug){ pp.mark.pos <- c(pp.mark.pos, ug) }
+        }
+        
+        # mark genes as positive in the pedigree
+        if(length(pp.mark.pos) > 0){
+          tmp.ped[which(tmp.ped$ID == id), pp.mark.pos] <- 1
+        }
+        
+        # mark the remaining genes in the panel as negative
+        pp.mark.neg <- setdiff(intersect(gene.results$Gene, PanelPRO:::GENE_TYPES) , pp.mark.pos)
+        if(length(pp.mark.neg) > 0){
+          tmp.ped[which(tmp.ped$ID == id), pp.mark.neg] <- 0
+        }
+      } # end of if statement for if there were PanelPRO genes in the panel
     } # end of if statement for if a panel was selected
   } # end of section for adding gene information to the pedigree
-  
   return(tmp.ped)
 }
 
@@ -991,10 +1008,11 @@ validateSurgAge <- function(surg.age, cur.age, can.age){
   }
 }
 
+
 #' Removes shiny inputs from memory
 #' 
 #' @param id string, input name to remove from memory
-#' @param .input ???
+#' @param .input the shiny master input list
 #' 
 #' @details from https://www.r-bloggers.com/2020/02/shiny-add-removing-modules-dynamically/
 remove_shiny_inputs <- function(id, .input) {
@@ -1004,4 +1022,184 @@ remove_shiny_inputs <- function(id, .input) {
     })
   )
 }
+
+
+#' Create data frame of cancer history 
+#'
+#' @param cr a list containing the cancer history module tracking information
+#' @param rel a number, the ID number of the relative for which to create the data frame
+#' @param inp, the shiny input list
+#' @return a data frame of cancer history for a relative with columns: Cancer, Age, and Other
+makeCancerDF <- function(rel, cr = canReactive$canNums, inp = input){
+  
+  # consolidate all cancer inputs into a single data frame by looping through each exiting module
+  can.df <- cancer.inputs.store
+  trackInputs <- cr[[rel]]$dict
+  if(!(length(trackInputs) == 1 & is.na(trackInputs[1]))){
+    for(cn in as.numeric(names(trackInputs))){
+      id <- paste0("rel", rel, "canModule", trackInputs[cn])
+      if(inp[[paste0(id, '-Can')]] != "No cancer selected"){
+        can.df[cn, ] <- c(inp[[paste0(id, '-Can')]],
+                          inp[[paste0(id, '-CanAge')]],
+                          inp[[paste0(id, '-CanOther')]])
+      }
+      
+      # check for CBC
+      hadCBC <- FALSE
+      CBCAge <- NA
+      if(inp[[paste0(id, '-Can')]] == "Breast" &
+         inp[[paste0(id, "-CBC")]] == "Yes"){
+        hadCBC <- TRUE
+        CBCAge <- inp[[paste0(id, "-CBCAge")]]
+      }
+    }
+    
+    # add CBC as last row of the data frame
+    if(hadCBC){
+      can.df[nrow(can.df)+1, ] <- c("Contralateral",
+                                    CBCAge,
+                                    "")
+    }
+    
+    # no cancer entered for this person, create 1 row placeholder data frame
+  } else {
+    can.df[1, ] <- c("No cancer selected", NA, "")
+  }
+  
+  can.df
+}
+
+
+#' Create data frame of genetic testing results
+#' 
+#' @param gr a list of the panel and gene module tracking information of the format 
+#' `trackGenes.init`.
+#' @param rel a number, the ID number of the relative for which the data frame 
+#' is to be created.
+#' @param inp, the shiny input list
+#' @returns a data frame of genetic test results with columns: Gene, Result, Nucleotide, 
+#' Protein, and Panel.
+makeGeneDF <- function(rel, gr = geneReactive$GeneNums, 
+                       dupResultGene,
+                       inp = input){
+  
+  # specify the relative
+  gr <- gr[[rel]]
+  
+  # initialize the data frame
+  colns <- c("Gene", "Result", "Nucleotide", "Protein", "Zygosity", "Panel")
+  tmp.r <- setNames(as.data.frame(matrix("", nrow = 0, ncol = length(colns))),
+                    colns)
+  
+  # storage for all negative genes 
+  neg.g <- as.character()
+  
+  # verify the relative has at least one panel
+  if(!is.na(gr$dict[1])){
+    
+    # iterate through the panels for this relative to get data frame of PLP, VUS, and BLB results
+    for(p.num in as.numeric(names(gr$dict))){
+      panel.module.id.num <- gr$dict[p.num]
+      grp <- gr$panels[[paste0("panel", p.num)]]
+      p.name <- grp$name
+      p.genes <- grp$genes
+      
+      # iterate through the result types
+      for(rtype in c("PLP", "VUS", "BLB")){
+        grpr <- grp$results[[rtype]]
+        
+        # iterate through the gene modules for this relative, panel and result type
+        if(!is.na(grpr$dict[1])){
+          for(g.num in as.numeric(names(grpr$dict))){
+            gene.module.id.num <- grpr$dict[g.num]
+            geneMod.id <- paste0("rel", rel, "Pan", panel.module.id.num, rtype, "GeneModule", gene.module.id.num)
+            if(inp[[paste0(geneMod.id,"-Gene")]] != ""){
+              tmp.r[nrow(tmp.r)+1,] <- c(inp[[paste0(geneMod.id,"-Gene")]],                         # Gene
+                                   ifelse(rtype == "PLP", "P/LP", 
+                                          ifelse(rtype == "BLB", "B/LB", rtype)),               # Result
+                                   ifelse(is.null(inp[[paste0(geneMod.id,"-NucInfo")]]), "",
+                                          inp[[paste0(geneMod.id,"-NucInfo")]]),              # Nucleotide 
+                                   ifelse(is.null(inp[[paste0(geneMod.id,"-ProtInfo")]]), "",
+                                          inp[[paste0(geneMod.id,"-ProtInfo")]]),             # Protein
+                                   inp[[paste0(geneMod.id,"-ZygInfo")]],                      # Zygosity
+                                   p.name)                                                      # Panel Name
+            }
+          }
+        }
+      }
+      
+      # add negative genes for the panel which are any genes that were not PLP, VUS, or BLB
+      neg.g <- setdiff(p.genes, tmp.r$Gene[which(tmp.r$Panel == p.name)])
+      p.neg.g <- setNames(as.data.frame(matrix("", nrow = length(neg.g), ncol = length(colns))),
+                          colns)
+      p.neg.g$Gene <- neg.g
+      p.neg.g$Result <- "Neg"
+      p.neg.g$Zygosity <- "Unk"
+      p.neg.g$Panel <- p.name
+      tmp.r <- rbind(tmp.r, p.neg.g)
+    }
+    
+    # check if any genes are listed in more than one category which will warn the user
+    if(length(intersect(tmp.r$Gene[which(tmp.r$Result == "P/LP")], tmp.r$Gene[which(tmp.r$Result == "VUS") ])) > 0 |
+       length(intersect(tmp.r$Gene[which(tmp.r$Result == "P/LP")], tmp.r$Gene[which(tmp.r$Result == "B/LB")])) > 0 |
+       length(intersect(tmp.r$Gene[which(tmp.r$Result == "P/LP")], tmp.r$Gene[which(tmp.r$Result == "Neg") ])) > 0 |
+       length(intersect(tmp.r$Gene[which(tmp.r$Result == "VUS" )], tmp.r$Gene[which(tmp.r$Result == "B/LB")])) > 0 |
+       length(intersect(tmp.r$Gene[which(tmp.r$Result == "VUS" )], tmp.r$Gene[which(tmp.r$Result == "Neg") ])) > 0 |
+       length(intersect(tmp.r$Gene[which(tmp.r$Result == "B/LB")], tmp.r$Gene[which(tmp.r$Result == "Neg") ])) > 0
+    ){
+      dupResultGene <- TRUE
+    } else {
+      dupResultGene <- FALSE
+    }
+
+    # order the table
+    tmp.r %>% arrange(tmp.r, Result, Gene, Panel, Nucleotide, Protein, Zygosity)
+
+    # ensure genes with multiple result types are stacked in the summary
+    check.dups <- table(tmp.r$Gene)
+    if(any(check.dups > 1)){
+      dup.genes <- names(check.dups[which(check.dups > 1)])
+      for(g in dup.genes){
+        dup.results <- unique(tmp.r$Result[which(tmp.r$Gene == g)])
+        if(length(dup.results) > 1){
+          d.rows <- which(tmp.r$Gene == g)
+          move.rows <- d.rows[2:length(d.rows)]
+          other.rows <- setdiff(1:nrow(tmp.r), c(1:d.rows[1], move.rows))
+          tmp.r <- tmp.r[c(1:(d.rows[1]), move.rows, other.rows),]
+        }
+      }
+
+      # re-do rownames
+      rownames(tmp.r) <- 1:nrow(tmp.r)
+    }
+  } else {
+    tmp.r <- NULL
+  }
+  
+  return.list <- list(df = tmp.r, dupResultGene = dupResultGene)
+  return.list
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

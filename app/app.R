@@ -204,242 +204,236 @@ ui <- fixedPage(
             
             ###### Surgical Hx ####
             tabPanel("Surgical Hx",
-                     h3("Prophylactic Surgical History"),
-                     
-                     # message for proph surgery is Female sex is not selected
-                     conditionalPanel("input.Sex != 'Female'",
-                                      h5("Prophylactic surgery information is only required for females.")
-                     ),
-                     
-                     # for females
-                     conditionalPanel("input.Sex == 'Female'",
-                                      p("Check each surgery the person has had and enter the age at surgery."),
-                                      
-                                      # mastecomties
-                                      fluidRow(
-                                        column(width = 6, 
-                                               checkboxInput("Mast", label = "Bilateral Mastectomy",
-                                                             width = "150px")
-                                        ),
-                                        column(width = 6, 
-                                               conditionalPanel("input.Mast",
-                                                                div(style = "margin-left:-75px",
-                                                                    numericInput("MastAge",
-                                                                                 label = h5("Age at Mastectomy:"),
-                                                                                 value = NA, min = min.age, max = max.age, step = 1,
-                                                                                 width = "150px"),
-                                                                    textOutput("validMastAge"),
-                                                                    tags$head(tags$style("#validMastAge{color: red;}"))
-                                                                )
-                                               )
-                                        ),
-                                      ),
-                                      
-                                      # hysterectomies
-                                      fluidRow(
-                                        column(width = 6, 
-                                               checkboxInput("Hyst", label = "Hysterectomy",
-                                                             width = "150px")
-                                        ),
-                                        column(width = 6, 
-                                               conditionalPanel("input.Hyst",
-                                                                div(style = "margin-left:-75px",
-                                                                    numericInput("HystAge",
-                                                                                 label = h5("Age at Hysterectomy:"),
-                                                                                 value = NA, min = min.age, max = max.age, step = 1,
-                                                                                 width = "150px"),
-                                                                    textOutput("validHystAge"),
-                                                                    tags$head(tags$style("#validHystAge{color: red;}"))
-                                                                )
-                                               )
-                                        ),
-                                      ),
-                                      
-                                      # oophorectomies
-                                      fluidRow(
-                                        column(width = 6, 
-                                               checkboxInput("Ooph", label = "Bilateral Oophorectomy",
-                                                             width = "250px")
-                                        ),
-                                        column(width = 6, 
-                                               conditionalPanel("input.Ooph",
-                                                                div(style = "margin-left:-75px",
-                                                                    numericInput("OophAge",
-                                                                                 label = h5("Age at Oophorectomy:"),
-                                                                                 value = NA, min = min.age, max = max.age, step = 1,
-                                                                                 width = "150px"),
-                                                                    textOutput("validOophAge"),
-                                                                    tags$head(tags$style("#validOophAge{color: red;}"))
-                                                                )
-                                               )
-                                        )
-                                      )
-                     ) # end of female conditionalPanel for surgical history information
+              h3("Prophylactic Surgical History"),
+              
+              # message for proph surgery is Female sex is not selected
+              conditionalPanel("input.Sex != 'Female'",
+                h5("Prophylactic surgery information is only required for females.")
+              ),
+               
+              # for females
+              conditionalPanel("input.Sex == 'Female'",
+                p("Check each surgery the person has had and enter the age at surgery."),
+                  
+                # mastecomties
+                fluidRow(
+                  column(width = 6, 
+                    checkboxInput("Mast", label = "Bilateral Mastectomy",
+                                  width = "150px")
+                  ),
+                  column(width = 6, 
+                    conditionalPanel("input.Mast",
+                      div(style = "margin-left:-75px",
+                        numericInput("MastAge",
+                                     label = h5("Age at Mastectomy:"),
+                                     value = NA, min = min.age, max = max.age, step = 1,
+                                     width = "150px"),
+                        textOutput("validMastAge"),
+                        tags$head(tags$style("#validMastAge{color: red;}"))
+                      )
+                    )
+                  ),
+                ),
+                  
+                # hysterectomies
+                fluidRow(
+                  column(width = 6, 
+                    checkboxInput("Hyst", label = "Hysterectomy",
+                                  width = "150px")
+                  ),
+                  column(width = 6, 
+                    conditionalPanel("input.Hyst",
+                      div(style = "margin-left:-75px",
+                        numericInput("HystAge",
+                                     label = h5("Age at Hysterectomy:"),
+                                     value = NA, min = min.age, max = max.age, step = 1,
+                                     width = "150px"),
+                        textOutput("validHystAge"),
+                        tags$head(tags$style("#validHystAge{color: red;}"))
+                      )
+                    )
+                  ),
+                ),
+                  
+                # oophorectomies
+                fluidRow(
+                  column(width = 6, 
+                    checkboxInput("Ooph", label = "Bilateral Oophorectomy",
+                                  width = "250px")
+                  ),
+                  column(width = 6, 
+                    conditionalPanel("input.Ooph",
+                      div(style = "margin-left:-75px",
+                        numericInput("OophAge",
+                                     label = h5("Age at Oophorectomy:"),
+                                     value = NA, min = min.age, max = max.age, step = 1,
+                                     width = "150px"),
+                        textOutput("validOophAge"),
+                        tags$head(tags$style("#validOophAge{color: red;}"))
+                      )
+                    )
+                  )
+                )
+              ) # end of female conditionalPanel for surgical history information
             ), # end of surgery tab
             
             ###### Genes ####
             tabPanel("Genes",
               h3("Gene Testing Results"),
-              p("First, specify the panel of genes tested and then enter the test results by type. All data is 
-                entered on the first tab and a summary is displayed on the second tab.", 
-                style = "margin-bottom:10px"),
-              
-              # create two tabs, one for entering data and one for displaying a data frame summary
               tabsetPanel(id = "geneTabs",
-                
-                tabPanel(title = "1. Select Panel & Enter Results",
+                          
+                tabPanel(title = "Instructions",
+                  h4("How to Enter/Edit Germline Genetic Test Results"),
+                  p("Use this screen to enter or modify germline genetic test results 
+                    for the currently selected relative. There are three tabs: 
+                    1) 'Manage Panels' allows you to add a multi-gene panel or single 
+                    gene test for the currently selected relative or delete one of their tests; 
+                    2) 'Edit Panel' allows you to edit this relative's gene test 
+                    results, if they have at least one test; 
+                    3) 'Summary Table' displays a summary of results from all of the 
+                    relative's germline genetic tests by gene, result, nucleotide, protein, and zygosity.", 
+                    style = "margin-bottom:10px")
+                ),
+                          
+                tabPanel(title = "Manage Panels",
                   fluidRow(column(width = 12, 
-                       
-                    # select existing panel
-                    h4("Step 1a: Specify the Panel of Genes Tested"),
-                    p("Select an existing panel of genes from the drop down. If you need to create a 
-                      custom panel select 'Create new'."),
+                    h4("Current Panel Tests"),
+                    tags$div(
+                      id = "PanCont",
+                      style = "width:100%"
+                    ),
+                    conditionalPanel("!output.atLeastOnePanel",
+                      h5("This relative does not have any gene testing results yet.")
+                    ),
+                    br(),
+                    h4("Add a Panel"),
+                    p("Using the dropdown, select one of the pre-existing panels and click 'Add Panel' or select 'Create new' 
+                      to make a custom panel of genes."),
                     selectInput("existingPanels", label = NULL,
                                 choices = all.panel.names, selected = "No panel selected",
                                 width = "300px"),
+                    actionButton("addPanel", label = "Add Panel",
+                                 style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px"),
                     
                     # create new panel
                     conditionalPanel("input.existingPanels == 'Create new'",
                       p("Enter the genes in your panel below. 
                         When you start typing, the dropdown will filter to genes for you to select. 
-                        You can also add genes that are not in the dropdown. When done, select the 
-                        'Create Panel' button."),
+                        You can also add genes that are not in the dropdown. When done, give it a name and select the 
+                        'Create and Add Panel' button."),
                       textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
                       selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
                                      choices = all.genes, multiple = TRUE,
                                      width = "500px"),
-                      actionButton("createPanel", label = "Create Panel",
+                      actionButton("createPanel", label = "Create and Add Panel",
                                    style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                    )
+                  ))
+                ),
+                
+                tabPanel(title = "Edit Panel",
+                  fluidRow(column(width = 12, 
+                    h4("Edit Panel Results"),
+                                  
+                    # cannot enter results if no panels exist
+                    conditionalPanel("!output.atLeastOnePanel",
+                      p("To edit panel test results, please add at least one panel on the 'Manage Panels' tab.")
                     ),
-                    
+                       
                     # enter results by type
-                    conditionalPanel("input.existingPanels != 'No panel selected' & input.existingPanels != 'Create new'",
-                      h4("Step 1b: Enter Results by Type"),
-                      p("Enter the gene results by selecting the three different tabs for ",
+                    conditionalPanel("output.atLeastOnePanel",
+                      p("Select one of the subject's panels to edit then enter the gene results by selecting the three different tabs for ",
                         HTML("<b>pathogenic/likely pathogenic (P/LP), unknown significance (VUS),</b> or <b>
                         benign/likely benign (B/LP)</b>.")," Any genes not specified as P/LP, VUS, or B/LB
                         will be recorded as negative.", 
                         style = "margin-bottom:25px"),
+                      selectInput("editPanel", "Select a panel to edit:",
+                                  choices = c("No panel selected"), selected = "No panel selected"),
                       
                       # create a tab for each result type to save space
-                      tabsetPanel(id = "GeneResultTabs",
-                      
-                        # P/LP
-                        tabPanel("P/LP",
-                          wellPanel(style = "background:MistyRose",
-                            h4(HTML("<b>Pathogenic/Likely Pathogenic (P/LP) genes</b>"), style = "color:black"),
-                            conditionalPanel("output.PLPHeader",
-                              fluidRow(
-                                column(width = 3,
-                                       h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3, 
-                                       h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3,
-                                       h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3,
-                                       h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                              )
-                            ),
-                            
-                            # PLP gene modules will be added here
-                            tags$div(
-                              id = "genePLPContainer",
-                              style = "width:100%"
-                            ),
-                            
-                            # add a new PLP gene module to the UI
-                            actionButton("addPLP", label = "Add P/LP Gene",
-                                         icon = icon('plus'),
-                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                      conditionalPanel("input.editPanel != 'No panel selected'",
+                        tabsetPanel(id = "GeneResultTabs",
+                        
+                          # P/LP
+                          tabPanel("P/LP",
+                            wellPanel(style = "background:MistyRose",
+                              h4(HTML("<b>Pathogenic/Likely Pathogenic (P/LP) genes</b>"), style = "color:black"),
+                              geneHeaderUI(),
+                              
+                              # PLP gene modules will be added here
+                              tags$div(
+                                id = "PLPCont",
+                                style = "width:100%"
+                              ),
+                              
+                              # add a new PLP gene module to the UI
+                              actionButton("addPLP", label = "Add P/LP Gene Variant",
+                                           icon = icon('plus'),
+                                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                            )
+                          ),
+                        
+                          # VUS
+                          tabPanel("VUS",
+                            wellPanel(style = "background:LightGreen",
+                              h4(HTML("<b>Variant of Unknown Significance (VUS) genes</b>"), style = "color:black"),
+                              geneHeaderUI(),
+                              
+                              # VUS gene modules will be added here
+                              tags$div(
+                                id = "VUSCont",
+                                style = "width:100%"
+                              ),
+                              
+                              # add a new VUS gene module to the UI
+                              actionButton("addVUS", label = "Add VUS Gene Variant",
+                                           icon = icon('plus'),
+                                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
+                            )
+                          ),
+                        
+                          # B/LP
+                          tabPanel("B/LB",
+                            wellPanel(style = "background:AliceBlue",
+                              h4(HTML("<b>Benign/Likely Benign (B/LB) genes</b>"), style = "color:black"),
+                              geneHeaderUI(),
+                              
+                              # BLB gene modules will be added here
+                              tags$div(
+                                id = "BLBCont",
+                                style = "width:100%"
+                              ),
+                              
+                              # add a new BLB gene module
+                              actionButton("addBLB", label = "Add B/LB Gene Variant",
+                                           icon = icon('plus'),
+                                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                            )
                           )
-                        ),
-                      
-                        # VUS
-                        tabPanel("VUS",
-                          wellPanel(style = "background:LightGreen",
-                            h4(HTML("<b>Variant of Unknown Significance (VUS) genes</b>"), style = "color:black"),
-                            fluidRow(
-                              conditionalPanel("output.VUSHeader",
-                                column(width = 3,
-                                       h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3, 
-                                       h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3,
-                                       h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3,
-                                       h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                )
-                              )
-                            ),
-                            
-                            # VUS gene modules will be added here
-                            tags$div(
-                              id = "geneVUSContainer",
-                              style = "width:100%"
-                            ),
-                            
-                            # add a new VUS gene module to the UI
-                            actionButton("addVUS", label = "Add VUS Gene",
-                                         icon = icon('plus'),
-                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
-                          )
-                        ),
-                      
-                        # B/LP
-                        tabPanel("B/LB",
-                          wellPanel(style = "background:AliceBlue",
-                            h4(HTML("<b>Benign/Likely Benign (B/LB) genes</b>"), style = "color:black"),
-                            fluidRow(
-                              conditionalPanel("output.BLBHeader",
-                                column(width = 3,
-                                       h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3, 
-                                       h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3,
-                                       h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                ),
-                                column(width = 3,
-                                       h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
-                                )
-                              )
-                            ),
-                            
-                            # BLB gene modules will be added here
-                            tags$div(
-                              id = "geneBLBContainer",
-                              style = "width:100%"
-                            ),
-                            
-                            # add a new BLB gene module
-                            actionButton("addBLB", label = "Add B/LB Gene",
-                                         icon = icon('plus'),
-                                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
-                          )
-                        )
-                      ) # end of tabsetPanel for gene results by type
-                    ) # end of conditionalPanel for entering gene results by type
+                        ) # end of tabsetPanel for gene results by type
+                      ) # end of conditionalPanel for entering gene results by type
+                    ) # end of conditionalPanel for checking if a panel to edit has been selected
                   )), # end of column and fluidRow
                 ), # end of tab for gene results entry and panel selection 
                 
                 # tab for review panel results
-                tabPanel(title = "2. Panel Summary",
-                  h4("Step 2: Review Panel Results"),
-                  conditionalPanel("input.existingPanels == 'No panel selected' | input.existingPanels == 'Create new'",
-                    h5("Select a panel or create a new one to display the panel genes.")
+                tabPanel(title = "Summary Table",
+                  h4("Gene Summary"),
+                  conditionalPanel("!output.atLeastOnePanel",
+                    h5("This relative does not have any panel tests; therefore, a summary table cannot be displayed.")
                   ),
-                  conditionalPanel("input.existingPanels != 'No panel selected' & input.existingPanels != 'Create new'",
-                    h5("The table below is a summary of the result you have entered so far. In only lists the 
-                       genes in the panel you specified. Genes are marked a negative until they are recorded as 
-                       P/LP, VUS, or B/LP on the left."),
+                  conditionalPanel("output.atLeastOnePanel",
+                    h5("The table below is a summary of all the genes in all of panels for this individual. 
+                       Genes are marked a negative until they are recorded as 
+                       P/LP, VUS, or B/LP in any of their panels."),
+                    
+                    # warn user there is at least one gene with different result types recorded
+                    conditionalPanel("output.dupResultGene",
+                      p("There is at least one gene for this relative which has multiple different result types recorded. 
+                        This is possible but, it could be an error. Please check the table below for accuracy.
+                        If one of these result types is P/LP, PanelPRO will treat this gene as P/LP.", 
+                        style = "color:red")
+                    ),
                     
                     # data frame with panel summary information
                     dataTableOutput("panelSum")
@@ -876,40 +870,42 @@ server <- function(input, output, session) {
   # add data to pedigree when user navigates off of the tab
   onCanTab <- reactiveVal(FALSE)
   observeEvent(list(input$pedTabs), {
+    
+    can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
 
-    # consolidate all cancer inputs into a single data frame by looping through each exiting module
-    can.df <- cancer.inputs.store
-    trackInputs <- canReactive$canNums[[input$relSelect]]$dict
-    if(!(length(trackInputs) == 1 & is.na(trackInputs[1]))){
-      for(cn in as.numeric(names(trackInputs))){
-        id <- paste0("rel", input$relSelect, "canModule", trackInputs[cn])
-        if(input[[paste0(id, '-Can')]] != "No cancer selected"){
-          can.df[cn, ] <- c(input[[paste0(id, '-Can')]],
-                            input[[paste0(id, '-CanAge')]],
-                            input[[paste0(id, '-CanOther')]])
-        }
-        
-        # check for CBC
-        hadCBC <- FALSE
-        CBCAge <- NA
-        if(input[[paste0(id, '-Can')]] == "Breast" &
-           input[[paste0(id, "-CBC")]] == "Yes"){
-          hadCBC <- TRUE
-          CBCAge <- input[[paste0(id, "-CBCAge")]]
-        }
-      }
-      
-      # add CBC as last row of the data frame
-      if(hadCBC){
-        can.df[nrow(can.df)+1, ] <- c("Contralateral",
-                                      CBCAge,
-                                      "")
-      }
-      
-      # no cancer entered for this person, create 1 row placeholder data frame
-    } else {
-      can.df[1, ] <- c("No cancer selected", NA, "")
-    }
+    # # consolidate all cancer inputs into a single data frame by looping through each exiting module
+    # can.df <- cancer.inputs.store
+    # trackInputs <- canReactive$canNums[[input$relSelect]]$dict
+    # if(!(length(trackInputs) == 1 & is.na(trackInputs[1]))){
+    #   for(cn in as.numeric(names(trackInputs))){
+    #     id <- paste0("rel", input$relSelect, "canModule", trackInputs[cn])
+    #     if(input[[paste0(id, '-Can')]] != "No cancer selected"){
+    #       can.df[cn, ] <- c(input[[paste0(id, '-Can')]],
+    #                         input[[paste0(id, '-CanAge')]],
+    #                         input[[paste0(id, '-CanOther')]])
+    #     }
+    #     
+    #     # check for CBC
+    #     hadCBC <- FALSE
+    #     CBCAge <- NA
+    #     if(input[[paste0(id, '-Can')]] == "Breast" &
+    #        input[[paste0(id, "-CBC")]] == "Yes"){
+    #       hadCBC <- TRUE
+    #       CBCAge <- input[[paste0(id, "-CBCAge")]]
+    #     }
+    #   }
+    #   
+    #   # add CBC as last row of the data frame
+    #   if(hadCBC){
+    #     can.df[nrow(can.df)+1, ] <- c("Contralateral",
+    #                                   CBCAge,
+    #                                   "")
+    #   }
+    #   
+    #   # no cancer entered for this person, create 1 row placeholder data frame
+    # } else {
+    #   can.df[1, ] <- c("No cancer selected", NA, "")
+    # }
     
     # transfer information to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx"){
@@ -1089,453 +1085,501 @@ server <- function(input, output, session) {
   
   # save the number of genes for each person, by result type
   # also store the list of genes in the currently selected panel
-  geneReactive <- reactiveValues(PLPNums = trackGenes.init,
-                                 VUSNums = trackGenes.init,
-                                 BLBNums = trackGenes.init,
-                                 panel.genes = as.character())
+  geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
+  ##### Panels ####
   
-  ##### Panel ####
+  ### check if the current relative has a least one panel
+  atLeastOnePanel <- reactiveVal(FALSE)
+  observeEvent(list(geneReactive$GeneNums, input$relSelect), {
+    if(geneReactive$GeneNums[[input$relSelect]]$panels$panel1$name == "No panel selected"){
+      atLeastOnePanel(FALSE)
+    } else {
+      atLeastOnePanel(TRUE)
+    }
+  })
+  output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
+  outputOptions(output, 'atLeastOnePanel', suspendWhenHidden = FALSE)
   
-  ### existing panel
-  # observe when the panel changes to trigger reset of related data
-  observeEvent(input$existingPanels, {
-    if(lastRel() == input$relSelect){
+  ### add an existing panel
+  observeEvent(input$addPanel, {
+    
+    # check that the selected panel is an actual panel
+    if(!input$existingPanels %in% c("No panel selected", "Create new")){
       
-      # if switching to a different panel, change the list of genes
-      if(!input$existingPanels %in% c("No panel selected", "Create new")){
-        geneReactive$panel.genes <- all.panels[[input$existingPanels]]
-        
-        # if selecting no panel or create new panel, empty the panel.genes vector
+      ## store initial inputs as variables to be called later
+      rel <- input$relSelect
+      gr <- geneReactive$GeneNums[[rel]]
+      pan.name <- input$existingPanels
+      panel.module.id.num <- gr$mx + 1
+      if(gr$panels$panel1$name == "No panel selected"){
+        next.dict.slot <- 1
       } else {
-        geneReactive$panel.genes <- as.character()
+        next.dict.slot <- max(as.numeric(names(gr$dict))) + 1
+      }
+      new.pan <- paste0("panel", next.dict.slot)
+      
+      ## update gene/panel input tracking information
+      # update panel aggregate tracking information
+      gr$mx <- panel.module.id.num
+      if(gr$panels$panel1$name == "No panel selected"){
+        gr$dict <- setNames(c(panel.module.id.num), next.dict.slot)
+      } else {
+        gr$dict <- c(gr$dict, setNames(c(panel.module.id.num), next.dict.slot))
       }
       
-      # remove all gene inputs
-      for(rtype in c("PLP","VUS","BLB")){
-        trackInputs <- geneReactive[[paste0(rtype, "Nums")]][[input$relSelect]]$dict
-        if(!is.na(trackInputs[1])){
-          trackMax <- geneReactive[[paste0(rtype, "Nums")]][[input$relSelect]]$mx
-          for(gn in names(trackInputs)){
-            id <- paste0("rel", input$relSelect, paste0(rtype, "geneModule"), trackInputs[gn])
-            
-            # remove the module from the UI
-            removeUI(selector = paste0("#geneSubContainer",id))
-            
-            # remove the module's inputs from memory
-            remove_shiny_inputs(id, input)
-            
-            ## remove module's index from the vector of active modules
-            ## decrease the active gene module count by one
-            ## shift remaining active gene modules to different slots
-            if(length(trackInputs) == 1){
-              trackInputs[1] <- NA
-            } else {
-              
-              # if the input to be removed is not the last one, iterate through the active inputs to update them
-              if(which(trackInputs == trackMax) != length(trackInputs)){
-                for(el in which(trackInputs == trackMax):(length(trackInputs) - 1)){
-                  trackInputs[el] <- trackInputs[el+1]
-                }
-              }
-              trackInputs <- trackInputs[1:(length(trackInputs) - 1)]
-            } 
-            geneReactive[[paste0(rtype, "Nums")]][[input$relSelect]]$dict <- trackInputs
+      # update panel specific information
+      gr$panels[[new.pan]]$name <- pan.name
+      gr$panels[[new.pan]]$genes <- all.panels[[pan.name]]
+      gr$panels[[new.pan]]$results <- geneResultsTemplate
+      
+      # update the reactive
+      geneReactive$GeneNums[[input$relSelect]] <- gr
+      
+      ## insert UI
+      # create the unique panelUI module ID with its own container
+      panMod.id <- paste0("rel", rel, "PanelModule", panel.module.id.num)
+      insertUI(
+        selector = "#PanCont",
+        where = "beforeEnd",
+        ui = panelUI(id = panMod.id, 
+                     rel = rel,
+                     panelName = pan.name)
+      )
+      
+      ## update related dropdown choices
+      # remove added panel from dropdown choices for adding a new panel
+      cur.panels <- as.character()
+      for(pn in names(gr$dict)){
+        cur.panels <- c(cur.panels, gr$panels[[paste0("panel", pn)]]$name)
+      }
+      updateSelectInput(session, "existingPanels",
+                        choices = all.panel.names[which(!all.panel.names %in% cur.panels)],
+                        selected = "No panel selected")
+      
+      # add panel name to dropdown choices for editing an active panel
+      updateSelectInput(session, "editPanel",
+                        choices = c("No panel selected", cur.panels),
+                        selected = "No panel selected")
+      
+      ## panelUI Remove Observer
+      # create a remove module button observer for each panelUI module created
+      observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
+        
+        ## remove the panel's input information from reactive used to track gene/panel inputs
+        # get an updated copy of the reactive because gr likely changed between creation and removal of the UI
+        rm.gr <- geneReactive$GeneNums[[rel]]
+        
+        # find the panelUI's order number in the dictionary
+        for(rm.pnum in as.numeric(names(rm.gr$dict))){
+          rm.pnum.name <- paste0("panel", rm.pnum)
+          if(rm.gr$panels[[rm.pnum.name]]$name == pan.name){
+            break
           }
         }
-      }
-  
-      # clear the related pedigree data
-      tmp.ped <- PED()
-      tmp.ped[which(tmp.ped$ID == input$relSelect), PanelPRO:::GENE_TYPES] <- NA
-      tmp.ped[which(tmp.ped$ID == input$relSelect), "panel.name"] <- "none"
-      tmp.ped[which(tmp.ped$ID == input$relSelect), "PP.gene.info"] <- NA
-      tmp.ped[which(tmp.ped$ID == input$relSelect), "NPP.gene.info"] <- NA
-      PED(tmp.ped)
-      
-    }
-    
-  }, ignoreInit = TRUE)
+        
+        ## remove all related geneUI's for each result type
+        for(rtype in c("PLP", "VUS", "BLB")){
+          rm.gr.rtype <- rm.gr$panels[[rm.pnum.name]]$results[[rtype]]
+          for(gnum in as.numeric(names(rm.gr.rtype$dict))){
+            gene.module.id.num <- rm.gr.rtype$dict[gnum]
+            
+            # remove the module from the UI
+            geneMod.id <- paste0("rel", rel, "Pan", panel.module.id.num, rtype, "GeneModule", gene.module.id.num)
+            removeUI(selector = paste0("#", geneMod.id, "Cont"))
+            
+            # remove the module's inputs from memory
+            remove_shiny_inputs(geneMod.id, input)
+          }
+        }
+        
+        ## delete the panelUI module
+        # remove the module from the UI
+        removeUI(selector = paste0("#", panMod.id, "Cont"))
+        
+        # remove the module's inputs from memory
+        remove_shiny_inputs(panMod.id, input)
+        
+        ## update the panel/gene tracking information
+        # clear panel1 information if there was only 1 panel
+        if(length(rm.gr$dict) == 1){
+          rm.gr$dict[1] <- NA
+          rm.gr$panels$panel1$name <- "No panel selected"
+          rm.gr$panels$panel1$genes <- as.character()
+          rm.gr$panels$panel1$results <- geneResultsTemplate
+          
+          # if there was more than 1 panel
+        } else {
+          
+          # delete the panel's information
+          rm.gr$panels[[rm.pnum.name]] <- NULL
+          
+          ## modify the relative's panel dictionary and panel names
+          # case where the panel to be deleted is not the last panel added
+          if(rm.pnum != names(rm.gr$dict)[length(rm.gr$dict)]){
+            
+            # re-shift all panel1, panel2, ... names
+            names(rm.gr$panels)[rm.pnum:length(rm.gr$panels)] <- 
+              paste0("panel", rm.pnum:length(rm.gr$panels))
+            
+            # iterate through the active panelUI modules to update the panel dictionary
+            for(el in rm.pnum:(length(rm.gr$dict) - 1)){
+              rm.gr$dict[el] <- rm.gr$dict[el+1]
+            }
+          }
+          
+          # remove the last entry from the panel dictionary
+          rm.gr$dict <- rm.gr$dict[1:(length(rm.gr$dict) - 1)]
+        }
+        
+        # update reactive
+        geneReactive$GeneNums[[rel]] <- rm.gr
+        
+        ## update related dropdown choices
+        # add removed panel back to dropdown choices for adding a new panel
+        rm.cur.panels <- as.character()
+        if(!is.na(rm.gr$dict[1])){
+          for(pnum in names(rm.gr$dict)){
+            rm.cur.panels <- c(rm.cur.panels, rm.gr$panels[[paste0("panel", pnum)]]$name)
+          }
+        }
+        updateSelectInput(session, "existingPanels",
+                          choices = all.panel.names[which(!all.panel.names %in% rm.cur.panels)],
+                          selected = "No panel selected")
+        
+        # remove panel name from dropdown choices for editing an active panel
+        updateSelectInput(session, "editPanel",
+                          choices = c("No panel selected", rm.cur.panels),
+                          selected = "No panel selected")
+        
+      }) # end of removePanel observeEvent
+    } # end of if statement to check if the request to create the new panel had a valid panel name
+  }) # end of observeEvent for creating a new panelUI module
   
   
   ### create new panel (PLACEHOLDER)
   
   
   ##### PLP Genes ####
-  # add PLP input header/labels when at least one active PLP gene module exists
-  PLPHeader <- reactiveVal(FALSE)
-  observeEvent(geneReactive$PLPNums[[input$relSelect]]$dict, {
-    if(!is.na(geneReactive$PLPNums[[input$relSelect]]$dict[1])){
-      PLPHeader(TRUE)
-    } else {
-      PLPHeader(FALSE)
-    }
-  })
-  output$PLPHeader <- reactive({ PLPHeader() })
-  outputOptions(output, 'PLPHeader', suspendWhenHidden = FALSE)
-  
-  # add a PLP gene UI module on button click and advance the module counter
+  # add a PLP geneUI module on button click and advance the module counter
+  # note, a conditionalPanel ensures the button is only displayed if the relative
+  # has a least on panel
   observeEvent(input$addPLP, {
-    
-    # look-up the maximum number of created PLP gene UI modules for the current 
-    # relative and the order of active PLP gene UI modules
-    trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
-    trackMax <- geneReactive$PLPNums[[input$relSelect]]$mx
-    
-    # increase this person's count of PLP gene input modules by 1
-    if(length(trackInputs) == 1 & is.na(trackInputs[1])){
-      trackInputs[1] <- trackMax + 1
-    } else {
-      next.slot <- max(as.numeric(names(trackInputs))) + 1
-      trackInputs <- c(trackInputs, setNames(trackMax + 1, next.slot))
-    }
-    
-    # increase total number of created PLP gene UI modules for this person
-    trackMax <- trackMax + 1
-    
-    # update PLPNums for this person
-    geneReactive$PLPNums[[input$relSelect]] <- list(dict = trackInputs,
-                                                    mx = trackMax)
-    
-    # create the unique module ID and insert the UI module
-    id <- paste0("rel", input$relSelect, "PLPgeneModule", trackMax)
-    insertUI(
-      selector = "#genePLPContainer",
-      where = "beforeEnd",
-      ui = geneUI(id = id, rel = reactive(input$relSelect),
-                  panel.genes = reactive(geneReactive$panel.genes))
-    )
+    if(input$editPanel != "No panel selected"){
+      
+      # assign variables to be called later
+      rel <- input$relSelect
+      gr <- geneReactive$GeneNums[[rel]]
+      for(pnum in as.numeric(names(gr$dict))){
+        pnum.name <- paste0("panel", pnum)
+        if(gr$panels[[pnum.name]]$name == input$editPanel){
+          panel.module.id.num <- gr$dict[pnum]
+          p.name <- gr$panels[[pnum.name]]$name
+          p.genes <- gr$panels[[pnum.name]]$genes
+          grplp <- gr$panels[[pnum.name]]$results$PLP
+          gene.module.id.num <- grplp$mx + 1
+          if(is.na(grplp$dict[1])){
+            next.dict.slot <- 1
+          } else {
+            next.dict.slot <- max(as.numeric(names(grplp$dict))) + 1
+          }
+          break
+        }
+      }
 
-    ### Gene UI Remove Observer
-    # create a remove module button observer for each UI module created
-    observeEvent(input[[paste0(id, '-removeGene')]], {
-      
-      # get current version of active PLP gene modules
-      tmp.trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
-      
-      ## delete the module and UI
-      # remove the module from the UI
-      removeUI(selector = paste0("#geneSubContainer",id))
-      
-      # remove the module's inputs from memory
-      remove_shiny_inputs(id, input)
-      
-      ## remove module's index from the vector of active modules
-      ## decrease the active PLP gene module count by one
-      ## shift remaining active PLP gene modules to different slots
-      if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
-        tmp.trackInputs[1] <- NA
-      } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+      # update PLP geneUI module tracking information for this relative and panel
+      grplp$mx <- gene.module.id.num
+      if(is.na(grplp$dict[1])){
+        grplp$dict <- setNames(c(gene.module.id.num), next.dict.slot)
+      } else {
+        grplp$dict <- c(grplp$dict, setNames(c(gene.module.id.num), next.dict.slot))
+      }
+      geneReactive$GeneNums[[rel]]$panels[[pnum.name]]$results$PLP <- grplp
+
+      # create the unique geneUI module ID and insert the module into its own container
+      geneMod.id <- paste0("rel", rel, "Pan", panel.module.id.num, "PLPGeneModule", gene.module.id.num)
+      insertUI(
+        selector = "#PLPCont",
+        where = "beforeEnd",
+        ui = geneUI(id = geneMod.id,
+                    rel = rel,
+                    panelName = p.name,
+                    panelGenes = p.genes
+             )
+      )
+
+      ### Gene UI Remove Observer
+      # create a remove module button observer for each UI module created
+      observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
         
-        # if the input to be removed is not the last one, iterate through the active inputs to update them
-        if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
-          for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
-            tmp.trackInputs[el] <- tmp.trackInputs[el+1]
+        ## delete the geneUI module
+        # remove the module from the UI
+        removeUI(selector = paste0("#", geneMod.id, "Cont"))
+        
+        # remove the module's inputs from memory
+        remove_shiny_inputs(geneMod.id, input)
+        
+        ## remove the gene's input information from reactive used to track gene/panel inputs
+        # get an updated copy of the reactive because gr likely changed between creation and removal of the UI
+        for(rm.pnum in as.numeric(names(geneReactive$GeneNums[[rel]]$dict))){
+          rm.pnum.name <- paste0("panel", rm.pnum)
+          if(geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$name == input$editPanel){
+            break
           }
         }
-        tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
-      } 
-      geneReactive$PLPNums[[input$relSelect]]$dict <- tmp.trackInputs
-    })
-  })
+        rm.grplp <- geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$results$PLP
+        del.dict.slot <- which(rm.grplp$dict == gene.module.id.num)
+        
+        # clear gene module information
+        if(length(rm.grplp$dict) == 1){
+          rm.grplp$dict[1] <- NA
+        } else {
+          
+          # case where the gene module to be deleted is not the last gene module added
+          if(del.dict.slot != names(rm.grplp$dict)[length(rm.grplp$dict)]){
+            
+            # iterate through the active geneUI modules to update the dictionary
+            for(el in del.dict.slot:(length(rm.grplp$dict) - 1)){
+              rm.grplp$dict[el] <- rm.grplp$dict[el+1]
+            }
+          }
+          
+          # remove the last entry from the dictionary
+          rm.grplp$dict <- rm.grplp$dict[1:(length(rm.grplp$dict) - 1)]
+        }
+        
+        # update reactive
+        geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$results$PLP <- rm.grplp
+      })
+    }
+  }, ignoreInit = TRUE)
+  
   
   ##### VUS Genes ####
-  # add VUS input header/labels when at least one active VUS gene module exists
-  VUSHeader <- reactiveVal(FALSE)
-  observeEvent(geneReactive$VUSNums[[input$relSelect]]$dict, {
-    if(!is.na(geneReactive$VUSNums[[input$relSelect]]$dict[1])){
-      VUSHeader(TRUE)
-    } else {
-      VUSHeader(FALSE)
-    }
-  })
-  output$VUSHeader <- reactive({ VUSHeader() })
-  outputOptions(output, 'VUSHeader', suspendWhenHidden = FALSE)
-  
-  # add a VUS gene UI module on button click and advance the module counter
+  # add a VUS geneUI module on button click and advance the module counter
+  # note, a conditionalPanel ensures the button is only displayed if the relative
+  # has a least on panel
   observeEvent(input$addVUS, {
-    
-    # look-up the maximum number of created VUS gene UI modules for the current 
-    # relative and the order of active VUS gene UI modules
-    trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
-    trackMax <- geneReactive$VUSNums[[input$relSelect]]$mx
-    
-    # increase this person's count of VUS gene input modules by 1
-    if(length(trackInputs) == 1 & is.na(trackInputs[1])){
-      trackInputs[1] <- trackMax + 1
-    } else {
-      next.slot <- max(as.numeric(names(trackInputs))) + 1
-      trackInputs <- c(trackInputs, setNames(trackMax + 1, next.slot))
-    }
-    
-    # increase total number of created VUS gene UI modules for this person
-    trackMax <- trackMax + 1
-    
-    # update VUSNums for this person
-    geneReactive$VUSNums[[input$relSelect]] <- list(dict = trackInputs,
-                                                    mx = trackMax)
-    
-    # create the unique module ID and insert the UI module
-    id <- paste0("rel", input$relSelect, "VUSgeneModule", trackMax)
-    insertUI(
-      selector = "#geneVUSContainer",
-      where = "beforeEnd",
-      ui = geneUI(id = id, rel = reactive(input$relSelect),
-                  panel.genes = reactive(geneReactive$panel.genes))
-    )
-    
-    ### Gene UI Remove Observer
-    # create a remove module button observer for each UI module created
-    observeEvent(input[[paste0(id, '-removeGene')]], {
-      
-      # get current version of active VUS gene modules
-      tmp.trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
-      
-      ## delete the module and UI
-      # remove the module from the UI
-      removeUI(selector = paste0("#geneSubContainer",id))
-      
-      # remove the module's inputs from memory
-      remove_shiny_inputs(id, input)
-      
-      ## remove module's index from the vector of active modules
-      ## decrease the active VUS gene module count by one
-      ## shift remaining active VUS gene modules to different slots
-      if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
-        tmp.trackInputs[1] <- NA
-      } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
-        
-        # if the input to be removed is not the last one, iterate through the active inputs to update them
-        if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
-          for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
-            tmp.trackInputs[el] <- tmp.trackInputs[el+1]
+    if(input$editPanel != "No panel selected"){
+
+      # assign variables to be called later
+      rel <- input$relSelect
+      gr <- geneReactive$GeneNums[[rel]]
+      for(pnum in as.numeric(names(gr$dict))){
+        pnum.name <- paste0("panel", pnum)
+        if(gr$panels[[pnum.name]]$name == input$editPanel){
+          panel.module.id.num <- gr$dict[pnum]
+          p.name <- gr$panels[[pnum.name]]$name
+          p.genes <- gr$panels[[pnum.name]]$genes
+          grvus <- gr$panels[[pnum.name]]$results$VUS
+          gene.module.id.num <- grvus$mx + 1
+          if(is.na(grvus$dict[1])){
+            next.dict.slot <- 1
+          } else {
+            next.dict.slot <- max(as.numeric(names(grvus$dict))) + 1
+          }
+          break
+        }
+      }
+
+      # update VUS geneUI module tracking information for this relative and panel
+      grvus$mx <- gene.module.id.num
+      if(is.na(grvus$dict[1])){
+        grvus$dict <- setNames(c(gene.module.id.num), next.dict.slot)
+      } else {
+        grvus$dict <- c(grvus$dict, setNames(c(gene.module.id.num), next.dict.slot))
+      }
+      geneReactive$GeneNums[[rel]]$panels[[pnum.name]]$results$VUS <- grvus
+
+      # create the unique geneUI module ID and insert the module into its own container
+      geneMod.id <- paste0("rel", rel, "Pan", panel.module.id.num, "VUSGeneModule", gene.module.id.num)
+      insertUI(
+        selector = "#VUSCont",
+        where = "beforeEnd",
+        ui = geneUI(id = geneMod.id,
+                    rel = rel,
+                    panelName = p.name,
+                    panelGenes = p.genes
+        )
+      )
+
+      ### Gene UI Remove Observer
+      # create a remove module button observer for each UI module created
+      observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
+
+        ## delete the geneUI module
+        # remove the module from the UI
+        removeUI(selector = paste0("#", geneMod.id, "Cont"))
+
+        # remove the module's inputs from memory
+        remove_shiny_inputs(geneMod.id, input)
+
+        ## remove the gene's input information from reactive used to track gene/panel inputs
+        # get an updated copy of the reactive because gr likely changed between creation and removal of the UI
+        for(rm.pnum in as.numeric(names(geneReactive$GeneNums[[rel]]$dict))){
+          rm.pnum.name <- paste0("panel", rm.pnum)
+          if(geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$name == input$editPanel){
+            break
           }
         }
-        tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
-      } 
-      geneReactive$VUSNums[[input$relSelect]]$dict <- tmp.trackInputs
-    })
-  })
-  
-  
+        rm.grvus <- geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$results$VUS
+        del.dict.slot <- which(rm.grvus$dict == gene.module.id.num)
+
+        # clear gene module information
+        if(length(rm.grvus$dict) == 1){
+          rm.grvus$dict[1] <- NA
+        } else {
+
+          # case where the gene module to be deleted is not the last gene module added
+          if(del.dict.slot != names(rm.grvus$dict)[length(rm.grvus$dict)]){
+
+            # iterate through the active geneUI modules to update the dictionary
+            for(el in del.dict.slot:(length(rm.grvus$dict) - 1)){
+              rm.grvus$dict[el] <- rm.grvus$dict[el+1]
+            }
+          }
+
+          # remove the last entry from the dictionary
+          rm.grvus$dict <- rm.grvus$dict[1:(length(rm.grvus$dict) - 1)]
+        }
+
+        # update reactive
+        geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$results$VUS <- rm.grvus
+      })
+    }
+  }, ignoreInit = TRUE)
+
+
   ##### BLB Genes ####
-  # add BLB input header/labels when at least one active BLB gene module exists
-  BLBHeader <- reactiveVal(FALSE)
-  observeEvent(geneReactive$BLBNums[[input$relSelect]]$dict, {
-    if(!is.na(geneReactive$BLBNums[[input$relSelect]]$dict[1])){
-      BLBHeader(TRUE)
-    } else {
-      BLBHeader(FALSE)
-    }
-  })
-  output$BLBHeader <- reactive({ BLBHeader() })
-  outputOptions(output, 'BLBHeader', suspendWhenHidden = FALSE)
-  
-  # add a BLB gene UI module on button click and advance the module counter
+  # add a BLB geneUI module on button click and advance the module counter
+  # note, a conditionalPanel ensures the button is only displayed if the relative
+  # has a least on panel
   observeEvent(input$addBLB, {
-    
-    # look-up the maximum number of created BLB gene UI modules for the current 
-    # relative and the order of active BLB gene UI modules
-    trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
-    trackMax <- geneReactive$BLBNums[[input$relSelect]]$mx
-    
-    # increase this person's count of BLB gene input modules by 1
-    if(length(trackInputs) == 1 & is.na(trackInputs[1])){
-      trackInputs[1] <- trackMax + 1
-    } else {
-      next.slot <- max(as.numeric(names(trackInputs))) + 1
-      trackInputs <- c(trackInputs, setNames(trackMax + 1, next.slot))
-    }
-    
-    # increase total number of created BLB gene UI modules for this person
-    trackMax <- trackMax + 1
-    
-    # update BLBNums for this person
-    geneReactive$BLBNums[[input$relSelect]] <- list(dict = trackInputs,
-                                                    mx = trackMax)
-    
-    # create the unique module ID and insert the UI module
-    id <- paste0("rel", input$relSelect, "BLBgeneModule", trackMax)
-    insertUI(
-      selector = "#geneBLBContainer",
-      where = "beforeEnd",
-      ui = geneUI(id = id, rel = reactive(input$relSelect),
-                  panel.genes = reactive(geneReactive$panel.genes))
-    )
-    
-    ### Gene UI Remove Observer
-    # create a remove module button observer for each UI module created
-    observeEvent(input[[paste0(id, '-removeGene')]], {
-      
-      # get current version of active BLB gene modules
-      tmp.trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
-      
-      ## delete the module and UI
-      # remove the module from the UI
-      removeUI(selector = paste0("#geneSubContainer",id))
-      
-      # remove the module's inputs from memory
-      remove_shiny_inputs(id, input)
-      
-      ## remove module's index from the vector of active modules
-      ## decrease the active BLB gene module count by one
-      ## shift remaining active BLB gene modules to different slots
-      if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
-        tmp.trackInputs[1] <- NA
-      } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
-        
-        # if the input to be removed is not the last one, iterate through the active inputs to update them
-        if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
-          for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
-            tmp.trackInputs[el] <- tmp.trackInputs[el+1]
+    if(input$editPanel != "No panel selected"){
+
+      # assign variables to be called later
+      rel <- input$relSelect
+      gr <- geneReactive$GeneNums[[rel]]
+      for(pnum in as.numeric(names(gr$dict))){
+        pnum.name <- paste0("panel", pnum)
+        if(gr$panels[[pnum.name]]$name == input$editPanel){
+          panel.module.id.num <- gr$dict[pnum]
+          p.name <- gr$panels[[pnum.name]]$name
+          p.genes <- gr$panels[[pnum.name]]$genes
+          grblb <- gr$panels[[pnum.name]]$results$BLB
+          gene.module.id.num <- grblb$mx + 1
+          if(is.na(grblb$dict[1])){
+            next.dict.slot <- 1
+          } else {
+            next.dict.slot <- max(as.numeric(names(grblb$dict))) + 1
+          }
+          break
+        }
+      }
+
+      # update BLB geneUI module tracking information for this relative and panel
+      grblb$mx <- gene.module.id.num
+      if(is.na(grblb$dict[1])){
+        grblb$dict <- setNames(c(gene.module.id.num), next.dict.slot)
+      } else {
+        grblb$dict <- c(grblb$dict, setNames(c(gene.module.id.num), next.dict.slot))
+      }
+      geneReactive$GeneNums[[rel]]$panels[[pnum.name]]$results$BLB <- grblb
+
+      # create the unique geneUI module ID and insert the module into its own container
+      geneMod.id <- paste0("rel", rel, "Pan", panel.module.id.num, "BLBGeneModule", gene.module.id.num)
+      insertUI(
+        selector = "#BLBCont",
+        where = "beforeEnd",
+        ui = geneUI(id = geneMod.id,
+                    rel = rel,
+                    panelName = p.name,
+                    panelGenes = p.genes
+        )
+      )
+
+      ### Gene UI Remove Observer
+      # create a remove module button observer for each UI module created
+      observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
+
+        ## delete the geneUI module
+        # remove the module from the UI
+        removeUI(selector = paste0("#", geneMod.id, "Cont"))
+
+        # remove the module's inputs from memory
+        remove_shiny_inputs(geneMod.id, input)
+
+        ## remove the gene's input information from reactive used to track gene/panel inputs
+        # get an updated copy of the reactive because gr likely changed between creation and removal of the UI
+        for(rm.pnum in as.numeric(names(geneReactive$GeneNums[[rel]]$dict))){
+          rm.pnum.name <- paste0("panel", rm.pnum)
+          if(geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$name == input$editPanel){
+            break
           }
         }
-        tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
-      } 
-      geneReactive$BLBNums[[input$relSelect]]$dict <- tmp.trackInputs
-    })
-  })
+        rm.grblb <- geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$results$BLB
+        del.dict.slot <- which(rm.grblb$dict == gene.module.id.num)
+
+        # clear gene module information
+        if(length(rm.grblb$dict) == 1){
+          rm.grblb$dict[1] <- NA
+        } else {
+
+          # case where the gene module to be deleted is not the last gene module added
+          if(del.dict.slot != names(rm.grblb$dict)[length(rm.grblb$dict)]){
+
+            # iterate through the active geneUI modules to update the dictionary
+            for(el in del.dict.slot:(length(rm.grblb$dict) - 1)){
+              rm.grblb$dict[el] <- rm.grblb$dict[el+1]
+            }
+          }
+
+          # remove the last entry from the dictionary
+          rm.grblb$dict <- rm.grblb$dict[1:(length(rm.grblb$dict) - 1)]
+        }
+
+        # update reactive
+        geneReactive$GeneNums[[rel]]$panels[[rm.pnum.name]]$results$BLB <- rm.grblb
+      })
+    }
+  }, ignoreInit = TRUE)
   
   
   ##### Summary Table & Store ####
-  
+
   # indicator same gene is listed in more than one result category
   dupResultGene <- reactiveVal(FALSE)
-  
+  output$dupResultGene <- reactive({ dupResultGene() })
+  outputOptions(output, 'dupResultGene', suspendWhenHidden = FALSE)
+
   # panel summary table
   panelSum <- reactive({
-    
-    # get current version of active gene modules
-    trackInputs <- geneReactive$PLPNums[[input$relSelect]]$dict
-    
-    # create a data frame of PLP genes by looping through the active PLP gene modules
-    tmp.plp <- data.frame(Gene = "", Nucleotide = "", Protein = "", Zygosity = "")
-    if(!is.na(trackInputs[1])){
-      for(gn in names(trackInputs)){
-        id <- paste0("rel", input$relSelect, "PLPgeneModule", trackInputs[gn])
-        tmp.plp[gn,] <- c(input[[paste0(id,"-Gene")]],
-                          ifelse(is.null(input[[paste0(id,"-NucInfo")]]), "", 
-                                 input[[paste0(id,"-NucInfo")]]),
-                          ifelse(is.null(input[[paste0(id,"-ProtInfo")]]), "", 
-                                 input[[paste0(id,"-ProtInfo")]]),
-                          input[[paste0(id,"-ZygInfo")]])
-      }
-      tmp.plp <-
-        tmp.plp %>%
-        mutate(Result = "P/LP", .after = "Gene") %>%
-        arrange(Gene)
-    } 
-    
-    # get current version of active gene modules
-    trackInputs <- geneReactive$VUSNums[[input$relSelect]]$dict
-    
-    # create a data frame of VUS genes by looping through the active VUS gene modules
-    tmp.vus <- data.frame(Gene = "", Nucleotide = "", Protein = "", Zygosity = "")
-    if(!is.na(trackInputs[1])){
-      for(gn in names(trackInputs)){
-        id <- paste0("rel", input$relSelect, "VUSgeneModule", trackInputs[gn])
-        tmp.vus[gn,] <- c(input[[paste0(id,"-Gene")]],
-                          ifelse(is.null(input[[paste0(id,"-NucInfo")]]), "", 
-                                 input[[paste0(id,"-NucInfo")]]),
-                          ifelse(is.null(input[[paste0(id,"-ProtInfo")]]), "", 
-                                 input[[paste0(id,"-ProtInfo")]]),
-                          input[[paste0(id,"-ZygInfo")]])
-      }
-      tmp.vus <-
-        tmp.vus %>%
-        mutate(Result = "VUS", .after = "Gene") %>%
-        arrange(Gene)
-    }
-    
-    # get current version of active gene modules
-    trackInputs <- geneReactive$BLBNums[[input$relSelect]]$dict
-    
-    # create a data frame of BLB genes by looping through the active BLB gene modules
-    tmp.blb <- data.frame(Gene = "", Nucleotide = "", Protein = "", Zygosity = "")
-    if(!is.na(trackInputs[1])){
-      for(gn in names(trackInputs)){
-        id <- paste0("rel", input$relSelect, "BLBgeneModule", trackInputs[gn])
-        tmp.blb[gn,] <- c(input[[paste0(id,"-Gene")]],
-                          ifelse(is.null(input[[paste0(id,"-NucInfo")]]), "", 
-                                 input[[paste0(id,"-NucInfo")]]),
-                          ifelse(is.null(input[[paste0(id,"-ProtInfo")]]), "", 
-                                 input[[paste0(id,"-ProtInfo")]]),
-                          input[[paste0(id,"-ZygInfo")]])
-      }
-      tmp.blb <-
-        tmp.blb %>%
-        mutate(Result = "B/LB", .after = "Gene") %>%
-        arrange(Gene)
-    }
-    
-    # genes not listed in a result category are assumed negative
-    neg.g <- setdiff(geneReactive$panel.genes, c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene))
-    if(!is.null(neg.g)){
-      tmp.neg <- data.frame(Gene = neg.g,
-                            Result = rep("Neg", length(neg.g)),
-                            Nucleotide = rep("", length(neg.g)),
-                            Protein = rep("", length(neg.g)),
-                            Zygosity = rep("", length(neg.g)))
-    } else {
-      tmp.neg <- data.frame(Result = "", Gene = "", Nucleotide = "", Protein = "", Zygosity = "")
-    }
-    
-    # combine all result types
-    sum.df <-
-      tmp.plp %>%
-      bind_rows(tmp.vus) %>%
-      bind_rows(tmp.blb) %>%
-      bind_rows(tmp.neg) %>%
-      filter(Gene != "")
-    
-    if(nrow(sum.df) > 0){
-    
-      # check if any genes are listed in more than one category which will warn the user
-      if(length(intersect(setdiff(tmp.plp$Gene, ""), setdiff(tmp.vus$Gene, ""))) > 0 |
-         length(intersect(setdiff(tmp.plp$Gene, ""), setdiff(tmp.blb$Gene, ""))) > 0 |
-         length(intersect(setdiff(tmp.vus$Gene, ""), setdiff(tmp.blb$Gene, ""))) > 0){
-        dupResultGene(TRUE)
-      } else {
-        dupResultGene(FALSE)
-      }
-      
-      # ensure genes with multiple result types are stacked in the summary
-      if(dupResultGene()){
-        all.results <- c(tmp.plp$Gene, tmp.vus$Gene, tmp.blb$Gene)
-        results.tbl <- table(all.results)
-        dups <- names(results.tbl)[which(results.tbl > 1)]
-        for(d in 1:length(dups)){
-          d.rows <- which(sum.df$Gene == dups[d])
-          move.rows <- d.rows[2:length(d.rows)]
-          other.rows <- setdiff(1:nrow(sum.df), c(1:d.rows[1], move.rows))
-          sum.df <- sum.df[c(1:(d.rows[1]), move.rows, other.rows),]
-        }
-      }
-      
-      # re-do the row names
-      rownames(sum.df) <- 1:nrow(sum.df)
-    }
-    sum.df
+    out <- makeGeneDF(rel = input$relSelect, gr = geneReactive$GeneNums, 
+                      dupResultGene = dupResultGene(),
+                      inp = input)
+    dupResultGene(out$dupResultGene)
+    out$df
   })
-  
+
   # output formatted data table colored by result type
   output$panelSum <- renderDataTable({
-    datatable(panelSum()) %>%
-      formatStyle('Result',
-                  backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
-                                               c("MistyRose","LightGreen","AliceBlue","white")),
-                  fontWeight = 'bold')
+    if(!is.null(panelSum())){
+      datatable(panelSum()) %>%
+        formatStyle('Result',
+                    backgroundColor = styleEqual(c("P/LP","VUS","B/LB","Neg"),
+                                                 c("MistyRose","LightGreen","AliceBlue","white")),
+                    fontWeight = 'bold')
+    }
   })
-  
+
   # add data to pedigree when user navigates off of the tab
   onGeneTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    if(onGeneTab() & input$pedTabs != "Genes" & length(geneReactive$panel.genes) > 0){
+    if(onGeneTab() & input$pedTabs != "Genes"){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
-                        gene.results = panelSum(),
-                        panel.name = input$existingPanels))
+                        gene.results = panelSum()))
     }
-
+    
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Genes"){
       onGeneTab(TRUE)
@@ -1729,41 +1773,7 @@ server <- function(input, output, session) {
         
         # cancer hx
       } else if(input$pedTabs == "Cancer Hx"){
-        
-        # consolidate all cancer inputs into a single data frame by looping through each exiting module
-        can.df <- cancer.inputs.store
-        trackInputs <- canReactive$canNums[[lastRel()]]$dict
-        if(!is.na(trackInputs[1])){
-          for(cn in as.numeric(names(trackInputs))){
-            id <- paste0("rel", lastRel(), "canModule", trackInputs[cn])
-            if(input[[paste0(id, '-Can')]] != "No cancer selected"){
-              can.df[cn, ] <- c(input[[paste0(id, '-Can')]],
-                                input[[paste0(id, '-CanAge')]],
-                                input[[paste0(id, '-CanOther')]])
-            }
-            
-            # check for CBC
-            hadCBC <- FALSE
-            CBCAge <- NA
-            if(input[[paste0(id, '-Can')]] == "Breast" & 
-               input[[paste0(id, "-CBC")]] == "Yes"){
-              hadCBC <- TRUE
-              CBCAge <- input[[paste0(id, "-CBCAge")]]
-            }
-          }
-          
-          # add CBC as last row of the data frame
-          if(hadCBC){
-            can.df[nrow(can.df)+1, ] <- c("Contralateral",
-                                          CBCAge,
-                                          "")
-          }
-            
-        } else {
-          can.df[1, ] <- c("No cancer selected", NA, "")
-        }
-        
-        # update pedigree from data frame of cancer information
+        can.df <- makeCancerDF(rel = lastRel(), cr = canReactive$canNums, inp = input)
         PED(popPersonData(tmp.ped = PED(), id = lastRel(), cancers.and.ages = can.df))
         
         # tumor markers
@@ -1778,12 +1788,11 @@ server <- function(input, output, session) {
         
         # genes
       } else if(input$pedTabs == "Genes"){
-        
-        View(panelSum())
-        
-        PED(popPersonData(tmp.ped = PED(), id = lastRel(), 
-                          gene.results = panelSum(), 
-                          panel.name = input$existingPanels))
+        gene.df <- makeGeneDF(rel = lastRel(), gr = geneReactive$GeneNums, 
+                              dupResultGene = dupResultGene(),
+                              inp = input)$df
+        PED(popPersonData(tmp.ped = PED(), id = lastRel(),
+                          gene.results = gene.df))
       }
       
       # update the last relative selected
@@ -1825,16 +1834,20 @@ server <- function(input, output, session) {
       
       ## Genes
       # update the panel data for the new person
-      if(rel.info$panel.name != "none"){
-        updateSelectInput(session, "existingPanels", selected = PED()$panel.name)
-        geneReactive$panel.genes <- all.panels[[input$existingPanels]]
+      if(rel.info$panel.names != "none"){
+        updateSelectInput(session, "existingPanels", 
+                          choices = all.panel.names[which(!all.panel.names %in% 
+                                                            strsplit(rel.info$panel.names, 
+                                                                     split = ", ")[[1]])],
+                          selected = "No panel selected")
       } else {
-        updateSelectInput(session, "existingPanels", selected = "No panel selected")
-        geneReactive$panel.genes <- as.character()
+        updateSelectInput(session, "existingPanels", 
+                          choices = all.panel.names,
+                          selected = "No panel selected")
       }
 
       # reset the selected gene tabs
-      updateTabsetPanel(session, "geneTabs", selected = "1. Select Panel & Enter Results")
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       
     } # end of if statement for input$visPed == TRUE
