@@ -11,7 +11,7 @@ canUI <- function(id, rel){
     tagList(
       
       # only show module's inputs for the currently selected relative
-      conditionalPanel(paste0("input.relSelect == ", rel()),
+      conditionalPanel(paste0("input.relSelect == ", rel),
                        
         # top row: cancer name, cancer age, and delete module button
         fluidRow(
@@ -114,7 +114,7 @@ validateCanAgeServer <- function(id, in.age, cur.age) {
   moduleServer(
     id,
     function(input, output, session){
-      output$valCanAge <- renderText(validate(validateCanAge(in.age(), cur.age())))
+      output$valCanAge <- renderText(shiny::validate(validateCanAge(in.age, cur.age)))
     }
   )
 }
@@ -123,7 +123,7 @@ validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
   moduleServer(
     id,
     function(input, output, session){
-      output$valCBCAge <- renderText(validate(validateCBCAge(can(), cbc.age(), bc.age(), cur.age())))
+      output$valCBCAge <- renderText(shiny::validate(validateCBCAge(can, cbc.age, bc.age, cur.age)))
     }
   )
 }
@@ -135,16 +135,16 @@ geneHeaderUI <- function(){
   tagList(
     fluidRow(
       column(width = 3,
-             h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
       ),
       column(width = 3, 
-             h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
       ),
       column(width = 3,
-             h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
       ),
       column(width = 3,
-             h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
       )
     )
   )
@@ -249,8 +249,21 @@ geneUI <- function(id, rel, panelName, panelGenes){
   ) # end of tags$div
 }
 
+#### Delete Modules from Memory ####
 
-
+#' Removes shiny inputs from memory
+#' 
+#' @param id string, input name to remove from memory
+#' @param .input the shiny master input list
+#' 
+#' @details from https://www.r-bloggers.com/2020/02/shiny-add-removing-modules-dynamically/
+remove_shiny_inputs <- function(id, .input) {
+  invisible(
+    lapply(grep(id, names(.input), value = TRUE), function(i) {
+      .subset2(.input, "impl")$.values$remove(i)
+    })
+  )
+}
 
 
 
