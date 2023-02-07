@@ -21,7 +21,6 @@ library(httr)       # authentication for gmail
 # data manipulation
 library(tidyverse)
 library(rlang)
-library(stringr)
 library(jsonlite)
 
 # html
@@ -172,7 +171,18 @@ ui <- fixedPage(
       
       ##### Home ####
       tabPanel(title = "Home",
-        h3("Quick Start"),
+        h3("What is PPI?"),
+        
+        h3("How to Use PPI"),
+        
+        h3("Support and Contact Information"),
+        
+      ), # end of tab
+      
+      ##### Manage Pedigrees ####
+      tabPanel("Manage Pedigrees",
+        h3("Manage My Pedigrees"),
+        h4("Getting Started"),
         p("To get started, you will either need to create a new pedigree using our 
           pedigree builder or load an existing pedigree from your user account."),
         radioButtons("newOrLoad", "Select an start-up option:",
@@ -181,18 +191,18 @@ ui <- fixedPage(
         
         # if the user wants to load an existing table
         conditionalPanel("input.newOrLoad == 'Load existing'",
-                         
+          
           # for admins, select the user account to load from first
           conditionalPanel("output.admin",
             selectInput(inputId = "selectUser", label = "Select a user account:", 
                         choices = "admin")
           ),
-          
+           
           # if there are not pedgirees to load, tell the user
           conditionalPanel(condition = "output.showTblExistsError",
             p("You do not have any saved pedigrees.", style = "color: red;")
           ),
-          
+           
           # if there are pedigrees to load, provide a dropdown
           conditionalPanel(condition = "!output.showTblExistsError",
             selectInput("existingPed", "Select the pedigree to load:",
@@ -206,14 +216,22 @@ ui <- fixedPage(
                        icon = icon('play'),
                        style = "color: white; background-color: #10699B; border-color: #10699B")
         ),
+        br(), br(),
         
-        h3("What is PPI?"),
-        
-        h3("How to Use PPI"),
-        
-        h3("Support and Contact Information"),
-        
-      ), # end of tab
+        # # download a pedigree
+        # h4("Download Pedigree"),
+        # conditionalPanel("output.pedExists",
+        #   radioButtons("downloadAs1", "Select a format for download:",
+        #                choices = c(".csv", ".rda"),
+        #                selected = ".csv"),
+        #   actionButton("downloadPed1", label = "Download",
+        #                icon = icon('download'),
+        #                style = "color: white; background-color: #10699B; border-color: #10699B")
+        # ),
+        # conditionalPanel("!output.pedExists",
+        #   p("To download a pedigree, you must first either create a new one or load an existing one from your account.")
+        # )
+      ),
       
       ##### Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
@@ -1198,7 +1216,7 @@ server <- function(input, output, session) {
   output$nonUniqPedID <- reactive({ nonUniqPedID() })
   outputOptions(output, 'nonUniqPedID', suspendWhenHidden = FALSE)
   observeEvent(list(userPeds(), input$pedID), {
-    if(!is.null(userPeds())){
+    if(!is.null(userPeds()) & newOrLoadFlag() != "load"){
       if(any(userPeds() == input$pedID)){
         nonUniqPedID(TRUE)
       } else {
@@ -1279,9 +1297,6 @@ server <- function(input, output, session) {
     if(input$newOrLoad == "Load existing"){
       newOrLoadFlag("load")
       
-      # hide add relatives tab
-      hideTab("pedTabs", target = "Add Relatives", session = session)
-      
       # for admins, load sub-table from the selected user's master table
       if(admin()){
         selected.user <- input$selectUser
@@ -1300,124 +1315,107 @@ server <- function(input, output, session) {
       colnames(tped)[which(colnames(tped) == "CK5_6")] <- "CK5.6"
       PED(tped)
       
-      # update cancer and gene reactives and UI modules, iterate through the relatives
+      # re-populate pedigree editor input widgets with new proband's information
+      updateTextInput(session, "pedID", value = PED()$PedigreeID[1])
+      shinyjs::disable("pedID")
+      proband.id <- as.numeric(PED()$ID[which(PED()$isProband == 1)])
+      lastRel(proband.id)
+      updateSelectInput(session, "relSelect",
+                        choices = as.character(PED()$ID),
+                        selected = as.character(proband.id))
+      proband.info <- PED()[which(PED()$ID == proband.id),]
+      updateRelInputs(rel.info = proband.info, ss = session)
+      shinyjs::disable("Sex")
+      
+      #### Reset cancer and gene reactives and UI modules and create data frames 
+      #### for cancer and gene data by 
+      master.can.df <- NULL
+      master.gene.df <- NULL
       for(rl in PED()$ID){
         
         ### 1: RESET
         # CANCERS, iterate through this relative's cancer hx dictionary, if there is at least one cancer
-        if(!is.na(canReactive$canNums[[rl]]$dict[1])){
-          for(cMod in sort(as.numeric(names(canReactive$canNums[[rl]]$dict)), decreasing = T)){
-          
-            # update the cancer reactive object, remove the cancerUI module and delete it from memory
-            canReactive$canNums <- 
-              removeCancer(cr = canReactive$canNums, 
-                           rel = rl, 
-                           inp = input, 
-                           ss = session, 
-                           trackMax = canReactive$canNums[[rl]]$dict[cMod])
-            
-            # remove the module's inputs from memory
-            remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[rl]]$dict[cMod]), input)
+        if(any(names(canReactive$canNums) == as.character(rl))){
+          if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
+            for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
+  
+              # update the cancer reactive object, remove the cancerUI module and delete it from memory
+              canReactive$canNums <-
+                removeCancer(cr = canReactive$canNums,
+                             rel = as.character(rl),
+                             inp = input,
+                             ss = session,
+                             trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
+  
+              # remove the module's inputs from memory
+              remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
+            }
           }
+          
+          # else, create an empty cancer tracked for this relative
+        } else {
+          canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
         
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
-        if(!is.na(geneReactive$GeneNums[[rl]]$dict[1])){
-          for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[rl]]$dict)), decreasing = T)){
-            
-            # update the geneReactive and also remove and delete all related UI modules for this panel
-            out <- 
-              removePanel(gr = geneReactive$GeneNums, 
-                          rel = rl, 
-                          pan.name = geneReactive$GeneNums[[rl]]$panels[[paste0("panel", pMod)]]$name,
-                          panel.module.id.num = geneReactive$GeneNums[[rl]]$dict[pMod],
-                          inp = input, 
-                          ss = session)
-            geneReactive$GeneNums <- out$gr
-            
-            # remove each geneUI module associated with this panel from memory
-            for(tmp.geneMod.id in out$panel.geneMod.ids){
-              remove_shiny_inputs(tmp.geneMod.id, input)
+        if(any(names(geneReactive$GeneNums) == as.character(rl))){
+          if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
+            for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
+              
+              # update the geneReactive and also remove and delete all related UI modules for this panel
+              out <-
+                removePanel(gr = geneReactive$GeneNums,
+                            rel = as.character(rl),
+                            pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
+                            panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
+                            inp = input,
+                            ss = session)
+              geneReactive$GeneNums <- out$gr
+              
+              # remove each geneUI module associated with this panel from memory
+              for(tmp.geneMod.id in out$panel.geneMod.ids){
+                remove_shiny_inputs(tmp.geneMod.id, input)
+              }
+              
+              # remove the panel module's inputs from memory
+              remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), input)
             }
-            
-            # remove the panel module's inputs from memory
-            remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[rl]]$dict[pMod]), input)
           }
+          
+          # else initialize gene tracker for this realtive
+        } else {
+          geneReactive$GeneNums[[as.character(rl)]] <- relTemplate.trackGenes
         }
         
-        ### 2: UPDATE
-        ### update UI module tracking reactives for the new pedigree and create UI modules
+        ### 2: ORGANIZE JSON DATA TO BE LOADED INTO DATA FRAMES
         ## CANCERS
         if(!is.na(PED()$cancersJSON[which(PED()$ID == rl)])){
           
           # convert JSON into a data frame of cancers
           mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[which(PED()$ID == rl)])
           can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+          can.df <-
+            can.df %>%
+            mutate(across(.cols = c(cancer, other), ~as.character(.))) %>%
+            mutate(rel = rl) %>%
+            mutate(cbc = "No") %>%
+            mutate(cbcAge = NA) %>%
+            mutate(age = na_if(age, "NA")) %>%
+            mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
           
-          # iterate through the data frame to recreate the canUI modules
-          # add a cancer UI module on button click and advance the module counter
-          for(row in 1:nrow(can.df)){
-            
-            # don't create a new module for CBC
-            if(can.df$cancer[row] != "Contralateral"){
-              
-              # insert a canUI module and update the reactive for tracking
-              out <- addCancer(cr = canReactive$canNums, 
-                               rel = rl, 
-                               inp = input)
-              canReactive$canNums <- out$cr
-              trackMax <- out$trackMax
-              id <- out$id
-              
-              # set aside the BC module if BC and CBC present, note that can.df will always have BC before CBC
-              if(can.df$cancer[row] == "Breast" & any(can.df$cancer == "Contralateral")){
-                bc.module.id <- id
-              }
-              
-              # create a remove module button observer for each UI module created
-              observeEvent(input[[paste0(id, '-removeCan')]], {
-                canReactive$canNums <- removeCancer(cr = canReactive$canNums,
-                                                    rel = rl,
-                                                    inp = input,
-                                                    ss = session,
-                                                    trackMax = trackMax)
-                
-                # remove the module's inputs from memory
-                remove_shiny_inputs(id, input)
-              })
-              
-              # create a cancer selection observer which will trigger an update of all of the cancer dropdown
-              # choices for each of the person's cancer UI modules
-              observeEvent(input[[paste0(id, '-Can')]], {
-                updateCancerDropdowns(cr = canReactive$canNums,
-                                      rel = rl,
-                                      inp = input,
-                                      ss = session)
-              })
-              
-              # create an OTHER cancer selection observer which will trigger an update of all of the OTHER cancer dropdown
-              # choices for each of the person's cancer UI modules
-              observeEvent(input[[paste0(id, '-CanOther')]], {
-                updateOtherCancerDropdowns(cr = canReactive$canNums,
-                                           rel = rl,
-                                           inp = input,
-                                           ss = session)
-              })
-            
-              # populate module's input values
-              updateSelectInput(session, paste0(id, '-Can'), selected = can.df$cancer[row])
-              updateNumericInput(session, paste0(id, '-CanAge'), selected = can.df$age[row])
-              if(can.df$cancer[row] == "Other"){
-                sel.can <- ifelse(can.df$other[row] == "UnkType", "Unknown/Not Listed", can.df$other[row])
-                updateSelectInput(session, paste0(id, '-CanOther'), selected = sel.can)
-              }
-              
-              # if it was CBC, add data to the BC canUI module, note that can.df will always have BC before CBC
-            } else {
-              updateSelectInput(session, paste0(bc.module.id, "-CBC"), selected = "Yes")
-              updateNumericInput(session, paste0(bc.module.id, '-CBCAge'), selected = can.df$age[row])
-            }
-          } # end of for loop for creating and populating canUI modules
+          # combine contralateral into same row as breast and drop the CBC row
+          if(any(can.df$cancer == "Breast") & any(can.df$cancer == "Contralateral")){
+            can.df$cbc[which(can.df$cancer == "Breast")] <- "Yes"
+            can.df$cbcAge[which(can.df$cancer == "Breast")] <- can.df$age[which(can.df$cancer == "Contralateral")]
+            can.df <- can.df[which(can.df$cancer != "Contralateral"),]
+          }
+          
+          # append to data frame of cancers for all relatives
+          if(is.null(master.can.df)){
+            master.can.df <- can.df
+          } else {
+            master.can.df <- rbind(master.can.df, can.df)
+          }
         } # end of if statement to check if there was any content in cancersJSON for this relative
         
         ## GENES
@@ -1425,98 +1423,149 @@ server <- function(input, output, session) {
           
           # convert JSON into a data frame of genes
           mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[which(PED()$ID == rl)])
-          all.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+          gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+          gene.df <-
+            gene.df %>%
+            mutate(across(.cols = everything(), ~as.character(.))) %>%
+            mutate(rel = rl)
           
-          # iterate through the panels to create the panel and gene UI modules
-          for(pan.name in unique(all.gene.df$panel)){
-            
-            ## create panelUI module
-            out <- addPanel(gr = geneReactive$GeneNums, 
-                            rel = rl, 
-                            inp = input,
-                            ss = session,
-                            pan.name = pan.name)
-            geneReactive$GeneNums <- out$gr
-            panel.module.id.num <- out$panel.module.id.num
-            panMod.id <- out$panMod.id
-            
-            # create a remove module button observer for each panelUI module created
-            observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
-              out.rm <- removePanel(gr = geneReactive$GeneNums, 
-                                    rel = rl, 
-                                    pan.name = pan.name,
-                                    panel.module.id.num = panel.module.id.num,
-                                    inp = input, 
-                                    ss = session)
-              geneReactive$GeneNums <- out.rm$gr
-              
-              # remove each geneUI module associated with this panel from memory
-              for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
-                remove_shiny_inputs(tmp.geneMod.id, input)
-              }
-              
-              # remove the panel module's inputs from memory
-              remove_shiny_inputs(panMod.id, input)
-              
-            }) # end of removePanel observeEvent
-            
-            ## create the geneUI modules by iterating through the genes in the panel and their result types
-            pan.df <- filter(all.gene.df, panel == pan.name)
-            for(row in 1:nrow(pan.df)){
-              rtype <- pan.df$result[row]
-              
-              # only create geneUI modules for non-Neg results
-              if(rtype != "Neg"){
-                out <- addGene(gr = geneReactive$GeneNums, 
-                               rel = rl, 
-                               inp = input, 
-                               p.name = pan.name, 
-                               rtype = rtype)
-                geneReactive$GeneNums <- out$gr
-                gene.module.id.num <- out$gene.module.id.num
-                geneMod.id <- out$geneMod.id
-                
-                # create a remove module button observer for each UI module created
-                observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
-                  geneReactive$GeneNums <- 
-                    removeGene(gr = geneReactive$GeneNums, 
-                               rel = rl, 
-                               inp = input, 
-                               p.name = pan.name, 
-                               gene.module.id.num = gene.module.id.num,
-                               geneMod.id = geneMod.id,
-                               rtype = rtype)
-                  
-                  # remove the module's inputs from memory
-                  remove_shiny_inputs(geneMod.id, input)
-                })
-                
-                # populate newly created geneUI inputs with data from gene data frame
-                updateSelectInput(session, paste0(geneMod.id, "-Gene"), selected = pan.df$gene[row])
-                updateSelectizeInput(session, paste0(geneMod.id, "-NucInfo"), selected = pan.df$nuc[row])
-                updateSelectizeInput(session, paste0(geneMod.id, "-ProtInfo"), selected = pan.df$prot[row])
-                updateSelectizeInput(session, paste0(geneMod.id, "-ZygInfo"), selected = pan.df$zyg[row])
-                
-              } # end of if statement checking if the result type is non-Negative
-            } # end of for loop for creating geneUI modules
-          } # end of for loop for creating panelUI modules and geneUI modules for that panel
+          # append to data frame of genes for all relatives
+          if(is.null(master.gene.df)){
+            master.gene.df <- gene.df
+          } else {
+            master.gene.df <- rbind(master.gene.df, gene.df)
+          }
         } # end of if statement to check if there was any content in genesJSON for this relative
       } # end of for loop for relatives that resets and re-populates cancer and gene UI modules and reactives
       
-      ## re-populate pedigree editor input widgets with new proband's information
-      proband.id <- as.numeric(PED()$ID[which(PED()$isProband == 1)])
-      updateSelectInput(session, "relSelect", 
-                        choices = as.character(PED()$ID), 
-                        selected = as.character(proband.id))
-      lastRel(proband.id)
-      proband.info <- PED()[which(PED()$ID == proband.id),]
-      updateRelInputs(rel.info = proband.info, ss = session)
+      ### 3: CREATE AND POPULATE MODULES
+      ## CANCER
+      # create and populate canUI modules
+      lapply(1:nrow(master.can.df), function(x){
+        
+        # create the canUI modules with pre-populated inputs
+        out <- addCancer(cr = canReactive$canNums,
+                         rel = master.can.df$rel[x],
+                         inp = input,
+                         values = list(can = master.can.df$cancer[x],
+                                       age = master.can.df$age[x],
+                                       other = master.can.df$other[x],
+                                       cbc = master.can.df$cbc[x],
+                                       cbcAge = master.can.df$cbcAge[x]))
+        canReactive$canNums <- out$cr
+        trackMax <- out$trackMax
+        id <- out$id
+        
+        # create a remove module button observer for each UI module created
+        observeEvent(input[[paste0(id, '-removeCan')]], {
+          canReactive$canNums <- removeCancer(cr = canReactive$canNums,
+                                              rel = master.can.df$rel[x],
+                                              inp = input,
+                                              ss = session,
+                                              trackMax = trackMax)
+
+          # remove the module's inputs from memory
+          remove_shiny_inputs(id, input)
+        })
+        
+        # create a cancer selection observer which will trigger an update of all of the cancer dropdown
+        # choices for each of the person's cancer UI modules
+        observeEvent(input[[paste0(id, '-Can')]], {
+          updateCancerDropdowns(cr = canReactive$canNums,
+                                rel = master.can.df$rel[x],
+                                inp = input,
+                                ss = session,
+                                type = "cancer")
+        })
+      })
       
-      # visualize the pedigree
+      ## GENES
+      # create and populate panelUI and geneUI modules
+      lapply(1:nrow(master.gene.df), function(x){
+        
+        # prevent duplication of panels
+        newPan <- FALSE
+        if(x == 1){
+          newPan <- TRUE
+        } else if(master.gene.df$panel[x] != master.gene.df$panel[x-1]){
+          newPan <- TRUE
+        }
+        if(newPan){
+          
+          # create the panelUI module with pre-populated input values
+          out <- addPanel(gr = geneReactive$GeneNums,
+                          rel = master.gene.df$rel[x],
+                          inp = input,
+                          ss = session,
+                          pan.name = master.gene.df$panel[x])
+          geneReactive$GeneNums <- out$gr
+          panel.module.id.num <- out$panel.module.id.num
+          panMod.id <- out$panMod.id
+          
+          # create a remove module button observer for each panelUI module created
+          observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
+            out.rm <- removePanel(gr = geneReactive$GeneNums,
+                                  rel = master.gene.df$rel[x],
+                                  pan.name = master.gene.df$panel[x],
+                                  panel.module.id.num = panel.module.id.num,
+                                  inp = input,
+                                  ss = session)
+            geneReactive$GeneNums <- out.rm$gr
+            
+            # remove each geneUI module associated with this panel from memory
+            for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
+              remove_shiny_inputs(tmp.geneMod.id, input)
+            }
+            
+            # remove the panel module's inputs from memory
+            remove_shiny_inputs(panMod.id, input)
+            
+          }) # end of removePanel observeEvent
+        } # end of if statement to prevent duplication panels
+      }) # end of lapply for creating panelUI modules
+      
+      ## create the geneUI modules by iterating through the rows of the master table of gene results
+      lapply(1:nrow(master.gene.df), function(y){
+        rtype <- master.gene.df$result[y]
+        
+        # only create geneUI modules for non-Neg results
+        if(rtype != "Neg"){
+          out <- addGene(gr = geneReactive$GeneNums,
+                         rel = master.gene.df$rel[y],
+                         inp = input,
+                         p.name = master.gene.df$panel[y],
+                         rtype = rtype,
+                         vals = list(gene = master.gene.df$gene[y],
+                                     nuc = master.gene.df$nuc[y],
+                                     prot = master.gene.df$prot[y],
+                                     zyg = master.gene.df$zyg[y]))
+          geneReactive$GeneNums <- out$gr
+          gene.module.id.num <- out$gene.module.id.num
+          geneMod.id <- out$geneMod.id
+          
+          # create a remove module button observer for each UI module created
+          observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
+            geneReactive$GeneNums <-
+              removeGene(gr = geneReactive$GeneNums,
+                         rel = master.gene.df$rel[y],
+                         inp = input,
+                         p.name = master.gene.df$panel[y],
+                         gene.module.id.num = gene.module.id.num,
+                         geneMod.id = geneMod.id,
+                         rtype = rtype)
+            
+            # remove the module's inputs from memory
+            remove_shiny_inputs(geneMod.id, input)
+          })
+        } # end of if statement checking if the result type is non-Negative
+      }) # end of lapply for creating geneUI modules
+      
+      # hide add relatives tab and visualize the pedigree
+      hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("visPed")
       
-      # CREATE NEW PEDIGREE
-    } else {
+      #### CREATE NEW PEDIGREE
+    } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
       PED(NULL)
       
@@ -1554,18 +1603,17 @@ server <- function(input, output, session) {
       # genes
       updateSelectInput(session, "existingPanels", selected = "No panel selected", choices = all.panel.names)
       updateSelectInput(session, "editPanel", selected = "No panel selected", choices = c("No panel selected"))
-      updateSelectizeInput(session, "newPanelGenes", selected = NULL)
-      updateTextInput(session, "newPanelName", value = "")
       geneReactive$GeneNums <- trackGenes.init
-      dupResultGene(FALSE)
       
       # add relatives
       visPed(FALSE)
-      showTab("pedTabs", target = "Add Relatives", session = session)
-      for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
-        updateNumericInput(session, paste0("num", relation), value = 0)
-      }
+      
     } # end of else for creating a new pedigree
+    
+    # reset add relative counts
+    for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
+      updateNumericInput(session, paste0("num", relation), value = 0)
+    }
     
     # show the pedigree and panelpro tabs when the button is clicked the first time
     showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
@@ -1601,8 +1649,16 @@ server <- function(input, output, session) {
                         user = credentials()$info[["user"]],
                         tmp_tbl = s.ped,
                         col.info = setNames(ped.col.dtypes, mod.ped.cols))
+      
+      # update the list of pedigrees that can be loaded
+      userPeds(unique(dbGetQuery(conn = conn,
+                                 statement = paste0("SELECT PedigreeID FROM ", 
+                                                    credentials()$info[["user"]], 
+                                                    ";"))$PedigreeID))
+      updateSelectInput(session, inputId = "existingPed",
+                        choices = userPeds())
     }
-  })
+  }, ignoreInit = T)
   
   #### Demographics / Create Pedigree ####
   
@@ -1617,39 +1673,38 @@ server <- function(input, output, session) {
   output$pbMinInfo <- reactive({ pbMinInfo() })
   outputOptions(output, 'pbMinInfo', suspendWhenHidden = FALSE)
   observeEvent(list(input$pedID, input$Sex, input$Age, validAge(), PED()), {
-    if(!input$visPed & 
+    if(is.null(PED()) &
+       newOrLoadFlag() == "new" & 
        input$pedID != "" & 
        input$Sex != " " & 
        !is.na(input$Age) & 
        is.null(validAge()) & 
        !nonUniqPedID()){
       pbMinInfo(TRUE)
-    } else if(input$visPed){
+    } else if(!is.null(PED())){
       pbMinInfo(TRUE)
     } else {
       pbMinInfo(FALSE)
     }
-  })
+  }, ignoreInit = T)
   
   # hide/show tabs if on the demographics tab based on if minimum information to create
   # a pedigree is present or not
-  observeEvent(list(input$navbarTabs, pbMinInfo()), {
-    if(input$pedTabs == "Demographics"){
-      if(!pbMinInfo()){
-        hideTab("pedTabs", "Surgical Hx", session)
-        hideTab("pedTabs", "Tumor Markers", session)
-        hideTab("pedTabs", "Cancer Hx", session)
-        hideTab("pedTabs", "Genes", session)
-        hideTab("pedTabs", "Add Relatives", session)
-        hideTab("pedTabs", "Family Tree and Relative Information", session)
-      } else if(pbMinInfo()){
-        showTab("pedTabs", "Surgical Hx", select = FALSE, session)
-        showTab("pedTabs", "Tumor Markers", select = FALSE, session)
-        showTab("pedTabs", "Cancer Hx", select = FALSE, session)
-        showTab("pedTabs", "Genes", select = FALSE, session)
-        showTab("pedTabs", "Add Relatives", select = FALSE, session)
-        showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
-      }
+  observeEvent(pbMinInfo(), {
+    if(!pbMinInfo()){
+      hideTab("pedTabs", "Surgical Hx", session)
+      hideTab("pedTabs", "Tumor Markers", session)
+      hideTab("pedTabs", "Cancer Hx", session)
+      hideTab("pedTabs", "Genes", session)
+      hideTab("pedTabs", "Add Relatives", session)
+      hideTab("pedTabs", "Family Tree and Relative Information", session)
+    } else if(pbMinInfo()){
+      showTab("pedTabs", "Surgical Hx", select = FALSE, session)
+      showTab("pedTabs", "Tumor Markers", select = FALSE, session)
+      showTab("pedTabs", "Cancer Hx", select = FALSE, session)
+      showTab("pedTabs", "Genes", select = FALSE, session)
+      showTab("pedTabs", "Add Relatives", select = FALSE, session)
+      showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
     }
   })
   
@@ -1657,10 +1712,15 @@ server <- function(input, output, session) {
   PED <- reactiveVal(NULL)
   
   # check if ped exists for conditionalPanels
+  pedExists <- reactiveVal(FALSE)
+  output$pedExists <- reactive({ pedExists() })
+  outputOptions(output, 'pedExists', suspendWhenHidden = FALSE)
   observeEvent(PED(), {
     if(is.null(PED())){
+      pedExists(FALSE)
       shinyjs::disable("savePed")
     } else {
+      pedExists(TRUE)
       shinyjs::enable("savePed")
     }
   }, ignoreNULL = F)
@@ -1736,6 +1796,12 @@ server <- function(input, output, session) {
   # save the number of cancers for each person in the pedigree
   canReactive <- reactiveValues(canNums = trackCans.init)
   
+  
+  
+  # # FOR TESTING
+  # observeEvent(canReactive$canNums, { View(canReactive$canNums )})
+  
+  
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
     rel <- input$relSelect
@@ -1754,27 +1820,29 @@ server <- function(input, output, session) {
                                           inp = input,
                                           ss = session,
                                           trackMax = trackMax)
-      
+
       # remove the module's inputs from memory
       remove_shiny_inputs(id, input)
     })
-    
+
     ## create a cancer selection observer which will trigger an update of all of the cancer dropdown
     ## choices for each of the person's cancer UI modules
     observeEvent(input[[paste0(id, '-Can')]], {
       updateCancerDropdowns(cr = canReactive$canNums,
                             rel = rel,
                             inp = input,
-                            ss = session)
+                            ss = session,
+                            type = "cancer")
     })
 
     ## create an OTHER cancer selection observer which will trigger an update of all of the OTHER cancer dropdown
     ## choices for each of the person's cancer UI modules
     observeEvent(input[[paste0(id, '-CanOther')]], {
-      updateOtherCancerDropdowns(cr = canReactive$canNums,
-                                 rel = rel,
-                                 inp = input,
-                                 ss = session)
+      updateCancerDropdowns(cr = canReactive$canNums,
+                            rel = rel,
+                            inp = input,
+                            ss = session,
+                            type = "other")
     })
   })
   
@@ -1967,6 +2035,12 @@ server <- function(input, output, session) {
   #### Genes ####
   # track the panel and gene UI modules
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
+  
+  
+  # # FOR TESTING
+  # observeEvent(geneReactive$GeneNums, { View(geneReactive$GeneNums )})
+  
+  
   
   ##### Panels ####
   
@@ -2186,105 +2260,111 @@ server <- function(input, output, session) {
     # update reactive value
     visPed(TRUE)
     
-    # add children
-    if(input$numDau > 0 | input$numSon > 0){
+    # only add family members if this is a new pedigree
+    if(newOrLoadFlag() == "new"){
+      # add children
+      if(input$numDau > 0 | input$numSon > 0){
+        
+        # first, add partner to pedigree
+        PED(formatNewPerson(relation = "partner", tmp.ped = PED()))
+        parnter.id <- PED()$ID[nrow(PED())]
+        
+        # add daughters iteratively
+        if(input$numDau > 0){
+          for(i in 1:input$numDau){
+            if(PED()$Sex[which(PED()$isProband == 1)] == 0){
+              PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), f.id = parnter.id))
+            } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
+              PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), m.id = parnter.id))
+            }
+          }
+        }
+        # add sons iteratively
+        if(input$numSon > 0){
+          for(i in 1:input$numSon){
+            if(PED()$Sex[which(PED()$isProband == 1)] == 0){
+              PED(formatNewPerson(relation = "son", tmp.ped = PED(), f.id = parnter.id))
+            } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
+              PED(formatNewPerson(relation = "son", tmp.ped = PED(), m.id = parnter.id))
+            }
+          }
+        }
+      }
       
-      # first, add partner to pedigree
-      PED(formatNewPerson(relation = "partner", tmp.ped = PED()))
-      parnter.id <- PED()$ID[nrow(PED())]
-      
-      # add daughters iteratively
-      if(input$numDau > 0){
+      # add sisters iteratively
+      if(input$numSis > 0){
         for(i in 1:input$numDau){
-          if(PED()$Sex[which(PED()$isProband == 1)] == 0){
-            PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), f.id = parnter.id))
-          } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
-            PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), m.id = parnter.id))
+          PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
+        }
+      }
+      # add brothers iteratively
+      if(input$numBro > 0){
+        for(i in 1:input$numBro){
+          PED(formatNewPerson(relation = "brother", tmp.ped = PED()))
+        }
+      }
+      
+      # add maternal aunts and uncles
+      if(input$numMAunt > 0 | input$numMUnc > 0){
+        
+        # first, create maternal grandparents, add a cancer counter for each
+        # assume, initially, race/eth/ancestry match the proband's mother
+        PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "m"))
+        PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "m"))
+        
+        # add maternal aunts iteratively
+        if(input$numMAunt > 0){
+          for(i in 1:input$numMAunt){
+            PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "m"))
+          }
+        }
+        # add maternal uncles iteratively
+        if(input$numMUnc > 0){
+          for(i in 1:input$numMUnc){
+            PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "m"))
           }
         }
       }
-      # add sons iteratively
-      if(input$numSon > 0){
-        for(i in 1:input$numSon){
-          if(PED()$Sex[which(PED()$isProband == 1)] == 0){
-            PED(formatNewPerson(relation = "son", tmp.ped = PED(), f.id = parnter.id))
-          } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
-            PED(formatNewPerson(relation = "son", tmp.ped = PED(), m.id = parnter.id))
+      
+      # add paternal aunts and uncles
+      if(input$numPAunt > 0 | input$numPUnc > 0){
+        
+        # first, create paternal grandparents, add a cancer counter,
+        # assume, initially, race/eth/ancestry match the proband's father
+        PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "p"))
+        PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "p"))
+        
+        # add paternal aunts iteratively
+        if(input$numPAunt > 0){
+          for(i in 1:input$numPAunt){
+            PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "p"))
+          }
+        }
+        # add paternal uncles iteratively
+        if(input$numPUnc > 0){
+          for(i in 1:input$numPUnc){
+            PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "p"))
           }
         }
       }
-    }
-    
-    # add sisters iteratively
-    if(input$numSis > 0){
-      for(i in 1:input$numDau){
-        PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
-      }
-    }
-    # add brothers iteratively
-    if(input$numBro > 0){
-      for(i in 1:input$numBro){
-        PED(formatNewPerson(relation = "brother", tmp.ped = PED()))
-      }
-    }
-    
-    # add maternal aunts and uncles
-    if(input$numMAunt > 0 | input$numMUnc > 0){
       
-      # first, create maternal grandparents, add a cancer counter for each
-      # assume, initially, race/eth/ancestry match the proband's mother
-      PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "m"))
-      PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "m"))
+      # assume race/eth/ancestry and create module tracking for each new relative
+      for(np in PED()$ID[3:nrow(PED())]){
+        PED(assumeBackground(PED(), id = np))
+        canReactive$canNums[[as.character(np)]] <- trackCans.rel
+        geneReactive$GeneNums[[as.character(np)]] <- relTemplate.trackGenes
+      }
       
-      # add maternal aunts iteratively
-      if(input$numMAunt > 0){
-        for(i in 1:input$numMAunt){
-          PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "m"))
-        }
-      }
-      # add maternal uncles iteratively
-      if(input$numMUnc > 0){
-        for(i in 1:input$numMUnc){
-          PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "m"))
-        }
-      }
-    }
-    
-    # add paternal aunts and uncles
-    if(input$numPAunt > 0 | input$numPUnc > 0){
+      # update relative selector with all relatives in the pedigree
+      updateSelectInput(session = session, inputId = "relSelect", 
+                        choices = PED()$ID, selected = PED()$ID[which(PED()$isProband == 1)])
       
-      # first, create paternal grandparents, add a cancer counter,
-      # assume, initially, race/eth/ancestry match the proband's father
-      PED(formatNewPerson(relation = "grandmother", tmp.ped = PED(), m.or.p.side = "p"))
-      PED(formatNewPerson(relation = "grandfather", tmp.ped = PED(), m.or.p.side = "p"))
-      
-      # add paternal aunts iteratively
-      if(input$numPAunt > 0){
-        for(i in 1:input$numPAunt){
-          PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "p"))
-        }
+      # hide initialize pedigree tab and reset inputs
+      for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
+        updateNumericInput(session, paste0("num", relation), value = 0)
       }
-      # add paternal uncles iteratively
-      if(input$numPUnc > 0){
-        for(i in 1:input$numPUnc){
-          PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "p"))
-        }
-      }
-    }
-    
-    # assume race/eth/ancestry and create module tracking for each new relative
-    for(np in PED()$ID[3:nrow(PED())]){
-      PED(assumeBackground(PED(), id = np))
-      canReactive$canNums[[as.character(np)]] <- trackCans.rel
-      geneReactive$GeneNums[[as.character(np)]] <- relTemplate.trackGenes
-    }
-    
-    # update relative selector with all relatives in the pedigree
-    updateSelectInput(session = session, inputId = "relSelect", 
-                      choices = PED()$ID, selected = PED()$ID[which(PED()$isProband == 1)])
-    
-    # hide initialize pedigree tab
-    hideTab("pedTabs", target = "Add Relatives", session = session)
+      hideTab("pedTabs", target = "Add Relatives", session = session)
+    } # end of if statement for confirming the pedigree is a new creation
   }, ignoreInit = TRUE)
   
   #### Visualize Pedigree ####

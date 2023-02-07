@@ -54,6 +54,10 @@ validateCBCAge <- function(can, cbc.age, bc.age, cur.age){
 #' @return a data frame of cancer history for a relative with columns: Cancer, Age, and Other
 makeCancerDF <- function(rel, cr = canReactive$canNums, inp = input){
   
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
+  
   # consolidate all cancer inputs into a single data frame by looping through each exiting module
   can.df <- cancer.inputs.store
   trackInputs <- cr[[rel]]$dict
@@ -96,11 +100,16 @@ makeCancerDF <- function(rel, cr = canReactive$canNums, inp = input){
 #' @param cr canReactive$canNums
 #' @param rel the relative
 #' @param inp the shiny input object.
+#' @param values starting values to populate the inputs, default is NULL
 #' @returns a list:
 #' - cr: updated copy of canReactive$canNums
 #' - trackMax: the unique number associated with the canUI module
 #' - id: the full canUI module id
-addCancer <- function(cr = canReactive$canNums, rel, inp = input){
+addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
   
   # look-up the maximum number of created cancer UI modules for the current
   # relative add the order of active cancer UI modules
@@ -127,7 +136,7 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input){
   insertUI(
     selector = "#canContainer",
     where = "beforeEnd",
-    ui = canUI(id = id, rel = rel)
+    ui = canUI(id = id, rel = rel, vals = values)
   )
 
   # add a server for checking the validity of the entered cancer age
@@ -157,6 +166,10 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input){
 removeCancer <- function(cr = canReactive$canNums, rel, 
                          inp = input, ss = session, 
                          trackMax = trackMax){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
   
   # get current version of active cancer modules
   tmp.trackInputs <- cr[[rel]]$dict
@@ -247,69 +260,62 @@ removeCancer <- function(cr = canReactive$canNums, rel,
 }
 
 
-#' Update the selectInput choices for selecting cancer names in the other canUI modules 
-#' based on when a cancer is selected in one canUI module
+#' Update the selectInput choices for selecting cancer names for PanelPRO cancers 
+#' or for updating the Other cancer choices for the non-PanelPRO cancers in the 
+#' other canUI modules, based on when a cancer is selected in one canUI module
+#' @param type one of c("cancer", "other") to update either the cancer dropdown or the other (non-panelpro) cancer dropdown
 updateCancerDropdowns <- function(cr = canReactive$canNums,
                                   rel,
                                   inp = input,
-                                  ss = session){
+                                  ss = session,
+                                  type){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
   
   # get current version of active cancer modules
   tmp.trackInputs <- cr[[rel]]$dict
   
-  # get all of the cancers currently selected across this person's cancer UI modules
-  cans.selected <- as.character()
-  for(cn in as.numeric(names(tmp.trackInputs))){
-    tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], '-Can')
-    if(!inp[[tmp.id]] %in% c("No cancer selected", "Other")){
-      cans.selected <- c(cans.selected, inp[[tmp.id]])
+  # check if there are any cancers
+  if(!is.na(tmp.trackInputs[1])){
+    if(type == "cancer"){
+      input.type <- "-Can"
+      filter.out.vals <- c("No cancer selected", "Other")
+      all.can.choices <- CANCER.CHOICES$long
+    } else if(type == "other"){
+      input.type <- "-CanOther"
+      filter.out.vals <- c("Unknown/Not Listed")
+      all.can.choices <- OTHER.CANCER.CHOICES
+    }
+    
+    # get all of the cancers currently selected across this person's cancer UI modules
+    cans.selected <- as.character()
+    for(cn in as.numeric(names(tmp.trackInputs))){
+      tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], input.type)
+      
+      
+      # print(paste0("type: ", type))
+      # print(paste0("inp[[tmp.id]]: ", inp[[tmp.id]]))
+      
+      
+      if(!inp[[tmp.id]] %in% filter.out.vals){
+        cans.selected <- c(cans.selected, inp[[tmp.id]])
+      }
+    }
+    
+    # update each of this person's cancer UI module cancer choice dropdowns to exclude the newly selected cancer
+    for(cn in as.numeric(names(tmp.trackInputs))){
+      tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], input.type)
+      
+      # get cancer dropdown choices available for this cancer name input
+      mod.cans.selected <- cans.selected[which(cans.selected != inp[[tmp.id]])]
+      cans.avail <- all.can.choices[which(!all.can.choices %in% mod.cans.selected)]
+      
+      # update the input dropdown
+      updateSelectInput(ss, tmp.id,
+                        choices = cans.avail,
+                        selected = inp[[tmp.id]])
     }
   }
-  
-  # update each of this person's cancer UI module cancer choice dropdowns to exclude the newly selected cancer
-  for(cn in as.numeric(names(tmp.trackInputs))){
-    tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], '-Can')
-    
-    # get cancer dropdown choices available for this cancer name input
-    mod.cans.selected <- cans.selected[which(cans.selected != inp[[tmp.id]])]
-    cans.avail <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% mod.cans.selected)]
-    
-    # update the input dropdown
-    updateSelectInput(ss, tmp.id,
-                      choices = cans.avail,
-                      selected = inp[[tmp.id]])
-  }
 }
-
-updateOtherCancerDropdowns <- function(cr = canReactive$canNums,
-                                       rel,
-                                       inp = input,
-                                       ss = session){
-  
-  # get current version of active cancer modules
-  tmp.trackInputs <- cr[[rel]]$dict
-  
-  # get all of the OTHER cancers currently selected across this person's cancer UI modules
-  cans.selected <- as.character()
-  for(cn in as.numeric(names(tmp.trackInputs))){
-    tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], '-CanOther')
-    if(inp[[tmp.id]] != "Unknown/Not Listed"){
-      cans.selected <- c(cans.selected, inp[[tmp.id]])
-    }
-  }
-  
-  # update each of this person's cancer UI module OTHER cancer choice dropdowns to exclude the newly selected OTHER cancer
-  for(cn in as.numeric(names(tmp.trackInputs))){
-    tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], '-CanOther')
-    mod.cans.selected <- cans.selected[which(cans.selected != inp[[tmp.id]])]
-    cans.avail <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% mod.cans.selected)]
-    updateSelectInput(ss, tmp.id,
-                      choices = cans.avail,
-                      selected = inp[[tmp.id]])
-  }
-}
-
-
-
-
-

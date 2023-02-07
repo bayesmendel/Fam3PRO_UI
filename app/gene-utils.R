@@ -11,6 +11,10 @@ makeGeneDF <- function(rel, gr = geneReactive$GeneNums,
                        dupResultGene,
                        inp = input){
   
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
+  
   # specify the relative
   gr <- gr[[rel]]
   
@@ -121,6 +125,10 @@ makeGeneDF <- function(rel, gr = geneReactive$GeneNums,
 #' - panMod.id: the full panelUI module id
 addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
                      pan.name){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
 
   ## store initial inputs as variables to be called later
   add.gr <- gr[[rel]]
@@ -185,7 +193,7 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
 #' Remove a panelUI module
 #' 
 #' @param gr geneReactive$GeneNums.
-#' @param rel the relative for which the remove the panel
+#' @param rel the relative for which the remove the panel (as a character string with the relative's ID number)
 #' @param inp the shiny input object
 #' @param ss shiny session
 #' @param pan.name name of the panel to remove/delete
@@ -199,6 +207,10 @@ removePanel <- function(gr = geneReactive$GeneNums,
                         ss = session, 
                         pan.name, 
                         panel.module.id.num){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
   
   ## remove the panel's input information from reactive used to track gene/panel inputs
   # get an updated copy of the reactive because gr likely changed between creation and removal of the UI
@@ -304,7 +316,11 @@ removePanel <- function(gr = geneReactive$GeneNums,
 #' - gr: updated copy of geneReactive$GeneNums
 #' - gene.module.id.num: the unique number associated with the geneUI module
 #' - panMod.id: the full geneUI module id
-addGene <- function(gr = geneReactive$GeneNums, rel, inp = input, p.name, rtype){
+addGene <- function(gr = geneReactive$GeneNums, rel, inp = input, p.name, rtype, vals = NULL){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
   
   # assign variables to be called later
   add.gr <- gr[[rel]]
@@ -341,8 +357,8 @@ addGene <- function(gr = geneReactive$GeneNums, rel, inp = input, p.name, rtype)
     ui = geneUI(id = geneMod.id,
                 rel = rel,
                 panelName = p.name,
-                panelGenes = p.genes
-    )
+                panelGenes = p.genes,
+                vals = vals)
   )
   
   return(list(gr = gr,
@@ -369,6 +385,10 @@ removeGene <- function(gr = geneReactive$GeneNums,
                        gene.module.id.num,
                        geneMod.id,
                        rtype){
+  
+  if(is.numeric(rel)){
+    rel <- as.character(rel)
+  }
   
   # get the section of the reactive for this relative
   rm.gr <- gr[[rel]]
