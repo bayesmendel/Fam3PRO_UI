@@ -182,7 +182,7 @@ ui <- fixedPage(
       ##### Manage Pedigrees ####
       tabPanel("Manage Pedigrees",
         h3("Manage My Pedigrees"),
-        h4("Getting Started"),
+        h4("Create New or Load Existing Pedigree"),
         p("To get started, you will either need to create a new pedigree using our 
           pedigree builder or load an existing pedigree from your user account."),
         radioButtons("newOrLoad", "Select an start-up option:",
@@ -212,25 +212,45 @@ ui <- fixedPage(
         
         # show action button only if the user is not trying to load a table that does not exist
         conditionalPanel("(input.newOrLoad == 'Load existing' & !output.showTblExistsError) | input.newOrLoad == 'Create new'",
+          conditionalPanel("input.newOrLoad == 'Create new'",
+            p("Clicking the button below will take you to the create/edit pedigree screen where you can start a new pedigree."),
+          ),
+          conditionalPanel("input.newOrLoad == 'Load existing'",
+            p("Clicking the button below will load your selected pedigree and will take you to the create/edit pedigree screen to view and/or edit your pedigree."),
+          ),
           actionButton("goNewOrLoad", label = "Get Started",
                        icon = icon('play'),
                        style = "color: white; background-color: #10699B; border-color: #10699B")
         ),
-        br(), br(),
+        br(),
         
-        # # download a pedigree
-        # h4("Download Pedigree"),
-        # conditionalPanel("output.pedExists",
-        #   radioButtons("downloadAs1", "Select a format for download:",
-        #                choices = c(".csv", ".rda"),
-        #                selected = ".csv"),
-        #   actionButton("downloadPed1", label = "Download",
-        #                icon = icon('download'),
-        #                style = "color: white; background-color: #10699B; border-color: #10699B")
-        # ),
-        # conditionalPanel("!output.pedExists",
-        #   p("To download a pedigree, you must first either create a new one or load an existing one from your account.")
-        # )
+        # download a pedigree
+        h4("Download Pedigrees"),
+        selectInput("selectDownloadPeds", label = "Select which pedigrees to download:",
+                    choices = c("No pedigrees selected"), 
+                    multiple = T),
+        div(checkboxInput("selectAllPeds", label = "Select all pedigrees"), style = "margin-left:25px;margin-top:-10px"),
+        radioButtons("downloadAs1", label = "Select a file format for download:",
+                     choices = c(".csv", ".rds"),
+                     selected = ".csv"),
+        
+        # only show download button if at least one pedigree is selected
+        conditionalPanel("output.atLeastOnePedigreeSelected",
+                         
+          # CSV download button
+          conditionalPanel("input.downloadAs1 == '.csv'",
+            downloadButton("downloadPedsCSV", label = "Download",
+                           icon = icon('download'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B")
+          ),
+          
+          # RDS download button
+          conditionalPanel("input.downloadAs1 == '.rds'",
+            downloadButton("downloadPedsRDS", label = "Download",
+                           icon = icon('download'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B")
+          ),
+        )
       ),
       
       ##### Create/Modify Pedigree ####
@@ -1659,6 +1679,73 @@ server <- function(input, output, session) {
                         choices = userPeds())
     }
   }, ignoreInit = T)
+  
+  ##### Download Pedigrees ####
+  # selecting pedigrees to download on the "Manage Pedigrees" tab where multiple choices are allowed
+  observeEvent(list(userPeds(), input$selectAllPeds), {
+    if(input$selectAllPeds){
+      updateSelectInput(session, "selectDownloadPeds",
+                        selected = userPeds(),
+                        choices = userPeds())
+    } else {
+      updateSelectInput(session, "selectDownloadPeds",
+                        choices = userPeds())
+    }
+  })
+  
+  # check that download is possible based on if at least one pedigree is selected
+  atLeastOnePedigreeSelected <- reactiveVal(FALSE)
+  output$atLeastOnePedigreeSelected <- reactive({ atLeastOnePedigreeSelected() })
+  outputOptions(output, 'atLeastOnePedigreeSelected', suspendWhenHidden = FALSE)
+  observeEvent(input$selectDownloadPeds ,{
+    if(!is.null(input$selectDownloadPeds)){
+      atLeastOnePedigreeSelected(TRUE)
+    } else {
+      atLeastOnePedigreeSelected(FALSE)
+    }
+  })
+  
+  # prepare the table of pedigrees to be downloaded from the "Manage Pedigrees" tab
+  downloadPedsTable <- reactiveVal(NULL)
+  observe({
+    if(atLeastOnePedigreeSelected()){
+      if(admin()){
+        fromAcct <- input$selectUser
+      } else {
+        fromAcct <- credentials()$info[["user"]]
+      }
+      downloadPedsTable(
+        dbGetQuery(conn = conn, 
+                   statement = paste0("SELECT * FROM ", fromAcct, " ",
+                                      "WHERE PedigreeID IN ('", paste0(input$selectDownloadPeds, collapse = "','"), "');"))
+      )
+    } else {
+      downloadPedsTable(NULL)
+    }
+    
+  })
+  
+  # download one or more pedigrees from the user account from the "Manage Pedigrees" tab
+  # as a .csv
+  output$downloadPedsCSV <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-pedigrees-", Sys.Date(), input$downloadAs1)
+    },
+    content = function(file){
+      write.csv(downloadPedsTable(), file, row.names = F)
+    }
+  )
+  
+  # download one or more pedigrees from the user account from the "Manage Pedigrees" tab
+  # as a .rds
+  output$downloadPedsRDS <- downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-pedigrees-", Sys.Date(), input$downloadAs1)
+    },
+    content = function(file){
+      saveRDS(downloadPedsTable(), file)
+    }
+  )
   
   #### Demographics / Create Pedigree ####
   
