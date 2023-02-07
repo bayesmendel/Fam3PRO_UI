@@ -51,3 +51,7 @@
 
 # excel files
 **.xlsx
+
+# secrets
+**.json
+**/test_accounts.txt

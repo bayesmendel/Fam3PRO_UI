@@ -1,17 +1,32 @@
 #### Cancer Hx ####
 
 # module to enter data for one cancer
-canUI <- function(id, rel){
+canUI <- function(id, rel, vals){
   
   # reserve a local namespace for cancer hx
   ns <- NS(id)
+  
+  # if initial values are provided feed them to the inputs, otherwise use initial values
+  if(!is.null(vals)){
+    can <- vals$can
+    age <- vals$age
+    other <- ifelse(vals$other == "UnkType", "Unknown/Not Listed", vals$other)
+    cbc <- vals$cbc
+    cbcAge <- vals$cbcAge
+  } else {
+    can <- "No cancer selected"
+    age <- NA
+    other <- "Unknown/Not Listed"
+    cbc <- "No"
+    cbcAge <- NA
+  }
   
   # UI
   tags$div(id = paste0("canSubContainer", id),
     tagList(
       
       # only show module's inputs for the currently selected relative
-      conditionalPanel(paste0("input.relSelect == ", rel()),
+      conditionalPanel(paste0("input.relSelect == '", rel, "'"),
                        
         # top row: cancer name, cancer age, and delete module button
         fluidRow(
@@ -19,9 +34,9 @@ canUI <- function(id, rel){
           # cancer name
           column(width = 6, 
             selectInput(inputId = ns("Can"), 
-                        label = h5(paste0("Cancer:")),
+                        label = h5("Cancer:"),
                         choices = CANCER.CHOICES$long,
-                        selected = "No cancer selected",
+                        selected = can,
                         width = "200px")
           ),
           
@@ -30,7 +45,7 @@ canUI <- function(id, rel){
             conditionalPanel(sprintf("input['%s'] != 'No cancer selected'", ns("Can")),
               div(numericInput(inputId = ns("CanAge"), 
                                label = h5("Diagnosis Age:"),
-                               min = min.age, max = max.age, step = 1, value = NA,
+                               min = min.age, max = max.age, step = 1, value = age,
                                width = "100px"),
                   style = "margin-left:-75px"
               ),
@@ -58,7 +73,7 @@ canUI <- function(id, rel){
               div(selectizeInput(inputId = ns("CanOther"), 
                                  label = NULL,
                                  choices = OTHER.CANCER.CHOICES, 
-                                 selected = "Unknown/Not Listed",
+                                 selected = other,
                                  multiple = FALSE, 
                                  options = list(create=TRUE),
                                  width = "225px"),
@@ -78,6 +93,7 @@ canUI <- function(id, rel){
             column(3, 
               div(selectInput(inputId = ns("CBC"),
                               label = NULL,
+                              selected = cbc,
                               choices = c("No", "Yes"),
                               width = "100px"),
                   style = "margin-left:25px"
@@ -93,7 +109,7 @@ canUI <- function(id, rel){
               column(width = 3,
                   div(numericInput(inputId = ns("CBCAge"), 
                                    label = NULL,
-                                   min = min.age, max = max.age, step = 1, value = NA,
+                                   min = min.age, max = max.age, step = 1, value = cbcAge,
                                    width = "100px"),
                       style = "margin-left:-40px"
                   ),
@@ -114,7 +130,7 @@ validateCanAgeServer <- function(id, in.age, cur.age) {
   moduleServer(
     id,
     function(input, output, session){
-      output$valCanAge <- renderText(validate(validateCanAge(in.age(), cur.age())))
+      output$valCanAge <- renderText(shiny::validate(validateCanAge(in.age, cur.age)))
     }
   )
 }
@@ -123,7 +139,7 @@ validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
   moduleServer(
     id,
     function(input, output, session){
-      output$valCBCAge <- renderText(validate(validateCBCAge(can(), cbc.age(), bc.age(), cur.age())))
+      output$valCBCAge <- renderText(shiny::validate(validateCBCAge(can, cbc.age, bc.age, cur.age)))
     }
   )
 }
@@ -135,16 +151,16 @@ geneHeaderUI <- function(){
   tagList(
     fluidRow(
       column(width = 3,
-             h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Gene</b>"), style = "margin-left:0px;margin-bottom:10px;margin-top:0px")
       ),
       column(width = 3, 
-             h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Nucleotide</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
       ),
       column(width = 3,
-             h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Protein</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
       ),
       column(width = 3,
-             h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
+        h5(HTML("<b>Zygosity</b>"), style = "margin-left:-25px;margin-bottom:10px;margin-top:0px")
       )
     )
   )
@@ -176,10 +192,21 @@ panelUI <- function(id, rel, panelName){
   )
 }
 
-geneUI <- function(id, rel, panelName, panelGenes){
+geneUI <- function(id, rel, panelName, panelGenes, vals){
   
   # reserve local namespace for gene results
   ns <- NS(id)
+  
+  # if initial values are provided feed them to the inputs, otherwise use initial values
+  if(!is.null(vals)){
+    gene <- vals$gene
+    nuc <- vals$nuc
+    prot <- vals$prot
+    zyg <- vals$zyg
+  } else {
+    gene <- nuc <- prot <- ""
+    zyg <- "Unk"
+  }
   
   tags$div(id = paste0(id, "Cont"),
     tagList(
@@ -193,7 +220,7 @@ geneUI <- function(id, rel, panelName, panelGenes){
                 selectInput(ns('Gene'),
                             label = NULL, 
                             choices = c("", panelGenes),
-                            selected = "",
+                            selected = gene,
                             width = "125px")
             )
           ),
@@ -203,7 +230,7 @@ geneUI <- function(id, rel, panelName, panelGenes){
                   selectizeInput(ns('NucInfo'), 
                                  label = NULL,
                                  choices = "", 
-                                 selected = "",
+                                 selected = nuc,
                                  multiple = FALSE, 
                                  options = list(create=TRUE),
                                  width = "130px")
@@ -214,7 +241,7 @@ geneUI <- function(id, rel, panelName, panelGenes){
                   selectizeInput(ns('ProtInfo'),
                                  label = NULL,
                                  choices = "",
-                                 selected = "",
+                                 selected = prot,
                                  multiple = FALSE,
                                  options = list(create=TRUE),
                                  width = "130px")
@@ -225,7 +252,7 @@ geneUI <- function(id, rel, panelName, panelGenes){
                   selectInput(ns('ZygInfo'),
                               label = NULL,
                               choices = zyg.choices,
-                              selected = "Unk",
+                              selected = zyg,
                               width = "85px")
               )
             )
@@ -249,8 +276,21 @@ geneUI <- function(id, rel, panelName, panelGenes){
   ) # end of tags$div
 }
 
+#### Delete Modules from Memory ####
 
-
+#' Removes shiny inputs from memory
+#' 
+#' @param id string, input name to remove from memory
+#' @param .input the shiny master input list
+#' 
+#' @details from https://www.r-bloggers.com/2020/02/shiny-add-removing-modules-dynamically/
+remove_shiny_inputs <- function(id, .input) {
+  invisible(
+    lapply(grep(id, names(.input), value = TRUE), function(i) {
+      .subset2(.input, "impl")$.values$remove(i)
+    })
+  )
+}
 
 
 

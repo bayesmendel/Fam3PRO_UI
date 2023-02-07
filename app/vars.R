@@ -8,15 +8,39 @@ non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 #pedigree column names
 ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex", 
               "MotherID", "FatherID", "isProband", "CurAge", "isDead", 
-              "race", "Ancestry", "NPP.race", "NPP.eth", "NPP.AJ", "NPP.It",
+              "race", "Ancestry", "NPPrace", "NPPeth", "NPPAJ", "NPPIt",
               paste0("riskmod", c("Mast","Hyst","Ooph")),
               paste0("interAge", c("Mast","Hyst","Ooph")),
               "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
-              "NPP.isAffX.AgeX",
-              PanelPRO:::GENE_TYPES,"panel.names","PP.gene.info", "NPP.gene.info"
+              "cancersJSON",
+              PanelPRO:::GENE_TYPES,"panelNames","genesJSON"
               )
+
+ped.col.dtypes <- c(
+  "TEXT", # "PedigreeID", 
+  "INT", # "ID", 
+  "TEXT", # "side", 
+  "TEXT", # "relationship", 
+  "INT", # "Twins", 
+  "INT", # "Sex", 
+  rep("INT", 2), # "MotherID", "FatherID", 
+  "INT", # "isProband", 
+  "INT", # "CurAge", 
+  "INT", # "isDead", 
+  rep("TEXT", 4), # "race", "Ancestry", "NPPrace", "NPPeth", 
+  rep("INT", 2), # "NPPAJ", "NPPIt",
+  rep("INT", 3), # paste0("riskmod", c("Mast","Hyst","Ooph")),
+  rep("INT", 3), # paste0("interAge", c("Mast","Hyst","Ooph")),
+  rep("INT", 6), # "ER", "PR", "CK14", "CK5_6", "HER2", "MSI",
+  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
+  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
+  "LONGTEXT", # "cancersJSON",
+  rep("INT", length(PanelPRO:::GENE_TYPES)), # PanelPRO:::GENE_TYPES,
+  "TEXT", # "panelNames",
+  "LONGTEXT" # "genesJSON"
+)
 
 #### Demographics ####
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
@@ -70,12 +94,11 @@ colnames(cancer.inputs.store) <- c("Cancer","Age","Other")
 # where the length is 1 but the value of the single element is NA.
 # 2) mx: a number indicating the all time maximum number of cancer UI modules created for a relative.
 # mx includes even deleted/removed UI modules where dict only tracks active UI modules
-trackCans.init <- list("1" = list(dict = setNames(c(NA),1),
-                                  mx = 0),
-                       "2" = list(dict = setNames(c(NA),1),
-                                  mx = 0),
-                       "3" = list(dict = setNames(c(NA),1),
-                                  mx = 0))
+trackCans.rel <- list(dict = setNames(c(NA),1),
+                      mx = 0)
+trackCans.init <- list("1" = trackCans.rel,
+                       "2" = trackCans.rel,
+                       "3" = trackCans.rel)
 
 
 #### Tumor Markers ####
@@ -158,6 +181,11 @@ relTemplate.trackGenes <- list(dict = new.dict,
 trackGenes.init <- list("1" = relTemplate.trackGenes,
                         "2" = relTemplate.trackGenes,
                         "3" = relTemplate.trackGenes)
+
+# data frame format for gene summary table
+gene.df.colnames <- c("Gene", "Result", "Nucleotide", "Protein", "Zygosity", "Panel")
+gene.inputs.store <- setNames(as.data.frame(matrix("", nrow = 0, ncol = length(gene.df.colnames))),
+                              gene.df.colnames)
 
 # master genes lists
 all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMPR1A', 
