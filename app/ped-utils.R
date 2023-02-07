@@ -161,7 +161,8 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
   tmp.person <-
     tmp.person %>%
     mutate(across(everything(), ~is.numeric(.))) %>%
-    mutate(across(.cols = c(race, Ancestry, NPPrace, NPPeth, panelNames), 
+    mutate(across(.cols = c(race, Ancestry, 
+                            NPPrace, NPPeth, panelNames), 
                   ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
     mutate(ID = tmp.id) %>%
@@ -176,7 +177,10 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     mutate(across(.cols = c(isProband, isDead, Twins, NPPAJ, NPPIt,
                             starts_with("riskmod"), starts_with("isAff")), 
                   ~ 0)) %>%
-    mutate(across(.cols = where(is.logical), ~as.numeric(NA)))
+    mutate(across(.cols = where(is.logical), ~as.numeric(NA))) 
+  # %>%
+  #   mutate(across(.cols = c(FirstBCType, BreastDensity, FirstBCTumorSize), 
+  #                 ~is.character(.)))
   
   # if proband, create the pedigree, and return it
   if(relation == "proband"){
@@ -333,6 +337,7 @@ popPersonData <- function(tmp.ped,
                           an.it = NULL,
                           riskmods.and.ages = NULL,
                           cancers.and.ages = NULL,
+                          cbc.info = NULL,
                           er = NULL,
                           pr = NULL,
                           her2 = NULL,
@@ -414,7 +419,21 @@ popPersonData <- function(tmp.ped,
     if(tmp.ped$isAffCOL[which(tmp.ped$ID == id)] == 0){
       tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$COL$MARKERS] <- NA
     }
-  }
+  } # end of if statement for cancer hx
+  
+  # CBC information
+  if(!is.null(cbc.info)){
+    tmp.ped$FirstBCType[which(tmp.ped$ID == id)] <- 
+      ifelse(cbc.info$FirstBCType == "NA", NA, cbc.info$FirstBCType)
+    tmp.ped$AntiEstrogen[which(tmp.ped$ID == id)] <- 
+      ifelse(cbc.info$AntiEstrogen == "NA", NA, cbc.info$AntiEstrogen)
+    tmp.ped$HRPreneoplasia[which(tmp.ped$ID == id)] <- 
+      ifelse(cbc.info$HRPreneoplasia == "NA", NA, cbc.info$HRPreneoplasia)
+    tmp.ped$BreastDensity[which(tmp.ped$ID == id)] <- 
+      ifelse(cbc.info$BreastDensity == "NA", NA, cbc.info$BreastDensity)
+    tmp.ped$FirstBCTumorSize[which(tmp.ped$ID == id)] <- 
+      ifelse(cbc.info$FirstBCTumorSize == "NA", NA, cbc.info$FirstBCTumorSize)
+  } 
   
   # tumor markers
   bc.mark.vec <- c(ER = er, PR = pr, HER2 = her2, CK5.6 = ck5.6, CK14 = ck14)
@@ -711,11 +730,24 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene){
     can.df <- makeCancerDF(rel = rel, cr = cr, inp = inp)
     return(popPersonData(tmp.ped = tped, id = rel, cancers.and.ages = can.df))
     
+    # cbc
+  } else if(inp$pedTabs == "CBC Risk"){
+    return(
+      popPersonData(tmp.ped = tped, id = rel, 
+                    cbc.info = list(FirstBCType = inp$FirstBCType,
+                                    AntiEstrogen = inp$AntiEstrogen,
+                                    HRPreneoplasia = inp$HRPreneoplasia,
+                                    BreastDensity = inp$BreastDensity,
+                                    FirstBCTumorSize = inp$FirstBCTumorSize)
+      )
+    )
+    
     # tumor markers
   } else if(inp$pedTabs == "Tumor Markers"){
     return(popPersonData(tmp.ped = tped, id = rel, 
-                      er = inp$ER, pr = inp$PR, her2 = inp$HER2,
-                      ck5.6 = inp$CK56, ck14 = inp$CK14, msi = inp$MSI))
+                         er = inp$ER, pr = inp$PR, her2 = inp$HER2,
+                         ck5.6 = inp$CK56, ck14 = inp$CK14, 
+                         msi = inp$MSI))
     
     # surgical hx
   } else if(inp$pedTabs == "Surgical Hx"){
@@ -757,6 +789,13 @@ updateRelInputs <- function(rel.info, ss){
   updateSelectInput(ss, "eth", selected = rel.info$NPPeth)
   updateCheckboxInput(ss, "ancAJ", value = rel.info$NPPAJ)
   updateCheckboxInput(ss, "ancIt", value = rel.info$NPPIt)
+  
+  # cbc
+  for(cbc.var in c("FirstBCType", "AntiEstrogen", "HRPreneoplasia", 
+                   "BreastDensity", "FirstBCTumorSize")){
+    updateSelectInput(ss, cbc.var, 
+                      selected = ifelse(is.na(rel.info[[cbc.var]]), "NA", rel.info[[cbc.var]]))
+  }
   
   ## Tumor Markers 
   marks <- c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)

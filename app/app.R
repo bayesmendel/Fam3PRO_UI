@@ -359,6 +359,44 @@ ui <- fixedPage(
                              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
               ), # end of cancers tab
               
+              ###### CBC Risk ####
+              tabPanel("CBC Risk",
+                h3("Contralateral Breast Cancer Risk"),
+                h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?"),
+                selectInput("FirstBCType", label = NULL,
+                            choices = c("Unknown" = NA, 
+                                        "Pure invasive" = "Invasive", 
+                                        "Mixed invasive/DCIS" = "Invasive_DCIS"),
+                            width = "200px"),
+                h5("Was the 1st breast cancer treated with anti-estrogen therapy?"),
+                selectInput("AntiEstrogen", label = NULL,
+                            choices = c("Unknown" = NA, 
+                                        "Yes" = 1, 
+                                        "No" = 0),
+                            width = "125px"),
+                h5("Does the relative have a history of high risk pre-neoplasia (ie atypical hyperplasia or LCIS?)"),
+                selectInput("HRPreneoplasia", label = NULL,
+                            choices = c("Unknown" = NA, 
+                                        "Yes" = 1, 
+                                        "No" = 0),
+                            width = "125px"),
+                h5("What were the BI-RADS breast density results?"),
+                selectInput("BreastDensity", label = NULL,
+                            choices = c("Unknown" = NA, 
+                                        "a - almost entirely fatty" = "a",
+                                        "b - scattered areas of fibroglandular density" = "b",
+                                        "c - heterogeneously dense" = "c",
+                                        "d - extremely dense" = "d"),
+                            width = "325px"),
+                h5("What was the size of the 1st breast tumor?"),
+                selectInput("FirstBCTumorSize", label = NULL,
+                            choices = c("Unknown" = NA, 
+                                        "Tis" = "Tis",
+                                        "T0/T1/T2" = "T0/T1/T2",
+                                        "T3/T4" = "T3/T4"),
+                            width = "125px")
+              ),
+              
               ###### Tumor Markers ####
               tabPanel("Tumor Markers",
                 h3("Tumor Markers"),
@@ -1227,7 +1265,7 @@ server <- function(input, output, session) {
   observeEvent(input$diffEmail, { shinyjs::refresh() })
   
   
-  ##### Save/Load Pedigree ####
+  ##### Pedigree Management ####
   # user's pedigrees that are available for loading
   userPeds <- reactiveVal(NULL)
   
@@ -1311,7 +1349,7 @@ server <- function(input, output, session) {
     hideTab("navbarTabs", target = "Run PanelPRO", session = session)
   })
 
-  # LOAD A PEDIGREE OR RESET INPUTS, REACTIVES, FLAGS TO CREATE NEW
+  ##### Load/Create New Pedigree ####
   newOrLoadFlag <- reactiveVal("new")
   observeEvent(input$goNewOrLoad, {
     if(input$newOrLoad == "Load existing"){
@@ -1488,6 +1526,28 @@ server <- function(input, output, session) {
           remove_shiny_inputs(id, input)
         })
         
+        ## observe for BC and CBC
+        observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+          
+          # hide/show CBC Risk tab only if relative has breast cancer but not CBC
+          if(input[[paste0(id, '-Can')]] == "Breast" & 
+             input[[paste0(id, '-CBC')]] == "No" & 
+             input$relSelect == rel){
+            showTab("pedTabs", target = "CBC Risk", session = session)
+          }
+          
+          # reset CBC inputs if cancer is not BC
+          if(input[[paste0(id, '-Can')]] != "Breast"){
+            shinyjs::reset(id = paste0(id, '-CBC'))
+            shinyjs::reset(id = paste0(id, '-CBCAge'))
+          }
+          
+          # reset CBC age if CBC is no longer selected
+          if(input[[paste0(id, '-CBC')]] == "No"){
+            shinyjs::reset(id = paste0(id, '-CBCAge'))
+          }
+        }, ignoreInit = T, ignoreNULL = T)
+        
         # create a cancer selection observer which will trigger an update of all of the cancer dropdown
         # choices for each of the person's cancer UI modules
         observeEvent(input[[paste0(id, '-Can')]], {
@@ -1500,7 +1560,7 @@ server <- function(input, output, session) {
       })
       
       ## GENES
-      # create and populate panelUI and geneUI modules
+      # create and populate panelUI modules
       lapply(1:nrow(master.gene.df), function(x){
         
         # prevent duplication of panels
@@ -1584,45 +1644,47 @@ server <- function(input, output, session) {
       hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("visPed")
       
-      #### CREATE NEW PEDIGREE
+      ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
       PED(NULL)
       
       ## reset inputs and input reactives
-      updateSelectInput(session, "selectUser", selected = "admin")
-      updateSelectInput(session, "relSelect", selected = "1", choices = c("1"))
+      shinyjs::reset("selectUser")
+      shinyjs::reset("relSelect")
       lastRel(1)
       
       # demo
       shinyjs::enable("pedID")
-      updateTextInput(session, "pedID", value = "")
       shinyjs::enable("Sex")
-      updateSelectInput(session, "Sex", selected = " ")
-      updateNumericInput(session, "Age", value = NA)
-      updateSelectInput(session, "race", selected = "All_Races")
-      updateSelectInput(session, "eth", selected = "Other_Ethnicity")
-      updateCheckboxInput(session, "ancAJ", value = FALSE)
-      updateCheckboxInput(session, "ancIt", value = FALSE)
+      for(demo.var in c("pedID", "Sex", "Age", "race", "eth", "ancAJ", "ancIt")){
+        shinyjs::reset(demo.var)
+      }
       
       # cancers
       canReactive$canNums <- trackCans.init
       
+      # cbc
+      for(cbc.var in c("FirstBCType", "AntiEstrogen", "HRPreneoplasia", 
+                       "BreastDensity", "FirstBCTumorSize")){
+        shinyjs::reset(cbc.var)
+      }
+      
       # markers
       for(mtype in c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)){
         m <- ifelse(mtype == "CK5.6", "CK56", mtype)
-        updateSelectInput(session, m, selected = "Not Tested")
+        shinyjs::reset(m)
       }
       
       # surg
       for(stype in c("Mast", "Hyst", "Ooph")){
-        updateCheckboxInput(session, stype, value = FALSE)
-        updateNumericInput(session, paste0(stype, "Age"), value = NA)
+        shinyjs::reset(stype)
+        shinyjs::reset(paste0(stype, "Age"))
       }
       
       # genes
-      updateSelectInput(session, "existingPanels", selected = "No panel selected", choices = all.panel.names)
-      updateSelectInput(session, "editPanel", selected = "No panel selected", choices = c("No panel selected"))
+      shinyjs::reset("existingPanels")
+      shinyjs::reset("editPanel")
       geneReactive$GeneNums <- trackGenes.init
       
       # add relatives
@@ -1646,7 +1708,7 @@ server <- function(input, output, session) {
     updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
   }, ignoreInit = T)
   
-  # SAVE A PEDIGREE
+  ##### Save Pedigree #######
   observeEvent(input$savePed, {
     if(!is.null(PED())){
       
@@ -1911,6 +1973,29 @@ server <- function(input, output, session) {
       # remove the module's inputs from memory
       remove_shiny_inputs(id, input)
     })
+    
+    ## observe for BC and CBC
+    observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+      
+      # hide/show CBC Risk tab only if relative has breast cancer but not CBC
+      if(input[[paste0(id, '-Can')]] == "Breast" & 
+         input[[paste0(id, '-CBC')]] == "No" & 
+         input$relSelect == rel){
+        showTab("pedTabs", target = "CBC Risk", session = session)
+      }
+      
+      # reset CBC inputs if cancer is not BC
+      if(input[[paste0(id, '-Can')]] != "Breast"){
+        shinyjs::reset(id = paste0(id, '-CBC'))
+        shinyjs::reset(id = paste0(id, '-CBCAge'))
+      }
+      
+      # reset CBC age if CBC is no longer selected
+      if(input[[paste0(id, '-CBC')]] == "No"){
+        shinyjs::reset(id = paste0(id, '-CBCAge'))
+      }
+    }, ignoreInit = T, ignoreNULL = T)
+    
 
     ## create a cancer selection observer which will trigger an update of all of the cancer dropdown
     ## choices for each of the person's cancer UI modules
@@ -1937,8 +2022,10 @@ server <- function(input, output, session) {
   onCanTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
     
-    # transfer information to the pedigree
+    # consolidate cancer info into a data frame
     can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
+    
+    # transfer information to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cancers.and.ages = can.df))
     }
@@ -1951,9 +2038,37 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
+  #### CBC ####
+  # on start-up, hide the CBC tab
+  observe({
+    hideTab("pedTabs", target = "CBC Risk", session = session)
+  })
+  
+  # add data to pedigree when user navigates off of the tab
+  onCBCTab <- reactiveVal(FALSE)
+  observeEvent(input$pedTabs, {
+    
+    # transfer information to the pedigree
+    if(onCBCTab() & input$pedTabs != "CBC Risk" & !is.null(PED())){
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
+                        cbc.info = list(FirstBCType = input$FirstBCType,
+                                        AntiEstrogen = input$AntiEstrogen,
+                                        HRPreneoplasia = input$HRPreneoplasia,
+                                        BreastDensity = input$BreastDensity,
+                                        FirstBCTumorSize = input$FirstBCTumorSize)
+                        )
+          )
+    }
+    
+    # update the reactive value to detect if the current tab is the target tab
+    if(input$pedTabs == "CBC Risk"){
+      onCBCTab(TRUE)
+    } else {
+      onCBCTab(FALSE)
+    }
+  }, ignoreInit = TRUE)
   
   #### Tumor Markers ####
-  
   # condition to inform UI whether to display tumor markers or not, based on cancer hx
   showBCMarkers <- reactiveVal(FALSE)
   showCRCMarkers <- reactiveVal(FALSE)
@@ -2497,8 +2612,21 @@ server <- function(input, output, session) {
       rel.info <- PED()[which(PED()$ID == as.numeric(input$relSelect)),]
       updateRelInputs(rel.info = rel.info, ss = session)
       
+      # hide CBC Risk tab if its not relevant to the cancer history
+      can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
+      if(all(can.df$Cancer != "Breast") | 
+         (any(can.df$Cancer == "Breast") & any(can.df$Cancer == "Contralateral"))){
+        
+        # before hiding the tab make sure it is not selected to prevent error is saving data to pedigree
+        if(input$pedTabs == "CBC Risk"){
+          updateTabsetPanel(session, "pedTabs", selected = "Cancer Hx")
+        }
+        hideTab("pedTabs", target = "CBC Risk", session = session)
+      } else {
+        showTab("pedTabs", target = "CBC Risk", session = session)
+      }
+      
       # reset the selected tabs
-      updateTabsetPanel(session, "pedTabs", selected = "Demographics")
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       

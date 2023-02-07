@@ -15,20 +15,15 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
               "cancersJSON",
+              "FirstBCType", "AntiEstrogen", "HRPreneoplasia", "BreastDensity", "FirstBCTumorSize",
               PanelPRO:::GENE_TYPES,"panelNames","genesJSON"
               )
 
 ped.col.dtypes <- c(
   "TEXT", # "PedigreeID", 
   "INT", # "ID", 
-  "TEXT", # "side", 
-  "TEXT", # "relationship", 
-  "INT", # "Twins", 
-  "INT", # "Sex", 
-  rep("INT", 2), # "MotherID", "FatherID", 
-  "INT", # "isProband", 
-  "INT", # "CurAge", 
-  "INT", # "isDead", 
+  rep("TEXT", 2), # "side", "relationship", 
+  rep("INT", 7), # Twins, Sex, "MotherID", "FatherID", isProband, CurAge, isDead
   rep("TEXT", 4), # "race", "Ancestry", "NPPrace", "NPPeth", 
   rep("INT", 2), # "NPPAJ", "NPPIt",
   rep("INT", 3), # paste0("riskmod", c("Mast","Hyst","Ooph")),
@@ -37,6 +32,9 @@ ped.col.dtypes <- c(
   rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
   rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
   "LONGTEXT", # "cancersJSON",
+  "TEXT", # FirstBCType
+  rep("INT", 2), # AntiEstrogen, HRPreneoplasia
+  rep("TEXT", 2), # BreastDensity, FirstBCTumorSize
   rep("INT", length(PanelPRO:::GENE_TYPES)), # PanelPRO:::GENE_TYPES,
   "TEXT", # "panelNames",
   "LONGTEXT" # "genesJSON"
@@ -99,6 +97,9 @@ trackCans.rel <- list(dict = setNames(c(NA),1),
 trackCans.init <- list("1" = trackCans.rel,
                        "2" = trackCans.rel,
                        "3" = trackCans.rel)
+
+
+#### CBC ####
 
 
 #### Tumor Markers ####
