@@ -161,7 +161,7 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
   tmp.person <-
     tmp.person %>%
     mutate(across(everything(), ~is.numeric(.))) %>%
-    mutate(across(.cols = c(race, Ancestry, 
+    mutate(across(.cols = c(name, race, Ancestry, 
                             NPPrace, NPPeth, panelNames), 
                   ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
@@ -178,9 +178,15 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
                             starts_with("riskmod"), starts_with("isAff")), 
                   ~ 0)) %>%
     mutate(across(.cols = where(is.logical), ~as.numeric(NA))) 
-  # %>%
-  #   mutate(across(.cols = c(FirstBCType, BreastDensity, FirstBCTumorSize), 
-  #                 ~is.character(.)))
+  
+  # name column (function not compatible with dplyr)
+  if(is.na(tmp.person$side)){
+    tmp.person$name <- stringi::stri_trans_totitle(tmp.person$relationship)
+  } else {
+    tmp.person$name <- stringi::stri_trans_totitle(paste0(ifelse(tmp.person$side == "m", "Mat.", 
+                                                                 ifelse(tmp.person$side == "p", "Pat.", "?")), 
+                                                          " ", tmp.person$relationship))
+  }
   
   # if proband, create the pedigree, and return it
   if(relation == "proband"){

@@ -22,6 +22,7 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)
+library(stringi)    # toTitleCase
 
 # html
 library(htmltools)
@@ -268,7 +269,7 @@ ui <- fixedPage(
                 ),
                 column(width = 7,
                   selectInput("relSelect", label = NULL,
-                              choices = c(1), # placeholder, this will be updated once FDR+AU ped initialized
+                              choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
                               width = "200px")
                 )
               )
@@ -691,7 +692,7 @@ ui <- fixedPage(
                       ),
                       
                       # data frame with panel summary information
-                      dataTableOutput("panelSum")
+                      DT::dataTableOutput("panelSum")
                     )
                   ) # end of tab for gene results summary
                 ) # end tabsetPanel for gene results screen
@@ -1372,7 +1373,7 @@ server <- function(input, output, session) {
       proband.id <- as.numeric(PED()$ID[which(PED()$isProband == 1)])
       lastRel(proband.id)
       updateSelectInput(session, "relSelect",
-                        choices = as.character(PED()$ID),
+                        choices = setNames(as.character(PED()$ID), PED()$name),
                         selected = as.character(proband.id))
       proband.info <- PED()[which(PED()$ID == proband.id),]
       updateRelInputs(rel.info = proband.info, ss = session)
@@ -2449,7 +2450,7 @@ server <- function(input, output, session) {
   })
 
   # output formatted data table colored by result type
-  output$panelSum <- renderDataTable({
+  output$panelSum <- DT::renderDataTable({
     if(!is.null(panelSum())){
       datatable(panelSum()) %>%
         formatStyle('Result',
@@ -2487,6 +2488,7 @@ server <- function(input, output, session) {
     
     # only add family members if this is a new pedigree
     if(newOrLoadFlag() == "new"){
+      
       # add children
       if(input$numDau > 0 | input$numSon > 0){
         
@@ -2502,6 +2504,11 @@ server <- function(input, output, session) {
             } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
               PED(formatNewPerson(relation = "daughter", tmp.ped = PED(), m.id = parnter.id))
             }
+            
+            # add unique number to name field
+            t.ped <- PED()
+            t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+            PED(t.ped)
           }
         }
         # add sons iteratively
@@ -2512,6 +2519,11 @@ server <- function(input, output, session) {
             } else if(PED()$Sex[which(PED()$isProband == 1)] == 1){
               PED(formatNewPerson(relation = "son", tmp.ped = PED(), m.id = parnter.id))
             }
+            
+            # add unique number to name field
+            t.ped <- PED()
+            t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+            PED(t.ped)
           }
         }
       }
@@ -2520,12 +2532,23 @@ server <- function(input, output, session) {
       if(input$numSis > 0){
         for(i in 1:input$numDau){
           PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
+          
+          # add unique number to name field
+          t.ped <- PED()
+          t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+          PED(t.ped)
         }
       }
       # add brothers iteratively
       if(input$numBro > 0){
         for(i in 1:input$numBro){
           PED(formatNewPerson(relation = "brother", tmp.ped = PED()))
+          
+          
+          # add unique number to name field
+          t.ped <- PED()
+          t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+          PED(t.ped)
         }
       }
       
@@ -2541,12 +2564,22 @@ server <- function(input, output, session) {
         if(input$numMAunt > 0){
           for(i in 1:input$numMAunt){
             PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "m"))
+            
+            # add unique number to name field
+            t.ped <- PED()
+            t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+            PED(t.ped)
           }
         }
         # add maternal uncles iteratively
         if(input$numMUnc > 0){
           for(i in 1:input$numMUnc){
             PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "m"))
+            
+            # add unique number to name field
+            t.ped <- PED()
+            t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+            PED(t.ped)
           }
         }
       }
@@ -2563,12 +2596,22 @@ server <- function(input, output, session) {
         if(input$numPAunt > 0){
           for(i in 1:input$numPAunt){
             PED(formatNewPerson(relation = "aunt", tmp.ped = PED(), m.or.p.side = "p"))
+            
+            # add unique number to name field
+            t.ped <- PED()
+            t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+            PED(t.ped)
           }
         }
         # add paternal uncles iteratively
         if(input$numPUnc > 0){
           for(i in 1:input$numPUnc){
             PED(formatNewPerson(relation = "uncle", tmp.ped = PED(), m.or.p.side = "p"))
+            
+            # add unique number to name field
+            t.ped <- PED()
+            t.ped$name[nrow(t.ped)] <- paste0(t.ped$name[nrow(t.ped)], " ", i)
+            PED(t.ped)
           }
         }
       }
@@ -2582,13 +2625,15 @@ server <- function(input, output, session) {
       
       # update relative selector with all relatives in the pedigree
       updateSelectInput(session = session, inputId = "relSelect", 
-                        choices = PED()$ID, selected = PED()$ID[which(PED()$isProband == 1)])
+                        choices = setNames(PED()$ID, PED()$name), 
+                        selected = PED()$ID[which(PED()$isProband == 1)])
       
       # hide initialize pedigree tab and reset inputs
       for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
         updateNumericInput(session, paste0("num", relation), value = 0)
       }
       hideTab("pedTabs", target = "Add Relatives", session = session)
+      
     } # end of if statement for confirming the pedigree is a new creation
   }, ignoreInit = TRUE)
   
@@ -2600,10 +2645,47 @@ server <- function(input, output, session) {
       PED() %>%
       mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
       mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
-      select(PedigreeID, ID, MotherID, FatherID, Sex)
-    dped <- pedigree(id = plot_fam$ID,
-                     momid = plot_fam$MotherID,
-                     dadid = plot_fam$FatherID,
+      mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
+      mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
+      mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
+      mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
+      mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
+      mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
+      mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
+      mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
+      mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
+      mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
+      mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
+      mutate(nameMother = "") %>%
+      mutate(nameFather = "") %>%
+      select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+    
+    # replace mother and father ID numbers with names
+    for(uid in unique(plot_fam$MotherID)){
+      if(uid != 0){
+        pname <- plot_fam$name[which(plot_fam$ID == uid)]
+        plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+      }
+    }
+    for(uid in unique(plot_fam$FatherID)){
+      if(uid != 0){
+        pname <- plot_fam$name[which(plot_fam$ID == uid)]
+        plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+      }
+    }
+    
+    
+    
+    
+    View(plot_fam)
+    
+    
+    
+    
+    # plot
+    dped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
                      sex = plot_fam$Sex,
                      famid = plot_fam$PedigreeID)
     plot(dped[paste0(input$pedID)])
