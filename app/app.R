@@ -597,9 +597,11 @@ ui <- fixedPage(
                       conditionalPanel("output.atLeastOnePanel",
                         p("Select one of the subject's panels to edit then enter the gene results by selecting the three different tabs for ",
                           HTML("<b>pathogenic/likely pathogenic (P/LP), unknown significance (VUS),</b> or <b>
-                          benign/likely benign (B/LP)</b>.")," Any genes not specified as P/LP, VUS, or B/LB
-                          will be recorded as negative.", 
-                          style = "margin-bottom:25px"),
+                          benign/likely benign (B/LP)</b>.")," Enter as much information about each gene variant as possible. 
+                          Any genes not specified as P/LP, VUS, or B/LB will be recorded as negative."),
+                        p("Example nucleotides: c.279del, c.3262dup, c.1817C>T, c.4987-195_4987-194insTT"),
+                        p("Example proteins: p.Gln94fs, p.Val1088fs, p.Pro606Leu", 
+                          style = "margin-bottom:20px"),
                         selectInput("editPanel", "Select a panel to edit:",
                                     choices = c("No panel selected"), selected = "No panel selected"),
                         
