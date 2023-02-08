@@ -6,6 +6,7 @@ non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 
 #### Pedigree ####
 #pedigree column names
+cbcrisk.cols <- c("FirstBCType", "AntiEstrogen", "HRPreneoplasia", "BreastDensity", "FirstBCTumorSize")
 ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex", 
               "MotherID", "FatherID", "isProband", "CurAge", "isDead", 
               "race", "Ancestry", "NPPrace", "NPPeth", "NPPAJ", "NPPIt",
@@ -15,7 +16,7 @@ ped.cols <- c("PedigreeID", "ID", "side", "relationship", "Twins", "Sex",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
               "cancersJSON",
-              "FirstBCType", "AntiEstrogen", "HRPreneoplasia", "BreastDensity", "FirstBCTumorSize",
+              cbcrisk.cols,
               PanelPRO:::GENE_TYPES,"panelNames","genesJSON"
               )
 
@@ -100,7 +101,23 @@ trackCans.init <- list("1" = trackCans.rel,
 
 
 #### CBC ####
+# note also see cbcrisk.cols in the Pedigree section of this script
 
+bc1type.choices <- c("Unknown" = NA, 
+                     "Pure invasive" = "Invasive", 
+                     "Mixed invasive/DCIS" = "Invasive_DCIS")
+antiest.hrpre.choices <- c("Unknown" = NA, 
+                           "Yes" = 1, 
+                           "No" = 0)
+bdens.choices <- c("Unknown" = NA, 
+                   "a - almost entirely fatty" = "a",
+                   "b - scattered areas of fibroglandular density" = "b",
+                   "c - heterogeneously dense" = "c",
+                   "d - extremely dense" = "d")
+bctsize.choices <- c("Unknown" = NA, 
+                     "Tis" = "Tis",
+                     "T0/T1/T2" = "T0/T1/T2",
+                     "T3/T4" = "T3/T4")
 
 #### Tumor Markers ####
 # result choices

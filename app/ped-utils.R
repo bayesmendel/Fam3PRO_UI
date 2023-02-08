@@ -419,6 +419,15 @@ popPersonData <- function(tmp.ped,
     if(tmp.ped$isAffCOL[which(tmp.ped$ID == id)] == 0){
       tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$COL$MARKERS] <- NA
     }
+    
+    # reset additional CBC risk columns if the this condition is not met: has BC but does not have CBC
+    if(!(tmp.ped$isAffBC[which(tmp.ped$ID == id)] == 1 & 
+         tmp.ped$isAffCBC[which(tmp.ped$ID == id)] == 0)){
+      for(cbc.var in c("FirstBCType", "AntiEstrogen", "HRPreneoplasia", 
+                       "BreastDensity", "FirstBCTumorSize")){
+        tmp.ped[which(tmp.ped$ID == id), cbc.var] <- NA
+      }
+    }
   } # end of if statement for cancer hx
   
   # CBC information
@@ -827,13 +836,5 @@ updateRelInputs <- function(rel.info, ss){
                       selected = "No panel selected")
   }
 }
-
-
-
-
-
-
-
-
 
 
