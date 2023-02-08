@@ -305,13 +305,9 @@ labelTwins <- function(tmp.ped, twins){
 #' - `$interAge`: named numeric vector of with the same names as `$riskmod`. 
 #' If the corresponding surgery did not occur, the age value is `NA`, otherwise 
 #' the value is an age between `min.age` and `max.age`.
-#' @param cancers.and.ages list of cancer affection statuses and diagnosis ages 
-#' with two components: 
-#' - `$isAff`: named binary vector of cancer affection statuses with names: 
-#' `PanelPRO:::CANCER_NAME_MAP$short` and of length `length(PanelPRO:::CANCER_NAME_MAP$short)`.
-#' Values are either `0` for not affected or `1` for affected.
-#' - `$Age`: named numeric vector of cancer diagnosis ages where names are the 
-#' same as `$isAff` and values are ages from `min.age` to `max.age`.
+#' @param sx a string, one of "Male" or "Female".
+#' @param cancers.and.ages a data frame with three columns: Cancer, Age, and Other.
+#' @param cbc.info a named list of CBC risk related values with names `cbcrisk.cols`.
 #' @param er string, ER tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
 #' @param pr string, PR tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
 #' @param her2 string, HER2 tumor marker testing status, one of `c("Not Tested", "Positive", "Negative)`
@@ -336,6 +332,7 @@ popPersonData <- function(tmp.ped,
                           an.aj = NULL,
                           an.it = NULL,
                           riskmods.and.ages = NULL,
+                          sx = NULL,
                           cancers.and.ages = NULL,
                           cbc.info = NULL,
                           er = NULL,
@@ -375,14 +372,20 @@ popPersonData <- function(tmp.ped,
   }
   
   # cancer hx
-  if(!is.null(cancers.and.ages)){
+  if(!is.null(cancers.and.ages) & !is.null(sx)){
     
     # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", setdiff(c(CANCER.CHOICES$short, "CBC"), 
-                                                             c("No cancer selected", "Other")))] <- 0
-    tmp.ped[which(tmp.ped$ID == id), paste0("Age", setdiff(c(CANCER.CHOICES$short, "CBC"), 
-                                                           c("No cancer selected", "Other")))] <- NA
+    mod.can.choices.short <- setdiff(c(CANCER.CHOICES$short, "CBC"), c("No cancer selected", "Other"))
+    tmp.ped[which(tmp.ped$ID == id), paste0("isAff", mod.can.choices.short)] <- 0
+    tmp.ped[which(tmp.ped$ID == id), paste0("Age", mod.can.choices.short)] <- NA
     tmp.ped[which(tmp.ped$ID == id), "cancersJSON"] <- NA
+    
+    # remove any cancers that do not match the sex
+    if(sx == "Male"){
+      cancers.and.ages <- filter(cancers.and.ages, !Cancer %in% FEMALE.CANCERS)
+    } else if(sx == "Female"){
+      cancers.and.ages <- filter(cancers.and.ages, !Cancer %in% MALE.CANCERS)
+    }
     
     # iterate through PanelPRO cancers and populate the PanelPRO cancer columns
     pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected","Other")),]
@@ -725,7 +728,7 @@ addFDRPlus <- function(t.ped, num.dau = 0, num.son = 0, num.sis = 0, num.bro = 0
 #' @param gr geneReactive$GeneNums
 #' @param dupResultGene `dupResultGene()`
 #' @return updated pedigree
-saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene){
+saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
   
   # demographics
   if(inp$pedTabs == "Demographics"){
@@ -737,7 +740,7 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene){
     # cancer hx
   } else if(inp$pedTabs == "Cancer Hx"){
     can.df <- makeCancerDF(rel = rel, cr = cr, inp = inp)
-    return(popPersonData(tmp.ped = tped, id = rel, cancers.and.ages = can.df))
+    return(popPersonData(tmp.ped = tped, id = rel, sx = sx, cancers.and.ages = can.df))
     
     # cbc
   } else if(inp$pedTabs == "CBC Risk"){

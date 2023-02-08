@@ -101,11 +101,12 @@ makeCancerDF <- function(rel, cr = canReactive$canNums, inp = input){
 #' @param rel the relative
 #' @param inp the shiny input object.
 #' @param values starting values to populate the inputs, default is NULL
+#' @param sex the sex of the subject to create the module for
 #' @returns a list:
 #' - cr: updated copy of canReactive$canNums
 #' - trackMax: the unique number associated with the canUI module
 #' - id: the full canUI module id
-addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL){
+addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL, sex){
   
   if(is.numeric(rel)){
     rel <- as.character(rel)
@@ -133,10 +134,11 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL)
 
   # create the unique module ID and insert the UI module
   id <- paste0("rel", rel, "canModule", trackMax)
+  sex <- inp$Sex
   insertUI(
     selector = "#canContainer",
     where = "beforeEnd",
-    ui = canUI(id = id, rel = rel, vals = values)
+    ui = canUI(id = id, rel = rel, vals = values, sex = sex)
   )
 
   # add a server for checking the validity of the entered cancer age
@@ -279,26 +281,30 @@ updateCancerDropdowns <- function(cr = canReactive$canNums,
   
   # check if there are any cancers
   if(!is.na(tmp.trackInputs[1])){
+    
+    # define relevant variables
     if(type == "cancer"){
       input.type <- "-Can"
       filter.out.vals <- c("No cancer selected", "Other")
-      all.can.choices <- CANCER.CHOICES$long
+      if(inp$Sex == "Male"){
+        all.can.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% FEMALE.CANCERS)]
+      } else if(inp$Sex == "Female"){
+        all.can.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% MALE.CANCERS)]
+      }
     } else if(type == "other"){
       input.type <- "-CanOther"
       filter.out.vals <- c("Unknown/Not Listed")
-      all.can.choices <- OTHER.CANCER.CHOICES
+      if(inp$Sex == "Male"){
+        all.can.choices <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% FEMALE.CANCERS)]
+      } else if(inp$Sex == "Female"){
+        all.can.choices <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% MALE.CANCERS)]
+      }
     }
     
     # get all of the cancers currently selected across this person's cancer UI modules
     cans.selected <- as.character()
     for(cn in as.numeric(names(tmp.trackInputs))){
       tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], input.type)
-      
-      
-      # print(paste0("type: ", type))
-      # print(paste0("inp[[tmp.id]]: ", inp[[tmp.id]]))
-      
-      
       if(!inp[[tmp.id]] %in% filter.out.vals){
         cans.selected <- c(cans.selected, inp[[tmp.id]])
       }

@@ -1,7 +1,7 @@
 #### Cancer Hx ####
 
 # add/delete/edit a cancer in a relative's cancer history
-canUI <- function(id, rel, vals){
+canUI <- function(id, rel, vals, sex){
   
   # reserve a local namespace for cancer hx
   ns <- NS(id)
@@ -21,6 +21,16 @@ canUI <- function(id, rel, vals){
     cbcAge <- NA
   }
   
+  # filter possible cancers and "other" cancers by sex
+  if(sex == "Male"){
+    can.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% FEMALE.CANCERS)]
+    other.choices <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% FEMALE.CANCERS)]
+  } else if(sex == "Female"){
+    can.choices <- CANCER.CHOICES$long[which(!CANCER.CHOICES$long %in% MALE.CANCERS)]
+    other.choices <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% MALE.CANCERS)]
+  }
+  
+  
   # UI
   tags$div(id = paste0("canSubContainer", id),
     tagList(
@@ -35,7 +45,7 @@ canUI <- function(id, rel, vals){
           column(width = 6, 
             selectInput(inputId = ns("Can"), 
                         label = h5("Cancer:"),
-                        choices = CANCER.CHOICES$long,
+                        choices = can.choices,
                         selected = can,
                         width = "200px")
           ),
@@ -72,7 +82,7 @@ canUI <- function(id, rel, vals){
              column(7, 
               div(selectizeInput(inputId = ns("CanOther"), 
                                  label = NULL,
-                                 choices = OTHER.CANCER.CHOICES, 
+                                 choices = other.choices, 
                                  selected = other,
                                  multiple = FALSE, 
                                  options = list(create=TRUE),
