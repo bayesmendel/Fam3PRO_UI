@@ -1449,6 +1449,7 @@ server <- function(input, output, session) {
             can.df %>%
             mutate(across(.cols = c(cancer, other), ~as.character(.))) %>%
             mutate(rel = rl) %>%
+            mutate(sex = PED()$Sex[which(PED()$ID == rl)]) %>%
             mutate(cbc = "No") %>%
             mutate(cbcAge = NA) %>%
             mutate(age = na_if(age, "NA")) %>%
@@ -1502,7 +1503,8 @@ server <- function(input, output, session) {
                                        age = master.can.df$age[x],
                                        other = master.can.df$other[x],
                                        cbc = master.can.df$cbc[x],
-                                       cbcAge = master.can.df$cbcAge[x]))
+                                       cbcAge = master.can.df$cbcAge[x]),
+                         sex = master.can.df$sex[x])
         canReactive$canNums <- out$cr
         trackMax <- out$trackMax
         id <- out$id
@@ -1702,7 +1704,8 @@ server <- function(input, output, session) {
                            cr = canReactive$canNums,
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
-                           dupResultGene = dupResultGene())
+                           dupResultGene = dupResultGene(),
+                           sx = input$Sex)
       )
       
       # the database cannot have columns with . in the name
@@ -1941,9 +1944,11 @@ server <- function(input, output, session) {
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
     rel <- input$relSelect
+    sex <- input$Sex
     out <- addCancer(cr = canReactive$canNums, 
                      rel = rel, 
-                     inp = input)
+                     inp = input,
+                     sex = sex)
     canReactive$canNums <- out$cr
     trackMax <- out$trackMax
     id <- out$id
@@ -2007,7 +2012,7 @@ server <- function(input, output, session) {
     
     # transfer information to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx" & !is.null(PED())){
-      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cancers.and.ages = can.df))
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, sx = input$Sex, cancers.and.ages = can.df))
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2620,7 +2625,8 @@ server <- function(input, output, session) {
                            cr = canReactive$canNums,
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
-                           dupResultGene = dupResultGene())
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == lastRel())])
           )
       
       # update the last relative selected

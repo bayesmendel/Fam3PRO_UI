@@ -65,6 +65,8 @@ et.choices <- c("Unreported/Both" = "Other_Ethnicity",
 CANCER.CHOICES <- PanelPRO:::CANCER_NAME_MAP
 CANCER.CHOICES$short <- c("No cancer selected", setdiff(CANCER.CHOICES$short, "CBC"), "Other")
 CANCER.CHOICES$long <- c("No cancer selected", setdiff(CANCER.CHOICES$long, "Contralateral"), "Other")
+MALE.CANCERS <- c("Prostate", "Penile", "Testicular")
+FEMALE.CANCERS <- c("Endometrial", "Ovarian", "Cervical", "Vaginal", "Vulvar")
 
 # see the non-PanelPRO cancers loaded as a csv at the top of this file
 OTHER.CANCER.CHOICES <- c("Unknown/Not Listed", non.pp.cancers)
