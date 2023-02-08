@@ -1,6 +1,6 @@
 #### Cancer Hx ####
 
-# module to enter data for one cancer
+# add/delete/edit a cancer in a relative's cancer history
 canUI <- function(id, rel, vals){
   
   # reserve a local namespace for cancer hx
@@ -126,6 +126,7 @@ canUI <- function(id, rel, vals){
   ) # end of div
 }
 
+# display the age validation message for the cancer age in the canUI module
 validateCanAgeServer <- function(id, in.age, cur.age) {
   moduleServer(
     id,
@@ -135,6 +136,7 @@ validateCanAgeServer <- function(id, in.age, cur.age) {
   )
 }
 
+# display the age validation message for the CBC age in the canUI module
 validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
   moduleServer(
     id,
@@ -147,6 +149,7 @@ validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
 
 #### Genes ####
 
+# header for entering gene variants, re-used across PLP, VUS, and BLB gene tabs
 geneHeaderUI <- function(){
   tagList(
     fluidRow(
@@ -166,6 +169,7 @@ geneHeaderUI <- function(){
   )
 }
 
+# add/delete/display a relative's panels
 panelUI <- function(id, rel, panelName){
   
   # reserve local namespace for gene results
@@ -192,6 +196,7 @@ panelUI <- function(id, rel, panelName){
   )
 }
 
+# add/delete/edit gene variants for a specific relative and a panel
 geneUI <- function(id, rel, panelName, panelGenes, vals){
   
   # reserve local namespace for gene results
@@ -276,7 +281,7 @@ geneUI <- function(id, rel, panelName, panelGenes, vals){
   ) # end of tags$div
 }
 
-#### Delete Modules from Memory ####
+#### Module Memory Management ####
 
 #' Removes shiny inputs from memory
 #' 
