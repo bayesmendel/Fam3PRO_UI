@@ -486,7 +486,6 @@ ui <- fixedPage(
                 ) # end of conditionalPanel to display any tumor markers
               ), # end of tumor marker tab
               
-              
               ###### Surgical Hx ####
               tabPanel("Surgical Hx",
                 h3("Prophylactic Surgical History"),

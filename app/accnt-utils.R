@@ -1,4 +1,4 @@
-# get host depending of if running locally or on the server
+# get database host depending of if running locally or on the server
 getHost <- function(){
   if(Sys.getenv('SHINY_PORT') == ""){
     return(NULL)
@@ -6,9 +6,6 @@ getHost <- function(){
     return(Sys.getenv('host'))
   }
 }
-
-# expire recovery code after set time
-expireCode <- 10000
 
 # generate numbers for bot check
 getBotCheckNums <- function(){
@@ -38,7 +35,6 @@ getManagerUN <- function(un, my_conn){
   mt <- dbReadTable(conn = my_conn, name = "managers")
   mt$manager[which(mt$user == un)]
 }
-
 
 #' Check new password meets requirements
 #' 
@@ -74,7 +70,6 @@ checkNewPassword <- function(pwEntry, pwEntry2){
   }
   return(mssg)
 }
-
 
 #' Check new username meets requirements
 #' 
@@ -181,7 +176,6 @@ checkNewUsername <- function(unEntry, ubu){
   }
 }
 
-
 #' Check new email meets requirements
 #' 
 #' @param emEntry string, new email, first entry
@@ -268,8 +262,6 @@ checkManagers <- function(prop.managers, un, my_conn){
               not.managers = not.managers))
 }
 
-
-
 # Generate recovery code
 createRecoveryCode <- function() {
   v <- c(sample(LETTERS, 2, replace = TRUE),
@@ -278,7 +270,6 @@ createRecoveryCode <- function() {
   v <- sample(v, 6, replace = FALSE)
   return(paste0(v,collapse = ""))
 }
-
 
 #' Email the user recovery information
 #' 
@@ -331,8 +322,6 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
     gm_text_body(body)
   gm_send_message(email_message)
 }
-
-
 
 #' Save table to selected user's master table
 #'
