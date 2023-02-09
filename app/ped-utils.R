@@ -268,7 +268,6 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
   return(tmp.ped)
 }
 
-
 #' Label Identical/Monozygotic Twins in a Pedigree
 #' 
 #' @param tmp.ped a pedigree data frame
@@ -285,7 +284,6 @@ labelTwins <- function(tmp.ped, twins){
   tmp.ped$Twins[which(tmp.ped$ID %in% twins)] <- max(tmp.ped$Twins) + 1
   return(tmp.ped)
 }
-
 
 #' Populate Data or Modify Data for a Person in a Pedigree
 #' 
@@ -608,7 +606,6 @@ popPersonData <- function(tmp.ped,
   return(tmp.ped)
 }
 
-
 #' Initialize New Pedigree
 #' 
 #' @param pedigree.id string, pedigree ID
@@ -622,7 +619,6 @@ initPed <- function(pedigree.id, pb.sex){
   t.ped <- formatNewPerson(relation = "father", tmp.ped = t.ped)
   return(t.ped)
 } 
-
 
 #' Add Children, Siblings (FDRs), Aunts/Uncles, and Grandparents to Pedigree
 #' 
@@ -723,7 +719,6 @@ addFDRPlus <- function(t.ped, num.dau = 0, num.son = 0, num.sis = 0, num.bro = 0
   return(t.ped)
 }
 
-
 #' Update pedigree with a relative's data based on the currently selected pedTabs tab
 #' 
 #' @param tped a pedigree data frame. 
@@ -784,7 +779,6 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
     return(tped)
   }
 }
-
 
 #' Update all inputs for a relative
 #' 

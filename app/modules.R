@@ -30,7 +30,6 @@ canUI <- function(id, rel, vals, sex){
     other.choices <- OTHER.CANCER.CHOICES[which(!OTHER.CANCER.CHOICES %in% MALE.CANCERS)]
   }
   
-  
   # UI
   tags$div(id = paste0("canSubContainer", id),
     tagList(
@@ -156,9 +155,7 @@ validateCBCAgeServer <- function(id, can, cbc.age, bc.age, cur.age) {
   )
 }
 
-
 #### Genes ####
-
 # header for entering gene variants, re-used across PLP, VUS, and BLB gene tabs
 geneHeaderUI <- function(){
   tagList(
@@ -292,7 +289,6 @@ geneUI <- function(id, rel, panelName, panelGenes, vals){
 }
 
 #### Module Memory Management ####
-
 #' Removes shiny inputs from memory
 #' 
 #' @param id string, input name to remove from memory

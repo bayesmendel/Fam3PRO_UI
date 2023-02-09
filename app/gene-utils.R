@@ -189,7 +189,6 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
               panMod.id = panMod.id))
 }
 
-
 #' Remove a panelUI module
 #' 
 #' @param gr geneReactive$GeneNums.
@@ -303,8 +302,6 @@ removePanel <- function(gr = geneReactive$GeneNums,
   return(list(gr = gr, panel.geneMod.ids = panel.geneMod.ids))
 }
 
-
-
 #' Add a geneUI module
 #' 
 #' @param gr geneReactive$GeneNums
@@ -365,8 +362,6 @@ addGene <- function(gr = geneReactive$GeneNums, rel, inp = input, p.name, rtype,
               gene.module.id.num = gene.module.id.num,
               geneMod.id = geneMod.id))
 }
-
-
 
 #' Remove a geneUI
 #' 

@@ -1,5 +1,4 @@
 #### Set-up ####
-
 # load non-PanelPRO cancers list - modified version of list found at 
 # https://www.dana-farber.org/for-patients-and-families/care-and-treatment/cancer-types/
 non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
@@ -138,9 +137,7 @@ RISKMOD.TYPES <- c("mast","hyst","ooph")
 riskmods.inputs.store <- list(riskmod = setNames(rep(0, length(RISKMOD.TYPES)), RISKMOD.TYPES),
                               interAge = setNames(rep(NA, length(RISKMOD.TYPES)), RISKMOD.TYPES))
 
-
 #### Genes ####
-
 ## Gene module tracker template: next list with 6 levels
 # The first level names are relative IDs in the pedigree; 
 # every relative will have one even if they have no panels.

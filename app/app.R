@@ -907,9 +907,7 @@ ui <- fixedPage(
   #### Footer ####
   br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
   
-  
   #### Tab Switching Tags #####
-  
   # automatically go to top of tab when selecting a tab
   tags$script(" $(document).ready(function () {
          $('#navbarTabs a[data-toggle=\"tab\"]').on('click', function (e) {
@@ -924,8 +922,6 @@ ui <- fixedPage(
                });
                });"
   )
-  
-    
 ) # end of UI
 
 
@@ -1000,7 +996,6 @@ server <- function(input, output, session) {
   loggedIn <- reactive(req(credentials()$user_auth))
   output$loggedIn <- reactive({loggedIn()})
   outputOptions(output, 'loggedIn', suspendWhenHidden = FALSE)
-  
   
   ##### Bot Check ####
   botCheckNums <- reactiveVal(NULL)
@@ -1176,7 +1171,6 @@ server <- function(input, output, session) {
       }
     }
   })
-  
   
   ##### Account Recovery ####
   # switch to forgot credentials tab if forgot button clicked
@@ -1396,9 +1390,7 @@ server <- function(input, output, session) {
   # email address than the one previously entered
   observeEvent(input$diffEmail, { shinyjs::refresh() })
   
-  
   ##### Add Managers from My Account Tab ####
-  
   # enable/disable add managers button if usernames are in the add managers input or not
   observeEvent(input$selManagers2, {
     if(is.null(input$selManagers2)){
@@ -1451,14 +1443,8 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
   }, ignoreInit = TRUE)
   
-  
   #### Manage User Pedigrees ####
   ##### Load/Create New Pedigree ####
-  # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
-  observe({
-    hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
-  })
   
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
@@ -2366,8 +2352,12 @@ server <- function(input, output, session) {
   
   
   
+  
+  
   # # FOR TESTING
   # observeEvent(canReactive$canNums, { View(canReactive$canNums )})
+  
+  
   
   
   # add a cancer UI module on button click and advance the module counter
@@ -2595,7 +2585,6 @@ server <- function(input, output, session) {
   
   
   #### Surgical History ####
-  
   # store for prophylactic surgeries
   surgReactive <- reactiveValues(lst = riskmods.inputs.store)
   observeEvent(list(input$Mast, input$MastAge), {
@@ -2691,13 +2680,16 @@ server <- function(input, output, session) {
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
   
+  
+  
   # # FOR TESTING
   # observeEvent(geneReactive$GeneNums, { View(geneReactive$GeneNums )})
   
   
   
-  ##### Panels ####
   
+  
+  ##### Panels ####
   ### check if the current relative has a least one panel
   atLeastOnePanel <- reactiveVal(FALSE)
   output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
@@ -2860,9 +2852,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  
   ##### Summary Table & Store ####
-
   # indicator same gene is listed in more than one result category
   dupResultGene <- reactiveVal(FALSE)
   output$dupResultGene <- reactive({ dupResultGene() })
@@ -2905,7 +2895,6 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   #### Add Children, Siblings, Aunts/Uncles ####
-  
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
   visPed <- reactiveVal(FALSE)
@@ -3125,7 +3114,7 @@ server <- function(input, output, session) {
   
   # 1) save data to pedigree when the relative is switched or if navbarTabs change
   # 2) repopulate inputs with new relative's data from the pedigree
-  observeEvent(list(input$relSelect, input$navbarTabs), {
+  observeEvent(input$relSelect, {
     
     # only execute if a pedigree has been created
     if(!is.null(PED())){
@@ -3150,10 +3139,30 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       
-    } # end of if statement for input$visPed == TRUE
+    }
   }, ignoreInit = TRUE)
   
-  #### PanelPRO ####
+  #### Manage navbarTabs ####
+  # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
+  observe({
+    hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
+    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+  })
+  
+  # Save data to pedigree when navbarTabs change
+  observeEvent(input$navbarTabs, {
+    if(!is.null(PED())){
+      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
+                           cr = canReactive$canNums,
+                           sr = surgReactive$lst,
+                           gr = geneReactive$GeneNums,
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == input$relSelect)])
+      )
+    }
+  }, ignoreInit = TRUE)
+  
+  #### PanelPRO PLACEHOLDER ####
 
   
 }
