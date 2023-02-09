@@ -183,11 +183,18 @@ ui <- fixedPage(
       
       ##### Home ####
       tabPanel(title = "Home",
-        h3("What is PPI?"),
+        h3("PPI Home"),
+        h4("What is PPI?"),
+        p("The PanelPRO Interface (PPI) is a website where users can interact with 
+          the PanelPRO software. PanelPRO was create by the BayesMendel Lab at 
+          Dana-Farber Cancer Institute and is a multi-cancer/multi-gene risk prediction model 
+          which utilizes family history to estimate the probability a patient has a 
+          a pathogenic or likely pathogenic variant of one or more of their genes as well 
+          as their future risk of a variety of different cancer types."),
         
-        h3("How to Use PPI"),
+        h4("How to Use PPI"),
         
-        h3("Support and Contact Information"),
+        h4("Support and Contact Information"),
         
       ), # end of tab
       
