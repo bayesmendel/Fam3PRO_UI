@@ -43,7 +43,7 @@ ped.col.dtypes <- c(
 
 #### Accounts ####
 # expire recovery code after set time (in ms)
-expireCode <- 100000
+expireCode <- 10000
 
 #### Demographics ####
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
