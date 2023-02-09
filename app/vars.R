@@ -21,24 +21,24 @@ ped.cols <- c("PedigreeID", "ID", "name", "side", "relationship", "Twins", "Sex"
               )
 
 ped.col.dtypes <- c(
-  "TEXT", # "PedigreeID", 
-  "INT", # "ID", 
-  rep("TEXT", 3), # name, "side", "relationship", 
-  rep("INT", 7), # Twins, Sex, "MotherID", "FatherID", isProband, CurAge, isDead
-  rep("TEXT", 4), # "race", "Ancestry", "NPPrace", "NPPeth", 
-  rep("INT", 2), # "NPPAJ", "NPPIt",
-  rep("INT", 3), # paste0("riskmod", c("Mast","Hyst","Ooph")),
-  rep("INT", 3), # paste0("interAge", c("Mast","Hyst","Ooph")),
-  rep("INT", 6), # "ER", "PR", "CK14", "CK5_6", "HER2", "MSI",
-  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
-  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
-  "LONGTEXT", # "cancersJSON",
+  "TEXT", # PedigreeID 
+  "INT", # ID 
+  rep("TEXT", 3), # name, side, relationship
+  rep("INT", 7), # Twins, Sex, MotherID, FatherID, isProband, CurAge, isDead
+  rep("TEXT", 4), # race, Ancestry, NPPrace, NPPeth,
+  rep("INT", 2), # NPPAJ, NPPIt
+  rep("INT", 3), # paste0("riskmod", c("Mast","Hyst","Ooph"))
+  rep("INT", 3), # paste0("interAge", c("Mast","Hyst","Ooph"))
+  rep("INT", 6), # ER, PR, CK14, CK5_6, HER2, MSI
+  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)
+  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("Age", PanelPRO:::CANCER_NAME_MAP$short)
+  "LONGTEXT", # cancersJSON
   "TEXT", # FirstBCType
   rep("INT", 2), # AntiEstrogen, HRPreneoplasia
   rep("TEXT", 2), # BreastDensity, FirstBCTumorSize
-  rep("INT", length(PanelPRO:::GENE_TYPES)), # PanelPRO:::GENE_TYPES,
-  "TEXT", # "panelNames",
-  "LONGTEXT" # "genesJSON"
+  rep("INT", length(PanelPRO:::GENE_TYPES)), # PanelPRO:::GENE_TYPES
+  "TEXT", # panelNames
+  "LONGTEXT" # genesJSON
 )
 
 #### Accounts ####
@@ -59,6 +59,7 @@ rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",
                 "Asian/Pacific Islander" = "Asian",
                 "Black" = "Black",
                 "White" = "White")
+
 # ethnicity choices
 et.choices <- c("Unreported/Both" = "Other_Ethnicity",
                 "Hispanic" = "Hispanic", 
