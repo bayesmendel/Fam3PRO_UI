@@ -134,7 +134,6 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL,
 
   # create the unique module ID and insert the UI module
   id <- paste0("rel", rel, "canModule", trackMax)
-  sex <- inp$Sex
   insertUI(
     selector = "#canContainer",
     where = "beforeEnd",

@@ -41,7 +41,6 @@ source("./can-utils.R")
 source("./surg-utils.R")
 source("./gene-utils.R")
 source("./modules.R")
-source("./db-utils.R")
 source("./accnt-utils.R")
 
 
@@ -99,6 +98,18 @@ ui <- fixedPage(
           textInput(inputId = "newUsername",
                     label = "New Username",
                     placeholder = "Enter a new username"),
+          
+          # add managers, optionally
+          p("Optionally, you can add one or more managers who will be able to view and 
+            download any pedigrees you save to your user account. This is useful for 
+            studies that have multiple providers enrolling patients into the same study. 
+            Your manager(s) must have already created their own user account(s) with 'manager' 
+            level permissions."),
+          selectizeInput("selManagers1", label = "Enter managers' usernames",
+                         selected = "",
+                         choices = "",
+                         multiple = TRUE,
+                         options = list(create=TRUE)),
           
           # email address
           textInput(inputId = "newEmail",
@@ -183,76 +194,96 @@ ui <- fixedPage(
       ##### Manage Pedigrees ####
       tabPanel("Manage Pedigrees",
         h3("Manage My Pedigrees"),
-        h4("Create New or Load Existing Pedigree"),
-        p("To get started, you will either need to create a new pedigree using our 
-          pedigree builder or load an existing pedigree from your user account."),
-        radioButtons("newOrLoad", "Select an start-up option:",
-                     choices = c("Create new", "Load existing"),
-                     selected = "Create new"),
-        
-        # if the user wants to load an existing table
-        conditionalPanel("input.newOrLoad == 'Load existing'",
-          
-          # for admins, select the user account to load from first
-          conditionalPanel("output.admin",
-            selectInput(inputId = "selectUser", label = "Select a user account:", 
-                        choices = "admin")
-          ),
-           
-          # if there are not pedgirees to load, tell the user
-          conditionalPanel(condition = "output.showTblExistsError",
-            p("You do not have any saved pedigrees.", style = "color: red;")
-          ),
-           
-          # if there are pedigrees to load, provide a dropdown
-          conditionalPanel(condition = "!output.showTblExistsError",
-            selectInput("existingPed", "Select the pedigree to load:",
-                        choices = "")
-          )
-        ),
-        
-        # show action button only if the user is not trying to load a table that does not exist
-        conditionalPanel("(input.newOrLoad == 'Load existing' & !output.showTblExistsError) | input.newOrLoad == 'Create new'",
-          conditionalPanel("input.newOrLoad == 'Create new'",
-            p("Clicking the button below will take you to the create/edit pedigree screen where you can start a new pedigree."),
-          ),
-          conditionalPanel("input.newOrLoad == 'Load existing'",
-            p("Clicking the button below will load your selected pedigree and will take you to the create/edit pedigree screen to view and/or edit your pedigree."),
-          ),
-          actionButton("goNewOrLoad", label = "Get Started",
-                       icon = icon('play'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B")
-        ),
-        br(),
-        
-        # download a pedigree
-        h4("Download Pedigrees"),
-        selectInput("selectDownloadPeds", label = "Select which pedigrees to download:",
-                    choices = c("No pedigrees selected"), 
-                    multiple = T),
-        div(checkboxInput("selectAllPeds", label = "Select all pedigrees"), style = "margin-left:25px;margin-top:-10px"),
-        radioButtons("downloadAs1", label = "Select a file format for download:",
-                     choices = c(".csv", ".rds"),
-                     selected = ".csv"),
-        
-        # only show download button if at least one pedigree is selected
-        conditionalPanel("output.atLeastOnePedigreeSelected",
-                         
-          # CSV download button
-          conditionalPanel("input.downloadAs1 == '.csv'",
-            downloadButton("downloadPedsCSV", label = "Download",
-                           icon = icon('download'),
+        tabsetPanel(id = "managePedsTab",
+          tabPanel("Create or Load",
+            h4("Create New or Load Existing Pedigree"),
+            p("To get started, you will either need to create a new pedigree using our 
+              pedigree builder or load an existing pedigree from your user account."),
+            radioButtons("newOrLoad", "Select an start-up option:",
+                         choices = c("Create new", "Load existing"),
+                         selected = "Create new"),
+            
+            # if the user wants to load an existing table
+            conditionalPanel("input.newOrLoad == 'Load existing'",
+              
+              # for admins and managers, select the user account to load from first
+              conditionalPanel("output.admin | output.manager",
+                selectInput(inputId = "selectUser", label = "Select a user account:", 
+                            choices = c(""))
+              ),
+               
+              # if there are not pedgirees to load, tell the user
+              conditionalPanel(condition = "output.showTblExistsError",
+                p("You do not have any saved pedigrees.", style = "color: red;")
+              ),
+               
+              # if there are pedigrees to load, provide a dropdown
+              conditionalPanel(condition = "!output.showTblExistsError",
+                selectInput("existingPed", "Select the pedigree to load:",
+                            choices = "")
+              )
+            ),
+            
+            # show action button only if the user is not trying to load a table that does not exist
+            conditionalPanel("(input.newOrLoad == 'Load existing' & !output.showTblExistsError) | input.newOrLoad == 'Create new'",
+              conditionalPanel("input.newOrLoad == 'Create new'",
+                p("Clicking the button below will take you to the create/edit pedigree screen where you can start a new pedigree."),
+              ),
+              conditionalPanel("input.newOrLoad == 'Load existing'",
+                p("Clicking the button below will load your selected pedigree and will take you to the create/edit pedigree screen to view and/or edit your pedigree."),
+              ),
+              actionButton("goNewOrLoad", label = "Get Started",
+                           icon = icon('play'),
                            style = "color: white; background-color: #10699B; border-color: #10699B")
+            )
           ),
-          
-          # RDS download button
-          conditionalPanel("input.downloadAs1 == '.rds'",
-            downloadButton("downloadPedsRDS", label = "Download",
-                           icon = icon('download'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B")
-          ),
-        )
-      ),
+        
+          # DOWNLOAD PEDIGREE
+          tabPanel("Download",
+            h4("Download Pedigrees"),
+            
+            # for admins and managers, select the user account to load from first
+            conditionalPanel("output.admin | output.manager",
+              selectInput(inputId = "selectUserForDownload", label = "Select a user account:", 
+                          choices = c(""))
+            ),
+            
+            # if there are not pedgirees to load from the selected user account, tell the user
+            conditionalPanel(condition = "output.showTblExistsErrorDownloads",
+              p("You do not have any saved pedigrees.")
+            ),
+            
+            # if the user account does have saved pedigrees
+            conditionalPanel(condition = "!output.showTblExistsErrorDownloads",
+              selectInput("selectDownloadPeds", label = "Select which pedigrees to download:",
+                          choices = "", 
+                          multiple = T),
+              div(checkboxInput("selectAllPeds", label = "Select all pedigrees"), style = "margin-left:25px;margin-top:-10px"),
+              radioButtons("downloadAs1", label = "Select a file format for download:",
+                           choices = c(".csv", ".rds"),
+                           selected = ".csv"),
+              
+              # only show download button if at least one pedigree is selected
+              conditionalPanel("output.atLeastOnePedigreeSelected",
+                               
+                # CSV download button
+                conditionalPanel("input.downloadAs1 == '.csv'",
+                  downloadButton("downloadPedsCSV", label = "Download",
+                                 icon = icon('download'),
+                                 style = "color: white; background-color: #10699B; border-color: #10699B")
+                ),
+                
+                # RDS download button
+                conditionalPanel("input.downloadAs1 == '.rds'",
+                  downloadButton("downloadPedsRDS", label = "Download",
+                                 icon = icon('download'),
+                                 style = "color: white; background-color: #10699B; border-color: #10699B")
+                ),
+              )
+            ) # end of conditionalPanel to check if there are tables to download
+          ) # end of download tab
+        ) # end of tabsetPanels for manage pedigrees
+      ), # end of tab for manage pedigrees tab
       
       ##### Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
@@ -791,6 +822,30 @@ ui <- fixedPage(
       tabPanel("Run PanelPRO",
         h3("Run PanelPRO")
       ), # end of PanelPRO tab
+      
+      ##### My Account ####
+      tabPanel("My Account",
+        h3("Account Management"),
+        
+        h4("Add Managers"),
+        p("Optionally, you can add one or more managers who will be able to view and 
+            download any pedigrees you save to your user account. This is useful for 
+            studies that have multiple providers enrolling patients into the same study. 
+            Your manager(s) must have already created their own user account(s) with 'manager' 
+            level permissions."),
+        selectizeInput("selManagers2", label = "Enter managers' usernames",
+                       selected = "",
+                       choices = "",
+                       multiple = TRUE,
+                       options = list(create=TRUE)),
+        conditionalPanel("output.isManagerWarning",
+          h5(textOutput("ManagerWarning"), style = "color: red")
+        ),
+        actionButton("addManagersButton", label = "Add Selected Managers",
+                     icon = icon('plus'),
+                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+        
+      ) # end of My Account tab
     ) # end of NavBarPage
   ), # end of conditionalPanel for loggedIn status
   
@@ -872,21 +927,25 @@ server <- function(input, output, session) {
   output$admin <- reactive({ admin() })
   outputOptions(output, 'admin', suspendWhenHidden = FALSE)
   
+  # manager flag for conditionally showing content
+  manager <- reactive({
+    if(credentials()$user_auth){
+      if(credentials()$info[["permissions"]] == "manager"){
+        return(TRUE)
+      } else {
+        return(FALSE)
+      }
+    } else {
+      return(FALSE)
+    }
+  })
+  output$manager <- reactive({ manager() })
+  outputOptions(output, 'manager', suspendWhenHidden = FALSE)
+  
   # log in status for conditional panels
   loggedIn <- reactive(req(credentials()$user_auth))
   output$loggedIn <- reactive({loggedIn()})
   outputOptions(output, 'loggedIn', suspendWhenHidden = FALSE)
-  
-  # only show user accounts tab for admins
-  observeEvent(list(admin(), loggedIn()), {
-    if(loggedIn()){
-      if(admin()){
-        showTab(inputId = "infoTabs", target = "User Accounts", session = session)
-      } else {
-        hideTab(inputId = "infoTabs", target = "User Accounts", session = session)
-      }
-    }
-  })
   
   
   ##### Bot Check ####
@@ -987,21 +1046,25 @@ server <- function(input, output, session) {
   })
   
   # add new user to user database table and refresh the app
-  pwCheck <- reactiveVal("None")
-  unCheck <- reactiveVal("None")
-  emCheck <- reactiveVal("None")
   isCredsError <- reactiveVal(FALSE)
+  output$isCredsError <- reactive({ isCredsError() })
+  outputOptions(output, 'isCredsError', suspendWhenHidden = FALSE)
   CredsError <- reactiveVal("None")
+  output$CredsError <- renderText({ CredsError() })
   observeEvent(input$createNewUser, {
     
     # checks for new credentials
     ub <- getUserbase(conn)
-    unCheck(checkNewUsername(input$newUsername, ub$user))
-    emCheck(checkNewEmail(input$newEmail, input$newEmail2, ub$email))
-    pwCheck(checkNewPassword(input$newPassword, input$newPassword2))
+    unCheck <- checkNewUsername(input$newUsername, ub$user)
+    emCheck <- checkNewEmail(input$newEmail, input$newEmail2, ub$email)
+    pwCheck <- checkNewPassword(input$newPassword, input$newPassword2)
+    managersCheck <- checkManagers(prop.managers = input$selManagers1,
+                                   un = input$newUsername,
+                                   my_conn = conn)
     
     # add user if checks passed and refresh to update credentials table
-    if(pwCheck() == "Success" & unCheck() == "Success" & emCheck() == "Success"){
+    if(pwCheck == "Success" & unCheck == "Success" & emCheck == "Success" & 
+       managersCheck$mssg == "Success"){
       newUser <- data.frame(user = input$newUsername,
                             permissions = "standard",
                             email = input$newEmail,
@@ -1009,33 +1072,56 @@ server <- function(input, output, session) {
       dbAppendTable(conn = conn,
                     name = "user_base",
                     value = newUser)
+
+      # optionally, add rows to manager table if the user selected managers
+      # and issue warning to user if necessary
+      if(!is.null(input$selManagers1)){
+        valid.managers <- input$selManagers1[which(!input$selManagers1 %in% managersCheck$not.managers)]
+        if(length(valid.managers) > 0){
+          addManagerDF <- data.frame(user = rep(input$newUsername, length(valid.managers)),
+                                     manager = valid.managers)
+          dbAppendTable(conn = conn,
+                        name = "managers",
+                        value = addManagerDF)
+        }
+      }
+
+      # initialize the user's table with the example_pedigree from the admin's account
+      example_pedigree <- dbGetQuery(conn = conn,
+                                     statement = "SELECT * FROM admin WHERE PedigreeID='example_pedigree'")
+      mod.ped.cols <- ped.cols
+      mod.ped.cols[which(ped.cols == "CK5.6")] <- "CK5_6"
+      saveTableToMaster(conne = conn,
+                        user = input$newUsername,
+                        tmp_tbl = example_pedigree,
+                        col.info = setNames(ped.col.dtypes, mod.ped.cols))
+      
       shinyjs::refresh()
       
       # problem with proposed credentials
     } else {
       isCredsError(TRUE)
-      
+
       # email problem
-      if(emCheck() != "Success"){
-        CredsError(emCheck())
-        
+      if(emCheck != "Success"){
+        CredsError(emCheck)
+
         # username and/or password problem
-      } else {
-        if(pwCheck() != "Success" & unCheck() == "Success"){
-          CredsError(pwCheck())
-        } else if(pwCheck() == "Success" & unCheck() != "Success"){
-          CredsError(unCheck())
-        } else if(pwCheck() != "Success" & unCheck() != "Success"){
-          CredsError(paste0(unCheck(), " ",pwCheck()))
+      } else if(pwCheck != "Success" | unCheck != "Success"){
+        if(pwCheck != "Success" & unCheck == "Success"){
+          CredsError(pwCheck)
+        } else if(pwCheck == "Success" & unCheck != "Success"){
+          CredsError(unCheck)
+        } else if(pwCheck != "Success" & unCheck != "Success"){
+          CredsError(paste0(unCheck, " ", pwCheck))
         }
+        
+        # manager problems
+      } else if(managersCheck$mssg != "Success"){
+        CredsError(managersCheck$mssg)
       }
     }
   })
-  
-  # pass proposed credential errors to UI
-  output$isCredsError <- reactive({ isCredsError() })
-  outputOptions(output, 'isCredsError', suspendWhenHidden = FALSE)
-  output$CredsError <- renderText({ CredsError() })
   
   
   ##### Account Recovery ####
@@ -1207,7 +1293,7 @@ server <- function(input, output, session) {
   outputOptions(output, 'showResetPwResponse', suspendWhenHidden = FALSE)
   
   resetPwCheck <- reactiveVal("None")
-  
+  output$resetPassError <- renderText({ resetPwCheck() })
   observeEvent(input$resetPwGo, {
     
     # check new password
@@ -1228,8 +1314,6 @@ server <- function(input, output, session) {
       showResetPwResponse(TRUE)
     }
   })
-  
-  output$resetPassError <- renderText({ resetPwCheck() })
   
   # reset the forgot tab if it is navigated away from or
   # if the user wants to use a different email
@@ -1259,7 +1343,62 @@ server <- function(input, output, session) {
   observeEvent(input$diffEmail, { shinyjs::refresh() })
   
   
-  ##### Pedigree Management ####
+  ##### Add Managers from My Account Tab ####
+  
+  # enable/disable add managers button if usernames are in the add managers input or not
+  observeEvent(input$selManagers2, {
+    if(is.null(input$selManagers2)){
+      shinyjs::disable("addManagersButton")
+    } else {
+      shinyjs::enable("addManagersButton")
+    }
+  }, ignoreNULL = F)
+  
+  # add managers to database for the user account, add warning message if necessary
+  isManagerWarning <- reactiveVal(FALSE)
+  output$isManagerWarning <- reactive({ isManagerWarning() })
+  outputOptions(output, 'isManagerWarning', suspendWhenHidden = FALSE)
+  ManagerWarning <- reactiveVal("None")
+  output$ManagerWarning <- renderText({ ManagerWarning() })
+  observeEvent(input$addManagersButton, {
+    managersCheck <- checkManagers(prop.managers = input$selManagers2,
+                                   un = credentials()$info[["user"]],
+                                   my_conn = conn)
+    
+    # add valid managers to the managers table in the database
+    valid.managers <- input$selManagers2[which(!input$selManagers2 %in% managersCheck$not.managers)]
+    if(length(valid.managers) > 0){
+      addManagerDF <- data.frame(user = rep(credentials()$info[["user"]], length(valid.managers)),
+                                 manager = valid.managers)
+      dbAppendTable(conn = conn,
+                    name = "managers",
+                    value = addManagerDF)
+    }
+    
+    # provide warnings if required
+    if(managersCheck$mssg != "Success"){
+      isManagerWarning(TRUE)
+      ManagerWarning(paste0(managersCheck$mssg, 
+                            " All usernames in this warning message were ignored but, any other managers you listed were added.")
+                     )
+    } else {
+      isManagerWarning(FALSE)
+      ManagerWarning("None")
+    }
+    
+    # reset managers input
+    updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
+  }, ignoreInit = T)
+  
+  # reset add manager related inputs when navigating away from the My Account tab
+  observeEvent(input$navbarTabs, {
+    isManagerWarning(FALSE)
+    ManagerWarning("None")
+    updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
+  }, ignoreInit = TRUE)
+  
+  
+  ##### Manage User Pedigrees ####
   # user's pedigrees that are available for loading
   userPeds <- reactiveVal(NULL)
   
@@ -1267,9 +1406,9 @@ server <- function(input, output, session) {
   nonUniqPedID <- reactiveVal(FALSE)
   output$nonUniqPedID <- reactive({ nonUniqPedID() })
   outputOptions(output, 'nonUniqPedID', suspendWhenHidden = FALSE)
-  observeEvent(list(userPeds(), input$pedID), {
-    if(!is.null(userPeds()) & newOrLoadFlag() != "load"){
-      if(any(userPeds() == input$pedID)){
+  observeEvent(list(userPeds(), input$pedID, PED()), {
+    if(!is.null(userPeds()) & newOrLoadFlag() != "load" & is.null(PED())){
+      if(any(userPeds() == input$pedID) | input$pedID == "example_pedigree"){
         nonUniqPedID(TRUE)
       } else {
         nonUniqPedID(FALSE)
@@ -1277,9 +1416,9 @@ server <- function(input, output, session) {
     } else {
       nonUniqPedID(FALSE)
     }
-  }, ignoreNULL = F)
+  }, ignoreNULL = F, ignoreInit = T)
   
-  # reactive to signal if the user account has its own table yet
+  # reactive to signal if the user account has its own table yet or not
   showTblExistsError <- reactiveVal(FALSE)
   output$showTblExistsError <- reactive({ showTblExistsError() })
   outputOptions(output, 'showTblExistsError', suspendWhenHidden = FALSE)
@@ -1289,19 +1428,38 @@ server <- function(input, output, session) {
     if(loggedIn()){
       
       # for admin, make all user tables available
-      if(admin()){
+      if(admin() | manager()){
         showTblExistsError(FALSE)
-        users <- getUserbase(conn)$user
+        
+        # for admin, start with all usernames
+        if(admin()){
+          users <- getUserbase(conn)$user
+          
+          # for a manager, start with all usernames assigned to that manager
+        } else if(manager()){
+          users <- c(credentials()$info[["user"]],
+                     getUsersUnderManager(manager = credentials()$info[["user"]], 
+                                          my_conn = conn))
+        }
+        
         users.with.tbls <- users
         for(usr in users){
           if(!dbExistsTable(conn = conn, name = usr)){
             users.with.tbls <- users.with.tbls[users.with.tbls != usr]
           }
         }
-        updateSelectInput(session, inputId = "selectUser",
-                          choices = users.with.tbls, selected = "admin")
         
-        # for non-admins, only show sub-tables in their master table
+        if(length(users.with.tbls) > 0){
+          updateSelectInput(session, inputId = "selectUser",
+                            choices = users.with.tbls, 
+                            selected = credentials()$info[["user"]])
+        } else {
+          updateSelectInput(session, inputId = "selectUser",
+                            choices = credentials()$info[["user"]], 
+                            selected = credentials()$info[["user"]])
+        }
+        
+        # for non-admins and non-managers, only show sub-tables in their master table
       } else {
         
         # check if the user has a master table
@@ -1323,13 +1481,14 @@ server <- function(input, output, session) {
     }
   })
   
-  # update drop-down for selecting a pedigree for the admin when the admin changes the user account
+  # update drop-down for selecting a pedigree for the admin and managers when the selected user account changes
   observeEvent(input$selectUser, {
     if(loggedIn()){
-      if(admin()){
+      if(admin() | manager()){
         userPeds(unique(dbGetQuery(conn = conn,
                                    statement = paste0("SELECT PedigreeID FROM ", 
-                                                      input$selectUser, 
+                                                      ifelse(input$selectUser == "", credentials()$info[["user"]], 
+                                                             input$selectUser), 
                                                       ";"))$PedigreeID))
         updateSelectInput(session, inputId = "existingPed",
                           choices = c("No pedigree selected", userPeds()))
@@ -1346,12 +1505,13 @@ server <- function(input, output, session) {
   ##### Load/Create New Pedigree ####
   newOrLoadFlag <- reactiveVal("new")
   observeEvent(input$goNewOrLoad, {
-    if(input$newOrLoad == "Load existing"){
+    if(input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected"){
       newOrLoadFlag("load")
       
       # for admins, load sub-table from the selected user's master table
-      if(admin()){
-        selected.user <- input$selectUser
+      if(admin() | manager()){
+        selected.user <- ifelse(input$selectUser == "", credentials()$info[["user"]], 
+                                input$selectUser)
         
         # for non-admins, load sub-table from the user's master table
       } else {
@@ -1450,7 +1610,8 @@ server <- function(input, output, session) {
             can.df %>%
             mutate(across(.cols = c(cancer, other), ~as.character(.))) %>%
             mutate(rel = rl) %>%
-            mutate(sex = PED()$Sex[which(PED()$ID == rl)]) %>%
+            mutate(sex = as.character(PED()$Sex[which(PED()$ID == rl)])) %>%
+            mutate(sex = recode(sex, "0" = "Female", "1" = "Male")) %>%
             mutate(cbc = "No") %>%
             mutate(cbcAge = NA) %>%
             mutate(age = na_if(age, "NA")) %>%
@@ -1639,7 +1800,6 @@ server <- function(input, output, session) {
       PED(NULL)
       
       ## reset inputs and input reactives
-      shinyjs::reset("selectUser")
       shinyjs::reset("relSelect")
       lastRel(1)
       
@@ -1680,20 +1840,28 @@ server <- function(input, output, session) {
       
     } # end of else for creating a new pedigree
     
-    # reset add relative counts
-    for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
-      updateNumericInput(session, paste0("num", relation), value = 0)
+    # execute actions relevant to create new and load existing
+    if(input$newOrLoad == "Create new" | 
+       (input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected")){
+      
+      # reset add relative counts
+      for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
+        shinyjs::reset(paste0("num", relation))
+      }
+      
+      updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
+      
+      # show the pedigree and panelpro tabs when the button is clicked the first time
+      showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
+      showTab("navbarTabs", target = "Run PanelPRO", session = session)
+      
+      # update selected tabs
+      updateTabsetPanel(session, "pedTabs", selected = "Demographics")
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+      updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
+      updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
     }
-    
-    # show the pedigree and panelpro tabs when the button is clicked the first time
-    showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    showTab("navbarTabs", target = "Run PanelPRO", session = session)
-    
-    # update selected tabs
-    updateTabsetPanel(session, "pedTabs", selected = "Demographics")
-    updateTabsetPanel(session, "geneTabs", selected = "Instructions")
-    updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
-    updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
   }, ignoreInit = T)
   
   ##### Save Pedigree #######
@@ -1732,48 +1900,136 @@ server <- function(input, output, session) {
   }, ignoreInit = T)
   
   ##### Download Pedigrees ####
-  # selecting pedigrees to download on the "Manage Pedigrees" tab where multiple choices are allowed
-  observeEvent(list(userPeds(), input$selectAllPeds), {
-    if(input$selectAllPeds){
-      updateSelectInput(session, "selectDownloadPeds",
-                        selected = userPeds(),
-                        choices = userPeds())
-    } else {
-      updateSelectInput(session, "selectDownloadPeds",
-                        choices = userPeds())
+  # keep dropdowns of user tables and pedigrees available for downloading updated at all times
+  userPedsForDownload <- reactiveVal(NULL)
+  showTblExistsErrorDownload <- reactiveVal(FALSE)
+  output$showTblExistsErrorDownload <- reactive({ showTblExistsErrorDownload() })
+  outputOptions(output, 'showTblExistsErrorDownload', suspendWhenHidden = FALSE)
+  observe({
+    if(loggedIn()){
+      
+      # for admin, make all user tables available
+      if(admin() | manager()){
+        showTblExistsErrorDownload(FALSE)
+        
+        # for admin, start with all usernames
+        if(admin()){
+          users <- getUserbase(conn)$user
+          
+          # for a manager, start with all usernames assigned to that manager
+        } else if(manager()){
+          users <- c(credentials()$info[["user"]],
+                     getUsersUnderManager(manager = credentials()$info[["user"]], 
+                                          my_conn = conn))
+        }
+        
+        users.with.tbls <- users
+        for(usr in users){
+          if(!dbExistsTable(conn = conn, name = usr)){
+            users.with.tbls <- users.with.tbls[users.with.tbls != usr]
+          }
+        }
+        
+        if(length(users.with.tbls) > 0){
+          updateSelectInput(session, inputId = "selectUserForDownload",
+                            choices = users.with.tbls, 
+                            selected = credentials()$info[["user"]])
+        } else {
+          updateSelectInput(session, inputId = "selectUserForDownload",
+                            choices = credentials()$info[["user"]], 
+                            selected = credentials()$info[["user"]])
+        }
+        
+        # for non-admins and non-managers, only show sub-tables in their master table
+      } else {
+        
+        # check if the user has a master table
+        hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
+        if(hasTbl){
+          showTblExistsErrorDownload(FALSE)
+          userPedsForDownload(
+            unique(dbGetQuery(conn = conn,
+                              statement = paste0("SELECT PedigreeID FROM ", 
+                                                 credentials()$info[["user"]], 
+                                                 ";"))$PedigreeID)
+          )
+          
+          # update the tables available for loading
+          updateSelectInput(session, inputId = "selectDownloadPeds",
+                            choices = userPedsForDownload())
+        } else {
+          showTblExistsErrorDownload(TRUE)
+        }
+      }
     }
   })
+  
+  # update drop-down for selecting a pedigrees to download for the admin and managers
+  # when the selected user account changes
+  observeEvent(input$selectUserForDownload, {
+    if(loggedIn()){
+      if(admin() | manager()){
+        userPedsForDownload(
+          unique(dbGetQuery(conn = conn,
+                            statement = paste0("SELECT PedigreeID FROM ",
+                                               ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
+                                                      input$selectUserForDownload),
+                                               ";"))$PedigreeID))
+        updateSelectInput(session, inputId = "selectDownloadPeds",
+                          choices = userPedsForDownload())
+      }
+    }
+  })
+  
+  # select or de-select all pedigrees in a user account for downloading
+  observeEvent(list(userPedsForDownload(), input$selectAllPeds), {
+    if(input$selectAllPeds){
+      updateSelectInput(session, "selectDownloadPeds",
+                        selected = userPedsForDownload(),
+                        choices = userPedsForDownload())
+    } else {
+      updateSelectInput(session, "selectDownloadPeds",
+                        choices = userPedsForDownload())
+      atLeastOnePedigreeSelected(FALSE)
+    }
+  }, ignoreInit = T)
   
   # check that download is possible based on if at least one pedigree is selected
   atLeastOnePedigreeSelected <- reactiveVal(FALSE)
   output$atLeastOnePedigreeSelected <- reactive({ atLeastOnePedigreeSelected() })
   outputOptions(output, 'atLeastOnePedigreeSelected', suspendWhenHidden = FALSE)
-  observeEvent(input$selectDownloadPeds ,{
+  observeEvent(input$selectDownloadPeds, {
     if(!is.null(input$selectDownloadPeds)){
-      atLeastOnePedigreeSelected(TRUE)
+      if(input$selectDownloadPeds != ""){
+        atLeastOnePedigreeSelected(TRUE)
+      } else {
+        atLeastOnePedigreeSelected(FALSE)
+      }
     } else {
       atLeastOnePedigreeSelected(FALSE)
     }
   })
   
   # prepare the table of pedigrees to be downloaded from the "Manage Pedigrees" tab
-  downloadPedsTable <- reactiveVal(NULL)
-  observe({
+  downloadPedsTable <- reactive({
     if(atLeastOnePedigreeSelected()){
-      if(admin()){
-        fromAcct <- input$selectUser
+      if(admin() | manager()){
+        fromAcct <- ifelse(input$selectUser == "", credentials()$info[["user"]], 
+                           input$selectUser)
       } else {
         fromAcct <- credentials()$info[["user"]]
       }
-      downloadPedsTable(
+      return(
         dbGetQuery(conn = conn, 
                    statement = paste0("SELECT * FROM ", fromAcct, " ",
-                                      "WHERE PedigreeID IN ('", paste0(input$selectDownloadPeds, collapse = "','"), "');"))
+                                      "WHERE PedigreeID IN ('", 
+                                      paste0(input$selectDownloadPeds, collapse = "','"), 
+                                      "');")
+                   )
       )
     } else {
-      downloadPedsTable(NULL)
+      return(data.frame(PedigreeID = c("Empty pedigree")))
     }
-    
   })
   
   # download one or more pedigrees from the user account from the "Manage Pedigrees" tab
