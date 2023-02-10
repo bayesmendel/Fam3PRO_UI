@@ -5,8 +5,9 @@ library(shiny)
 library(shinyBS)    # shiny tool tips
 library(shinyjs)    # java script tools
 
-# pedigrees
+# pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
+library(cbcrisk)    # Swati's cbcrisk model
 library(PanelPRO)
 
 # database and user accounts
@@ -21,11 +22,11 @@ library(httr)       # authentication for gmail
 # data manipulation
 library(tidyverse)
 library(rlang)
-library(jsonlite)
+library(jsonlite)   # convert to/from JSON strings to R data frames
 library(stringi)    # toTitleCase
 
 # html
-library(htmltools)
+library(htmltools)  # formatting text
 
 # tables
 library(DT)
