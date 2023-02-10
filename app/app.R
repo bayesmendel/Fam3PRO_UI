@@ -183,18 +183,71 @@ ui <- fixedPage(
       
       ##### Home ####
       tabPanel(title = "Home",
-        h3("PPI Home"),
-        h4("What is PPI?"),
-        p("The PanelPRO Interface (PPI) is a website where users can interact with 
-          the PanelPRO software. PanelPRO was create by the BayesMendel Lab at 
-          Dana-Farber Cancer Institute and is a multi-cancer/multi-gene risk prediction model 
-          which utilizes family history to estimate the probability a patient has a 
-          a pathogenic or likely pathogenic variant of one or more of their genes as well 
-          as their future risk of a variety of different cancer types."),
+        h3("Home"),
+        
+        h4("What are PanelPRO and PPI?"),
+        p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute, 
+          is a multi-cancer/multi-gene risk prediction model which utilizes family history 
+          to estimate the probability that a patient has a pathogenic or likely 
+          pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and, 
+          to estimate a patient's future risk of cancer for up to 18 different cancer types. 
+          PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users 
+          have the ability to create customized models focused on specific cancers and genes.
+          The PanelPRO software package was written in the statistical 
+          programming language R. You can learn more about PanelPRO at the ",
+          a("BayesMendel lab's website", href = "https://projects.iq.harvard.edu/bayesmendel/about"), "."),
+        p("This website is named the PanelPRO Interface (PPI) because it allows clinicians and researchers to 
+          utilize PanelPRO without having to use R or know how write code in R. 
+          PPI allows users to create pedigrees formatted for PanelPRO and then run 
+          the PanelPRO model, or one of its sub-models, on those pedigrees to obtain 
+          carrier probabilities and future cancer risk estimates for their patients or study samples. 
+          Users can also save pedigrees they created on this site to their account which can be 
+          viewed, updated, downloaded, and (re)analyzed by PanelPRO."),
+        br(),
+        
+        h4("Beta Version"),
+        p("This website is a beta version that is still in development and we are working towards adding more 
+          features. For the time being, you can use this site to create, store, view, download, and delete 
+          pedigrees however, users cannot run PanelPRO on those pedigrees yet. We hope to add this capability soon."),
+        p("If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
+          at the bottom of the page."),
+        br(),
         
         h4("How to Use PPI"),
+        p("First, navigate to the 'Manage Pedigrees' tab at the top of the page where you can 
+          create a new pedigree, load a pedigree you created previously on this site, or 
+          download one or more pedigrees in .csv or .rds format."),
+        p("To run PanelPRO, you will first either need to create a new pedigree or load an 
+          existing one which you previously saved to your account. Once you do either of these 
+          actions you will have access to the 'Create/Modify Pedigree' and the 'Run PanelPRO' pages."),
+        p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
+        p("When you are done creating or editing a pedigree, be sure to save it to your account using the button in the 
+          upper right hand corner of the 'Create/Modify Pedigree' page before navigating away from that page, 
+          logging out, or closing your browser. You can come back at any time to modify your saved pedigrees 
+          and run/re-run them through PanelPRO."),
+        br(),
+        
+        h4("Privacy"),
+        p("This website is not authorized to store any identifiable patient data including, but not limited to, 
+          patient names (including parts of names or initials), ages above 89, medical record numbers (MRNs), 
+          months and days of birth, diagnoses, surgeries, enrollment, or other dates (years are okay), location, contact information, or 
+          insurance information. When creating names for your pedigrees, do not use any of these identifiers 
+          in whole or in part. The identifiers used to differentiate relatives in each pedigree created using PPI 
+          will use generic labels like 'Proband' or 'Sister 1'."),
+        p("Website admins have access to all pedigrees saved to all user accounts."),
+        p("Users can delete any or all pedigrees saved to their account at any time by navigating to 
+          the 'Manage Pedigrees' page and then navigating to the 'Delete' tab on that page. Users with manager 
+          level permissions may also do this for any user account for which they manage."),
+        p("This website uses an https encryption protocol to protect data that is transmitted between our servers 
+          and our users and vice versa. This website also uses Google Analytics to help manage compute resources. We have configured 
+          Google Analytics to maximize patient and user privacy however, it still records the location 
+          of users at the country level and the date and time of access."),
+        br(),
         
         h4("Support and Contact Information"),
+        p("Please direct all questions to your study or site PI."),
+        p("If you find any bugs, have suggestions to improve the website, or are interested in 
+          working with us, please email us at: hereditarycancer AT ds.dfci.harvard DOT edu")
         
       ), # end of tab
       
@@ -1890,12 +1943,13 @@ server <- function(input, output, session) {
         shinyjs::reset(paste0("num", relation))
       }
       
+      # update selected users for loading, downloading, and deleting a pedigree
       updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
       updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForDelete", selected = credentials()$info[["user"]])
       
-      # show the pedigree and panelpro tabs when the button is clicked the first time
+      # show the pedigree edit/create tab when the button is clicked the first time
       showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-      showTab("navbarTabs", target = "Run PanelPRO", session = session)
       
       # update selected tabs
       updateTabsetPanel(session, "pedTabs", selected = "Demographics")
@@ -3154,6 +3208,15 @@ server <- function(input, output, session) {
   observe({
     hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
     hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+  })
+  
+  # only show Run PanelPRO tab when a pedigree has been created or loaded
+  observeEvent(PED(), {
+    if(!is.null(PED())){
+      showTab("navbarTabs", target = "Run PanelPRO", session = session)
+    } else {
+      hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+    }
   })
   
   # Save data to pedigree when navbarTabs change
