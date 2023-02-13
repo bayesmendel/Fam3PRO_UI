@@ -370,7 +370,7 @@ ui <- fixedPage(
            
           # select which relative is being edited, only show after pedigree is visualized
           column(width = 6, align = "left",
-            conditionalPanel("input.visPed",
+            conditionalPanel("output.visPed",
               fluidRow(
                 column(width = 5,
                   h4("Select a relative to edit:")
@@ -396,7 +396,7 @@ ui <- fixedPage(
         fluidRow(
           
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
-          conditionalPanel("input.visPed",
+          conditionalPanel("output.visPed",
             column(width = 6,
               plotOutput("drawPed")
             )
@@ -416,7 +416,7 @@ ui <- fixedPage(
                 textInput("pedID", label = h5("*Unique Pedigree ID:"),
                           value = "",
                           width = "225px"),
-                conditionalPanel("!input.visPed",
+                conditionalPanel("!output.visPed",
                   h5("Privacy note: the ID number cannot contain identifying information.",
                      style = "color:blue")
                 ),
@@ -2934,9 +2934,11 @@ server <- function(input, output, session) {
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
   visPed <- reactiveVal(FALSE)
+  output$visPed <- reactive({ visPed() })
+  outputOptions(output, 'visPed', suspendWhenHidden = FALSE)
   observeEvent(input$visPed, {
     
-    # update reactive value
+    # update reactive value which triggers showing/hiding the visualized pedigree
     visPed(TRUE)
     
     # only add family members if this is a new pedigree
@@ -3094,6 +3096,10 @@ server <- function(input, output, session) {
   # temporarily: draw pedigree in kinship2
   # replace with pedigreejs
   output$drawPed <- renderPlot({
+    
+    # check pedigree is not NULL, if so issue warning
+    shiny::validate(need(PED(), "The pedigree object PED() is NULL"))
+    
     plot_fam <-
       PED() %>%
       mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
