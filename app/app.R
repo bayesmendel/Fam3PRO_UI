@@ -31,9 +31,6 @@ library(htmltools)  # formatting text
 # tables
 library(DT)
 
-## load data
-
-
 ## utility functions and variables
 source("./vars.R")
 source("./ped-utils.R")
@@ -987,6 +984,18 @@ ui <- fixedPage(
 
 
 server <- function(input, output, session) {
+  
+  
+  
+  # TESTING ONLY - check package versions
+  output$packageVersions <- renderPrint({
+    sessionInfo()
+  })
+  
+  
+  
+  
+  
   
   #### Connect/Disconnect Database ####
   conn <- dbConnect(drv = RMariaDB::MariaDB(),
@@ -2259,7 +2268,9 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = T)
   
-  #### Demographics / Create Pedigree ####
+  #### Edit Pedigree ####
+  
+  ##### Demographics / Create Pedigree ####
   # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
   nonUniqPedID <- reactiveVal(FALSE)
   output$nonUniqPedID <- reactive({ nonUniqPedID() })
@@ -2399,28 +2410,9 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  
-  
-  
-  # FOR TESTING: VIEW PEDIGREE EVERY TIME IT CHANGES
-  observeEvent(PED(), { View(PED()) }, ignoreNULL = T)
-  
-  
-  
-  
-  #### Cancer History ####
+  ##### Cancer History ####
   # save the number of cancers for each person in the pedigree
   canReactive <- reactiveValues(canNums = trackCans.init)
-  
-  
-  
-  
-  
-  # # FOR TESTING
-  # observeEvent(canReactive$canNums, { View(canReactive$canNums )})
-  
-  
-  
   
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
@@ -2504,7 +2496,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### CBC Risk ####
+  ##### CBC Risk ####
   # keep track of whether CBC inputs should be shown or not
   showCBCinputs <- reactiveVal(FALSE)
   output$showCBCinputs <- reactive({ showCBCinputs() })
@@ -2572,7 +2564,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### Tumor Markers ####
+  ##### Tumor Markers ####
   # condition to inform UI whether to display tumor markers or not, based on cancer hx
   showBCMarkers <- reactiveVal(FALSE)
   showCRCMarkers <- reactiveVal(FALSE)
@@ -2646,7 +2638,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE, ignoreNULL = FALSE)
   
   
-  #### Surgical History ####
+  ##### Surgical History ####
   # store for prophylactic surgeries
   surgReactive <- reactiveValues(lst = riskmods.inputs.store)
   observeEvent(list(input$Mast, input$MastAge), {
@@ -2737,21 +2729,11 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  #### Genes ####
+  ##### Genes ####
   # track the panel and gene UI modules
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
-  
-  
-  
-  # # FOR TESTING
-  # observeEvent(geneReactive$GeneNums, { View(geneReactive$GeneNums )})
-  
-  
-  
-  
-  
-  ##### Panels ####
+  ###### Panels ####
   ### check if the current relative has a least one panel
   atLeastOnePanel <- reactiveVal(FALSE)
   output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
@@ -2807,7 +2789,7 @@ server <- function(input, output, session) {
   ### create new panel (PLACEHOLDER)
   
   
-  ##### PLP Genes ####
+  ###### PLP Genes ####
   # add a PLP geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
   # has a least on panel
@@ -2843,7 +2825,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  ##### VUS Genes ####
+  ###### VUS Genes ####
   # add a VUS geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
   # has a least on panel
@@ -2879,7 +2861,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
 
 
-  ##### BLB Genes ####
+  ###### BLB Genes ####
   # add a BLB geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
   # has a least on panel
@@ -2914,7 +2896,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  ##### Summary Table & Store ####
+  ###### Summary Table & Store ####
   # indicator same gene is listed in more than one result category
   dupResultGene <- reactiveVal(FALSE)
   output$dupResultGene <- reactive({ dupResultGene() })
@@ -2956,7 +2938,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### Add Children, Siblings, Aunts/Uncles ####
+  ##### Add Children, Siblings, Aunts/Uncles ####
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
   visPed <- reactiveVal(FALSE)
@@ -3116,7 +3098,7 @@ server <- function(input, output, session) {
     } # end of if statement for confirming the pedigree is a new creation
   }, ignoreInit = TRUE)
   
-  #### Visualize Pedigree ####
+  ##### Visualize Pedigree ####
   # temporarily: draw pedigree in kinship2
   # replace with pedigreejs
   output$drawPed <- renderPlot({
@@ -3153,14 +3135,6 @@ server <- function(input, output, session) {
       }
     }
     
-    
-    
-    
-    View(plot_fam)
-    
-    
-    
-    
     # plot
     dped <- pedigree(id = plot_fam$name,
                      momid = plot_fam$nameMother,
@@ -3170,7 +3144,7 @@ server <- function(input, output, session) {
     plot(dped[paste0(input$pedID)])
   })
   
-  #### Switch Selected Relative ####
+  ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband
   lastRel <- reactiveVal(1)
   
