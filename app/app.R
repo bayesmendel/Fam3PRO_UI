@@ -964,18 +964,6 @@ ui <- fixedPage(
 
 server <- function(input, output, session) {
   
-  
-  
-  # TESTING ONLY - check package versions
-  output$packageVersions <- renderPrint({
-    sessionInfo()
-  })
-  
-  
-  
-  
-  
-  
   #### Connect/Disconnect Database ####
   conn <- dbConnect(drv = RMariaDB::MariaDB(),
                     username = Sys.getenv('maria.un'),
