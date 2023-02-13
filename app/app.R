@@ -365,30 +365,17 @@ ui <- fixedPage(
       ##### Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
         
-        # top row to hold save pedigree button
-        fluidRow(
-           
-          # select which relative is being edited, only show after pedigree is visualized
-          column(width = 6, align = "left",
-            conditionalPanel("output.visPed",
-              fluidRow(
-                column(width = 5,
-                  h4("Select a relative to edit:")
-                ),
-                column(width = 7,
-                  selectInput("relSelect", label = NULL,
-                              choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
-                              width = "200px")
-                )
-              )
+        # top row to select which relative is being edited, only show after pedigree is visualized
+        conditionalPanel("output.visPed",
+          fluidRow(
+            column(width = 3,
+              h4("Select a relative to edit:")
+            ),
+            column(width = 3,
+              selectInput("relSelect", label = NULL,
+                          choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
+                          width = "200px")
             )
-          ),
-          
-          # save pedigree
-          column(width = 6, align = "right",
-            actionButton("savePed", label = "Save Pedigree",
-                         icon = icon('save'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:0px; margin-bottom:0px;")
           )
         ),
         
@@ -1200,12 +1187,9 @@ server <- function(input, output, session) {
       # initialize the user's table with the example_pedigree from the admin's account
       example_pedigree <- dbGetQuery(conn = conn,
                                      statement = "SELECT * FROM admin WHERE PedigreeID='example_pedigree'")
-      mod.ped.cols <- ped.cols
-      mod.ped.cols[which(ped.cols == "CK5.6")] <- "CK5_6"
-      saveTableToMaster(conne = conn,
+      savePedigreeToDB(conne = conn,
                         user = input$newUsername,
-                        tmp_tbl = example_pedigree,
-                        col.info = setNames(ped.col.dtypes, mod.ped.cols))
+                        tmp_tbl = example_pedigree)
       
       shinyjs::refresh()
       
@@ -2217,51 +2201,24 @@ server <- function(input, output, session) {
     } else {
       fromAcct <- credentials()$info[["user"]]
     }
+    
     dbExecute(conn = conn,
               statement = paste0("DELETE FROM ", fromAcct, 
                                  " WHERE PedigreeID IN ('", 
                                  paste0(input$selectDeletePeds, collapse = "','"), 
-                                 "';"))
-  }, ignoreInit = T)
-  
-  ##### Save Pedigree #######
-  observeEvent(input$savePed, {
-    if(!is.null(PED())){
-      
-      # save data for currently selected relative to the pedigree prior to saving pedigree to database
-      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
-                           cr = canReactive$canNums,
-                           sr = surgReactive$lst,
-                           gr = geneReactive$GeneNums,
-                           dupResultGene = dupResultGene(),
-                           sx = input$Sex)
-      )
-      
-      # the database cannot have columns with . in the name
-      s.ped <- PED()
-      colnames(s.ped)[which(colnames(s.ped) == "CK5.6")] <- "CK5_6"
-      mod.ped.cols <- ped.cols
-      mod.ped.cols[which(ped.cols == "CK5.6")] <- "CK5_6"
-      
-      # save
-      saveTableToMaster(conne = conn,
-                        user = credentials()$info[["user"]],
-                        tmp_tbl = s.ped,
-                        col.info = setNames(ped.col.dtypes, mod.ped.cols))
-      
-      # update the list of pedigrees that can be loaded, downloaded, and deleted
-      updated.peds <- unique(dbGetQuery(conn = conn,
-                                        statement = paste0("SELECT PedigreeID FROM ", 
-                                                           credentials()$info[["user"]], 
-                                                           ";"))$PedigreeID)
-      userPeds(updated.peds)
-      userPedsForDownload(updated.peds)
-      userPedsForDelete(updated.peds)
-    }
+                                 "');"))
+    
+    # update the list of pedigrees that can be loaded, downloaded, and deleted
+    updated.peds <- unique(dbGetQuery(conn = conn,
+                                      statement = paste0("SELECT PedigreeID FROM ", 
+                                                         fromAcct, 
+                                                         ";"))$PedigreeID)
+    userPeds(updated.peds)
+    userPedsForDownload(updated.peds)
+    userPedsForDelete(updated.peds)
   }, ignoreInit = T)
   
   #### Edit Pedigree ####
-  
   ##### Demographics / Create Pedigree ####
   # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
   nonUniqPedID <- reactiveVal(FALSE)
@@ -2330,20 +2287,6 @@ server <- function(input, output, session) {
   # instantiate the pedigree reactive
   PED <- reactiveVal(NULL)
   
-  # check if ped exists for conditionalPanels
-  pedExists <- reactiveVal(FALSE)
-  output$pedExists <- reactive({ pedExists() })
-  outputOptions(output, 'pedExists', suspendWhenHidden = FALSE)
-  observeEvent(PED(), {
-    if(is.null(PED())){
-      pedExists(FALSE)
-      shinyjs::disable("savePed")
-    } else {
-      pedExists(TRUE)
-      shinyjs::enable("savePed")
-    }
-  }, ignoreNULL = F)
-  
   # initialize the pedigree when user leave the proband demographics tab
   onDemoTab <- reactiveVal(TRUE)
   observeEvent(input$pedTabs, {
@@ -2356,9 +2299,9 @@ server <- function(input, output, session) {
       shinyjs::disable("Sex")
       
       # initialize new pedigree with proband and parents if no pedigree exists
-      create.parents <- FALSE
+      new.ped <- FALSE
       if(is.null(PED())){
-        create.parents <- TRUE
+        new.ped <- TRUE
         if(input$Sex == "Female"){
           ps <- 0
         } else if(input$Sex == "Male"){
@@ -2376,7 +2319,7 @@ server <- function(input, output, session) {
                              an.aj = input$ancAJ, an.it = input$ancIt)
       
       # if this is this is the initialization of the three person pedigree, add the parents
-      if(create.parents){
+      if(new.ped){
         
         # populate mother's race and Ancestry information
         t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
@@ -2389,9 +2332,24 @@ server <- function(input, output, session) {
                                an.aj = input$ancAJ, an.it = input$ancIt)
       }
       
-      # update the pedigree
+      # update the pedigree object
       PED(t.ped)
       
+      # save to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
+      # update the list of pedigrees that can be loaded, downloaded, and deleted
+      if(new.ped){
+        updated.peds <- unique(dbGetQuery(conn = conn,
+                                          statement = paste0("SELECT PedigreeID FROM ", 
+                                                             credentials()$info[["user"]], 
+                                                             ";"))$PedigreeID)
+        userPeds(updated.peds)
+        userPedsForDownload(updated.peds)
+        userPedsForDelete(updated.peds)
+      }
     } # if statement to check whether the pedigree could be created based on the tab and minimum info required
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2478,6 +2436,11 @@ server <- function(input, output, session) {
     # transfer information to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, sx = input$Sex, cancers.and.ages = can.df))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2524,6 +2487,11 @@ server <- function(input, output, session) {
                                           HRPreneoplasia = input$HRPreneoplasia,
                                           BreastDensity = input$BreastDensity,
                                           FirstBCTumorSize = input$FirstBCTumorSize)))
+        
+        # save pedigree to database
+        savePedigreeToDB(conne = conn,
+                         user = credentials()$info[["user"]],
+                         tmp_tbl = PED())
       }
     }
   })
@@ -2546,6 +2514,11 @@ server <- function(input, output, session) {
                                         FirstBCTumorSize = input$FirstBCTumorSize)
                         )
           )
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2608,6 +2581,11 @@ server <- function(input, output, session) {
         PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                           er = input$ER, pr = input$PR, her2 = input$HER2,
                           ck5.6 = input$CK56, ck14 = input$CK14, msi = input$MSI))
+        
+        # save pedigree to database
+        savePedigreeToDB(conne = conn,
+                         user = credentials()$info[["user"]],
+                         tmp_tbl = PED())
       }
     }
   })
@@ -2619,6 +2597,11 @@ server <- function(input, output, session) {
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                         er = input$ER, pr = input$PR, her2 = input$HER2,
                         ck5.6 = input$CK56, ck14 = input$CK14, msi = input$MSI))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2681,6 +2664,11 @@ server <- function(input, output, session) {
             tmp.ped[[paste0("interAge", sg)]][which(tmp.ped$ID == input$relSelect)] <- NA
             PED(tmp.ped)
           }
+          
+          # save pedigree to database
+          savePedigreeToDB(conne = conn,
+                           user = credentials()$info[["user"]],
+                           tmp_tbl = PED())
         }
       }
     }
@@ -2710,6 +2698,11 @@ server <- function(input, output, session) {
   observeEvent(input$pedTabs, {
     if(onSurgTab() & input$pedTabs != "Surgical Hx" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, riskmods.and.ages = surgReactive$lst))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2920,6 +2913,11 @@ server <- function(input, output, session) {
     if(onGeneTab() & input$pedTabs != "Genes" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
                         gene.results = panelSum()))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -3078,6 +3076,11 @@ server <- function(input, output, session) {
         geneReactive$GeneNums[[as.character(np)]] <- relTemplate.trackGenes
       }
       
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
       # update relative selector with all relatives in the pedigree
       updateSelectInput(session = session, inputId = "relSelect", 
                         choices = setNames(PED()$ID, PED()$name), 
@@ -3162,6 +3165,11 @@ server <- function(input, output, session) {
                            sx = PED()$Sex[which(PED()$ID == lastRel())])
           )
       
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
       # update the last relative selected
       lastRel(as.numeric(input$relSelect))
       
@@ -3202,6 +3210,11 @@ server <- function(input, output, session) {
                            dupResultGene = dupResultGene(),
                            sx = PED()$Sex[which(PED()$ID == input$relSelect)])
       )
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
   }, ignoreInit = TRUE)
   

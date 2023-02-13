@@ -328,10 +328,16 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
 #' @param conne database connection
 #' @param user string containing the user name
 #' @param tmp_tbl data frame to save
-#' @param col.info named vector where names are column names and values
-#' are the SQL data types
 #' @return nothing
-saveTableToMaster <- function(conne, user, tmp_tbl, col.info){
+savePedigreeToDB <- function(conne, user, tmp_tbl){
+  
+  # column names and data types
+  if(any(colnames(tmp_tbl) == "CK5.6")){
+    colnames(tmp_tbl)[which(colnames(tmp_tbl) == "CK5.6")] <- "CK5_6"
+  }
+  mod.ped.cols <- ped.cols
+  mod.ped.cols[which(ped.cols == "CK5.6")] <- "CK5_6"
+  col.info <- setNames(ped.col.dtypes, mod.ped.cols)
   
   # create a new master table if it doesn't exist
   hasTbl <- dbExistsTable(conn = conne, name = user)
