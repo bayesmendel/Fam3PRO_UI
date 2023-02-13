@@ -2533,7 +2533,7 @@ server <- function(input, output, session) {
   showCBCinputs <- reactiveVal(FALSE)
   output$showCBCinputs <- reactive({ showCBCinputs() })
   outputOptions(output, 'showCBCinputs', suspendWhenHidden = FALSE)
-  observeEvent(list(PED(), input$relSelect), {
+  observeEvent(list(PED(), input$relSelect, canReactive$canNums), {
     if(is.null(PED())){
       showCBCinputs(FALSE)
     } else {
@@ -2544,16 +2544,16 @@ server <- function(input, output, session) {
         showCBCinputs(TRUE)
       } else {
         showCBCinputs(FALSE)
+        for(cbc.var in cbcrisk.cols){
+          shinyjs::reset(cbc.var)
+        }
       }
       
       # check if any previously recorded CBC related inputs need to be removed and update them
       rmCBCinputs <- FALSE
       if(!showCBCinputs() & 
-         any(!is.na(PED()[which(PED()$ID == input$relSelect), cbcrisk.cols]))){
+         any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), cbcrisk.cols]))){
         rmCBCinputs <- TRUE
-        for(cbc.var in cbcrisk.cols){
-          shinyjs::reset(cbc.var)
-        }
       }
       
       # update CBC risk columns in pedigree if required
@@ -2639,14 +2639,14 @@ server <- function(input, output, session) {
       # check if any previously recorded markers need to be removed and update the inputs
       rmBCmarks <- FALSE
       rmCRCmarks <- FALSE
-      if(!hadBC & any(!is.na(PED()[which(PED()$ID == input$relSelect), PanelPRO:::MARKER_TESTING$BC$MARKERS]))){
+      if(!hadBC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$BC$MARKERS]))){
         rmBCmarks <- TRUE
         for(m in PanelPRO:::MARKER_TESTING$BC$MARKERS){
           m <- ifelse(m == "CK5.6", "CK56", m)
           updateSelectInput(session, m, selected = "Not Tested")
         }
       }
-      if(!hadCRC & any(!is.na(PED()[which(PED()$ID == input$relSelect), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
+      if(!hadCRC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
         rmCRCmarks <- TRUE
         for(m in PanelPRO:::MARKER_TESTING$COL$MARKERS){
           updateSelectInput(session, m, selected = "Not Tested")
@@ -2731,7 +2731,7 @@ server <- function(input, output, session) {
   # if sex is changed from female to male, clear all surgical data from inputs and ped
   observeEvent(list(input$Sex), {
     if(!is.null(PED())){
-      if(PED()$Sex[which(PED()$ID == input$relSelect)] == 0){
+      if(PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))] == 0){
         if(input$Sex == "Male"){
           for(sg in c("Mast", "Hyst", "Ooph")){
             updateCheckboxInput(session, sg, value = FALSE)
@@ -2754,19 +2754,19 @@ server <- function(input, output, session) {
   ## validate surgery ages
   # Oophorectomy age
   validOophAge <- reactive({
-    shiny::validate(validateSurgAge(input$OophAge, input$Age, PED()$AgeOC[which(PED()$ID == input$relSelect)]))
+    shiny::validate(validateSurgAge(input$OophAge, input$Age, PED()$AgeOC[which(PED()$ID == as.numeric(input$relSelect))]))
   })
   output$validOophAge <- renderText({ validOophAge() })
   
   # Mastectomy age
   validMastAge <- reactive({
-    shiny::validate(validateSurgAge(input$MastAge, input$Age, PED()$AgeCBC[which(PED()$ID == input$relSelect)]))
+    shiny::validate(validateSurgAge(input$MastAge, input$Age, PED()$AgeCBC[which(PED()$ID == as.numeric(input$relSelect))]))
   })
   output$validMastAge <- renderText({ validMastAge() })
   
   # Hysterectomy age
   validHystAge <- reactive({
-    shiny::validate(validateSurgAge(input$HystAge, input$Age, PED()$AgeENDO[which(PED()$ID == input$relSelect)]))
+    shiny::validate(validateSurgAge(input$HystAge, input$Age, PED()$AgeENDO[which(PED()$ID == as.numeric(input$relSelect))]))
   })
   output$validHystAge <- renderText({ validHystAge() })
   
@@ -3285,7 +3285,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == input$relSelect)])
+                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
       )
       
       # save pedigree to database
