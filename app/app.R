@@ -1891,6 +1891,26 @@ server <- function(input, output, session) {
       }
       
       # cancers
+      # reset modules and inputs
+      for(rl in as.numeric(names(canReactive$canNums))){
+        
+        # iterate through this relative's cancer hx dictionary, if there is at least one cancer
+        if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
+          for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
+            
+            # update the cancer reactive object, remove the cancerUI module and delete it from memory
+            canReactive$canNums <-
+              removeCancer(cr = canReactive$canNums,
+                           rel = as.character(rl),
+                           inp = input,
+                           ss = session,
+                           trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
+            
+            # remove the module's inputs from memory
+            remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
+          }
+        }
+      }
       canReactive$canNums <- trackCans.init
       
       # cbc
@@ -1913,6 +1933,34 @@ server <- function(input, output, session) {
       # genes
       shinyjs::reset("existingPanels")
       shinyjs::reset("editPanel")
+      
+      # reset modules and inputs
+      for(rl in as.numeric(names(geneReactive$GeneNums))){
+        
+        # iterate through this relative's panel dictionary, if there is at least one panel
+        if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
+          for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
+            
+            # update the geneReactive and also remove and delete all related UI modules for this panel
+            out <-
+              removePanel(gr = geneReactive$GeneNums,
+                          rel = as.character(rl),
+                          pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
+                          panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
+                          inp = input,
+                          ss = session)
+            geneReactive$GeneNums <- out$gr
+            
+            # remove each geneUI module associated with this panel from memory
+            for(tmp.geneMod.id in out$panel.geneMod.ids){
+              remove_shiny_inputs(tmp.geneMod.id, input)
+            }
+            
+            # remove the panel module's inputs from memory
+            remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), input)
+          }
+        }
+      }
       geneReactive$GeneNums <- trackGenes.init
       
       # add relatives
