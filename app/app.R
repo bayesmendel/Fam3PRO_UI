@@ -1547,7 +1547,7 @@ server <- function(input, output, session) {
           
           # update the tables available for loading
           updateSelectInput(session, inputId = "existingPed",
-                            choices = userPeds())
+                            choices = c("No pedigree selected", userPeds()))
         } else {
           showTblExistsError(TRUE)
         }
@@ -1605,19 +1605,19 @@ server <- function(input, output, session) {
       proband.info <- PED()[which(PED()$ID == proband.id),]
       updateRelInputs(rel.info = proband.info, ss = session)
       shinyjs::disable("Sex")
-      
-      #### Reset cancer and gene reactives and UI modules and create data frames 
-      #### for cancer and gene data by 
+
+      #### Reset cancer and gene reactives and UI modules and create data frames
+      #### for cancer and gene data by
       master.can.df <- NULL
       master.gene.df <- NULL
       for(rl in PED()$ID){
-        
+
         ### 1: RESET
         # CANCERS, iterate through this relative's cancer hx dictionary, if there is at least one cancer
         if(any(names(canReactive$canNums) == as.character(rl))){
           if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
             for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
-  
+
               # update the cancer reactive object, remove the cancerUI module and delete it from memory
               canReactive$canNums <-
                 removeCancer(cr = canReactive$canNums,
@@ -1625,22 +1625,22 @@ server <- function(input, output, session) {
                              inp = input,
                              ss = session,
                              trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
-  
+
               # remove the module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
             }
           }
-          
+
           # else, create an empty cancer tracked for this relative
         } else {
           canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
-        
+
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
             for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
-              
+
               # update the geneReactive and also remove and delete all related UI modules for this panel
               out <-
                 removePanel(gr = geneReactive$GeneNums,
@@ -1650,26 +1650,26 @@ server <- function(input, output, session) {
                             inp = input,
                             ss = session)
               geneReactive$GeneNums <- out$gr
-              
+
               # remove each geneUI module associated with this panel from memory
               for(tmp.geneMod.id in out$panel.geneMod.ids){
                 remove_shiny_inputs(tmp.geneMod.id, input)
               }
-              
+
               # remove the panel module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), input)
             }
           }
-          
+
           # else initialize gene tracker for this realtive
         } else {
           geneReactive$GeneNums[[as.character(rl)]] <- relTemplate.trackGenes
         }
-        
+
         ### 2: ORGANIZE JSON DATA TO BE LOADED INTO DATA FRAMES
         ## CANCERS
         if(!is.na(PED()$cancersJSON[which(PED()$ID == rl)])){
-          
+
           # convert JSON into a data frame of cancers
           mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[which(PED()$ID == rl)])
           can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
@@ -1683,14 +1683,14 @@ server <- function(input, output, session) {
             mutate(cbcAge = NA) %>%
             mutate(age = na_if(age, "NA")) %>%
             mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
-          
+
           # combine contralateral into same row as breast and drop the CBC row
           if(any(can.df$cancer == "Breast") & any(can.df$cancer == "Contralateral")){
             can.df$cbc[which(can.df$cancer == "Breast")] <- "Yes"
             can.df$cbcAge[which(can.df$cancer == "Breast")] <- can.df$age[which(can.df$cancer == "Contralateral")]
             can.df <- can.df[which(can.df$cancer != "Contralateral"),]
           }
-          
+
           # append to data frame of cancers for all relatives
           if(is.null(master.can.df)){
             master.can.df <- can.df
@@ -1698,10 +1698,10 @@ server <- function(input, output, session) {
             master.can.df <- rbind(master.can.df, can.df)
           }
         } # end of if statement to check if there was any content in cancersJSON for this relative
-        
+
         ## GENES
         if(!is.na(PED()$genesJSON[which(PED()$ID == rl)])){
-          
+
           # convert JSON into a data frame of genes
           mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[which(PED()$ID == rl)])
           gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
@@ -1709,7 +1709,7 @@ server <- function(input, output, session) {
             gene.df %>%
             mutate(across(.cols = everything(), ~as.character(.))) %>%
             mutate(rel = rl)
-          
+
           # append to data frame of genes for all relatives
           if(is.null(master.gene.df)){
             master.gene.df <- gene.df
@@ -1722,141 +1722,145 @@ server <- function(input, output, session) {
       ### 3: CREATE AND POPULATE MODULES
       ## CANCER
       # create and populate canUI modules
-      lapply(1:nrow(master.can.df), function(x){
-        
-        # create the canUI modules with pre-populated inputs
-        out <- addCancer(cr = canReactive$canNums,
-                         rel = master.can.df$rel[x],
-                         inp = input,
-                         values = list(can = master.can.df$cancer[x],
-                                       age = master.can.df$age[x],
-                                       other = master.can.df$other[x],
-                                       cbc = master.can.df$cbc[x],
-                                       cbcAge = master.can.df$cbcAge[x]),
-                         sex = master.can.df$sex[x])
-        canReactive$canNums <- out$cr
-        trackMax <- out$trackMax
-        id <- out$id
-        
-        # create a remove module button observer for each UI module created
-        observeEvent(input[[paste0(id, '-removeCan')]], {
-          canReactive$canNums <- removeCancer(cr = canReactive$canNums,
-                                              rel = master.can.df$rel[x],
-                                              inp = input,
-                                              ss = session,
-                                              trackMax = trackMax)
+      if(!is.null(master.can.df)){
+        lapply(1:nrow(master.can.df), function(x){
+          
+          # create the canUI modules with pre-populated inputs
+          out <- addCancer(cr = canReactive$canNums,
+                           rel = master.can.df$rel[x],
+                           inp = input,
+                           values = list(can = master.can.df$cancer[x],
+                                         age = master.can.df$age[x],
+                                         other = master.can.df$other[x],
+                                         cbc = master.can.df$cbc[x],
+                                         cbcAge = master.can.df$cbcAge[x]),
+                           sex = master.can.df$sex[x])
+          canReactive$canNums <- out$cr
+          trackMax <- out$trackMax
+          id <- out$id
 
-          # remove the module's inputs from memory
-          remove_shiny_inputs(id, input)
+          # create a remove module button observer for each UI module created
+          observeEvent(input[[paste0(id, '-removeCan')]], {
+            canReactive$canNums <- removeCancer(cr = canReactive$canNums,
+                                                rel = master.can.df$rel[x],
+                                                inp = input,
+                                                ss = session,
+                                                trackMax = trackMax)
+
+            # remove the module's inputs from memory
+            remove_shiny_inputs(id, input)
+          })
+
+          ## observe for BC and CBC
+          observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+
+            # reset CBC inputs if cancer is not BC
+            if(input[[paste0(id, '-Can')]] != "Breast"){
+              shinyjs::reset(id = paste0(id, '-CBC'))
+              shinyjs::reset(id = paste0(id, '-CBCAge'))
+            }
+
+            # reset CBC age if CBC is no longer selected
+            if(input[[paste0(id, '-CBC')]] == "No"){
+              shinyjs::reset(id = paste0(id, '-CBCAge'))
+            }
+          }, ignoreInit = T, ignoreNULL = T)
+
+          # create a cancer selection observer which will trigger an update of all of the cancer dropdown
+          # choices for each of the person's cancer UI modules
+          observeEvent(input[[paste0(id, '-Can')]], {
+            updateCancerDropdowns(cr = canReactive$canNums,
+                                  rel = master.can.df$rel[x],
+                                  inp = input,
+                                  ss = session,
+                                  type = "cancer")
+          })
         })
-        
-        ## observe for BC and CBC
-        observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
-          
-          # reset CBC inputs if cancer is not BC
-          if(input[[paste0(id, '-Can')]] != "Breast"){
-            shinyjs::reset(id = paste0(id, '-CBC'))
-            shinyjs::reset(id = paste0(id, '-CBCAge'))
-          }
-          
-          # reset CBC age if CBC is no longer selected
-          if(input[[paste0(id, '-CBC')]] == "No"){
-            shinyjs::reset(id = paste0(id, '-CBCAge'))
-          }
-        }, ignoreInit = T, ignoreNULL = T)
-        
-        # create a cancer selection observer which will trigger an update of all of the cancer dropdown
-        # choices for each of the person's cancer UI modules
-        observeEvent(input[[paste0(id, '-Can')]], {
-          updateCancerDropdowns(cr = canReactive$canNums,
-                                rel = master.can.df$rel[x],
-                                inp = input,
-                                ss = session,
-                                type = "cancer")
-        })
-      })
+      }
       
       ## GENES
       # create and populate panelUI modules
-      lapply(1:nrow(master.gene.df), function(x){
-        
-        # prevent duplication of panels
-        newPan <- FALSE
-        if(x == 1){
-          newPan <- TRUE
-        } else if(master.gene.df$panel[x] != master.gene.df$panel[x-1]){
-          newPan <- TRUE
-        }
-        if(newPan){
-          
-          # create the panelUI module with pre-populated input values
-          out <- addPanel(gr = geneReactive$GeneNums,
-                          rel = master.gene.df$rel[x],
-                          inp = input,
-                          ss = session,
-                          pan.name = master.gene.df$panel[x])
-          geneReactive$GeneNums <- out$gr
-          panel.module.id.num <- out$panel.module.id.num
-          panMod.id <- out$panMod.id
-          
-          # create a remove module button observer for each panelUI module created
-          observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
-            out.rm <- removePanel(gr = geneReactive$GeneNums,
-                                  rel = master.gene.df$rel[x],
-                                  pan.name = master.gene.df$panel[x],
-                                  panel.module.id.num = panel.module.id.num,
-                                  inp = input,
-                                  ss = session)
-            geneReactive$GeneNums <- out.rm$gr
-            
-            # remove each geneUI module associated with this panel from memory
-            for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
-              remove_shiny_inputs(tmp.geneMod.id, input)
-            }
-            
-            # remove the panel module's inputs from memory
-            remove_shiny_inputs(panMod.id, input)
-            
-          }) # end of removePanel observeEvent
-        } # end of if statement to prevent duplication panels
-      }) # end of lapply for creating panelUI modules
-      
-      ## create the geneUI modules by iterating through the rows of the master table of gene results
-      lapply(1:nrow(master.gene.df), function(y){
-        rtype <- master.gene.df$result[y]
-        
-        # only create geneUI modules for non-Neg results
-        if(rtype != "Neg"){
-          out <- addGene(gr = geneReactive$GeneNums,
-                         rel = master.gene.df$rel[y],
-                         inp = input,
-                         p.name = master.gene.df$panel[y],
-                         rtype = rtype,
-                         vals = list(gene = master.gene.df$gene[y],
-                                     nuc = master.gene.df$nuc[y],
-                                     prot = master.gene.df$prot[y],
-                                     zyg = master.gene.df$zyg[y]))
-          geneReactive$GeneNums <- out$gr
-          gene.module.id.num <- out$gene.module.id.num
-          geneMod.id <- out$geneMod.id
-          
-          # create a remove module button observer for each UI module created
-          observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
-            geneReactive$GeneNums <-
-              removeGene(gr = geneReactive$GeneNums,
-                         rel = master.gene.df$rel[y],
-                         inp = input,
-                         p.name = master.gene.df$panel[y],
-                         gene.module.id.num = gene.module.id.num,
-                         geneMod.id = geneMod.id,
-                         rtype = rtype)
-            
-            # remove the module's inputs from memory
-            remove_shiny_inputs(geneMod.id, input)
-          })
-        } # end of if statement checking if the result type is non-Negative
-      }) # end of lapply for creating geneUI modules
-      
+      if(!is.null(master.gene.df)){
+        lapply(1:nrow(master.gene.df), function(x){
+  
+          # prevent duplication of panels
+          newPan <- FALSE
+          if(x == 1){
+            newPan <- TRUE
+          } else if(master.gene.df$panel[x] != master.gene.df$panel[x-1]){
+            newPan <- TRUE
+          }
+          if(newPan){
+  
+            # create the panelUI module with pre-populated input values
+            out <- addPanel(gr = geneReactive$GeneNums,
+                            rel = master.gene.df$rel[x],
+                            inp = input,
+                            ss = session,
+                            pan.name = master.gene.df$panel[x])
+            geneReactive$GeneNums <- out$gr
+            panel.module.id.num <- out$panel.module.id.num
+            panMod.id <- out$panMod.id
+  
+            # create a remove module button observer for each panelUI module created
+            observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
+              out.rm <- removePanel(gr = geneReactive$GeneNums,
+                                    rel = master.gene.df$rel[x],
+                                    pan.name = master.gene.df$panel[x],
+                                    panel.module.id.num = panel.module.id.num,
+                                    inp = input,
+                                    ss = session)
+              geneReactive$GeneNums <- out.rm$gr
+  
+              # remove each geneUI module associated with this panel from memory
+              for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
+                remove_shiny_inputs(tmp.geneMod.id, input)
+              }
+  
+              # remove the panel module's inputs from memory
+              remove_shiny_inputs(panMod.id, input)
+  
+            }) # end of removePanel observeEvent
+          } # end of if statement to prevent duplication panels
+        }) # end of lapply for creating panelUI modules
+  
+        ## create the geneUI modules by iterating through the rows of the master table of gene results
+        lapply(1:nrow(master.gene.df), function(y){
+          rtype <- master.gene.df$result[y]
+  
+          # only create geneUI modules for non-Neg results
+          if(rtype != "Neg"){
+            out <- addGene(gr = geneReactive$GeneNums,
+                           rel = master.gene.df$rel[y],
+                           inp = input,
+                           p.name = master.gene.df$panel[y],
+                           rtype = rtype,
+                           vals = list(gene = master.gene.df$gene[y],
+                                       nuc = master.gene.df$nuc[y],
+                                       prot = master.gene.df$prot[y],
+                                       zyg = master.gene.df$zyg[y]))
+            geneReactive$GeneNums <- out$gr
+            gene.module.id.num <- out$gene.module.id.num
+            geneMod.id <- out$geneMod.id
+  
+            # create a remove module button observer for each UI module created
+            observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
+              geneReactive$GeneNums <-
+                removeGene(gr = geneReactive$GeneNums,
+                           rel = master.gene.df$rel[y],
+                           inp = input,
+                           p.name = master.gene.df$panel[y],
+                           gene.module.id.num = gene.module.id.num,
+                           geneMod.id = geneMod.id,
+                           rtype = rtype)
+  
+              # remove the module's inputs from memory
+              remove_shiny_inputs(geneMod.id, input)
+            })
+          } # end of if statement checking if the result type is non-Negative
+        }) # end of lapply for creating geneUI modules
+      } # end of if statement to check if master.gene.df is not NULL
+
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("visPed")

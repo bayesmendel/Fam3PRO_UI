@@ -137,7 +137,7 @@ checkNewUsername <- function(unEntry, ubu){
   # check for reserved words
   resv.words.u <- c("CON", "PRN", "AUX", "NUL", 
                     paste0("COM", 1:9), paste0("LPT", 1:9), "CLOCK$",
-                    "maria_secrets", "user_base")
+                    "maria_secrets", "user_base", "managers")
   resv.words.l <- tolower(resv.words.u)
   resv <- (!unEntry %in% resv.words.u & !unEntry %in% resv.words.l)
   if(!resv){
@@ -160,9 +160,11 @@ checkNewUsername <- function(unEntry, ubu){
     first.num.pos <- stringr::str_locate(string = unEntry, pattern = "[[:digit:]]")[1,1]
     if(!is.na(first.num.pos)){
       first.e.pos <- stringr::str_locate(string = unEntry, pattern = "e")[1,1]
-      if(first.num.pos == 1 & first.e.pos == 2){
-        sci <- FALSE
-        problems <- paste0(problems, " Username cannot start with a number followed by the letter 'e'.")
+      if(!is.na(first.e.pos)){
+        if(first.num.pos == 1 & first.e.pos == 2){
+          sci <- FALSE
+          problems <- paste0(problems, " Username cannot start with a number followed by the letter 'e'.")
+        }
       }
     }
   }
