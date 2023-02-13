@@ -31,35 +31,27 @@ library(htmltools)  # formatting text
 # tables
 library(DT)
 
-## utility functions and variables
-source("./vars.R")
-source("./ped-utils.R")
-source("./demo-utils.R")
-source("./can-utils.R")
-source("./surg-utils.R")
-source("./gene-utils.R")
-source("./modules.R")
-source("./accnt-utils.R")
-
-
+#### UI 
 ui <- fixedPage(
+  
+  # Google analytics
+  tags$head(includeHTML(("google-analytics.html"))),
+  
+  # allows shinyjs commands
+  useShinyjs(),
   
   # adjust all tab's padding for all tabSetPanels
   tags$style(HTML(".tabbable > .nav > li > a {padding:5px;}")),
   
   # title and log-out button
   titlePanel(
-    tagList(
-      span("PPI: PanelPRO Interface",
-           div(class = "pull-right", shinyauthr::logoutUI(id = "logout")))
-    )
+    title = 
+      tagList(
+        span("PPI: PanelPRO Interface",
+             div(class = "pull-right", shinyauthr::logoutUI(id = "logout")))
+      ),
+    windowTitle = "PPI: PanelPRO Interface"
   ),
-  
-  # Google analytics
-  # tags$head(includeHTML(("google-analytics.html"))),
-  
-  # allows shinyjs commands like disable (and others?)
-  useShinyjs(),
   
   #### Log-in tabs ####
   conditionalPanel("!output.loggedIn",

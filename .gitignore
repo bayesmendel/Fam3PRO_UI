@@ -58,3 +58,6 @@
 
 # database files
 sql-db-dump/
+
+# google analytics
+**/google-analytics.html
