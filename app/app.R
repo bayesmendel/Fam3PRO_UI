@@ -211,9 +211,8 @@ ui <- fixedPage(
           existing one which you previously saved to your account. Once you do either of these 
           actions you will have access to the 'Create/Modify Pedigree' and the 'Run PanelPRO' pages."),
         p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
-        p("When you are done creating or editing a pedigree, be sure to save it to your account using the button in the 
-          upper right hand corner of the 'Create/Modify Pedigree' page before navigating away from that page, 
-          logging out, or closing your browser. You can come back at any time to modify your saved pedigrees 
+        p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
+          to your user account and you can come back at any time to modify your saved pedigrees 
           and run/re-run them through PanelPRO."),
         br(),
         
