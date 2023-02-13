@@ -1738,6 +1738,25 @@ server <- function(input, output, session) {
           canReactive$canNums <- out$cr
           trackMax <- out$trackMax
           id <- out$id
+          
+          # add a server for checking the validity of the entered cancer age
+          observeEvent(list(input[[paste0(id, "-CanAge")]], input$Age), {
+            validateCanAgeServer(id,
+                                 in.age = input[[paste0(id, "-CanAge")]],
+                                 cur.age = PED()$CurAge[which(PED()$ID == master.can.df$rel[x])])
+          })
+          
+          # add a server for checking the validity of the entered CBC age
+          observeEvent(list(input[[paste0(id, "-CBCAge")]], 
+                            input$Age,
+                            input[[paste0(id, "-Can")]], 
+                            input[[paste0(id, "-CanAge")]]), {
+                              validateCBCAgeServer(id,
+                                                   can = input[[paste0(id, "-Can")]],
+                                                   cbc.age = input[[paste0(id, "-CBCAge")]],
+                                                   bc.age = input[[paste0(id, "-CanAge")]],
+                                                   cur.age = PED()$CurAge[which(PED()$ID == master.can.df$rel[x])])
+                            })
 
           # create a remove module button observer for each UI module created
           observeEvent(input[[paste0(id, '-removeCan')]], {
@@ -2414,6 +2433,25 @@ server <- function(input, output, session) {
     canReactive$canNums <- out$cr
     trackMax <- out$trackMax
     id <- out$id
+    
+    # add a server for checking the validity of the entered cancer age
+    observeEvent(list(input[[paste0(id, "-CanAge")]], input$Age), {
+      validateCanAgeServer(id,
+                           in.age = input[[paste0(id, "-CanAge")]],
+                           cur.age = PED()$CurAge[which(PED()$ID == rel)])
+    })
+    
+    # add a server for checking the validity of the entered CBC age
+    observeEvent(list(input[[paste0(id, "-CBCAge")]], 
+                      input$Age,
+                      input[[paste0(id, "-Can")]], 
+                      input[[paste0(id, "-CanAge")]]), {
+      validateCBCAgeServer(id,
+                           can = input[[paste0(id, "-Can")]],
+                           cbc.age = input[[paste0(id, "-CBCAge")]],
+                           bc.age = input[[paste0(id, "-CanAge")]],
+                           cur.age = PED()$CurAge[which(PED()$ID == rel)])
+    })
     
     ### Cancer UI Remove Observer
     # create a remove module button observer for each UI module created

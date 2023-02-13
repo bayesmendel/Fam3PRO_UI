@@ -138,18 +138,6 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL,
     where = "beforeEnd",
     ui = canUI(id = id, rel = rel, vals = values, sex = sex)
   )
-
-  # add a server for checking the validity of the entered cancer age
-  validateCanAgeServer(id,
-                       in.age = inp[[paste0(id, "-CanAge")]],
-                       cur.age = inp$Age)
-
-  # add a server for checking the validity of the entered CBC age
-  validateCBCAgeServer(id,
-                       can = inp[[paste0(id, "-Can")]],
-                       cbc.age = inp[[paste0(id, "-CBCAge")]],
-                       bc.age = inp[[paste0(id, "-CanAge")]],
-                       cur.age = inp$Age)
   
   return(list(cr = cr, trackMax = trackMax, id = id))
 }
