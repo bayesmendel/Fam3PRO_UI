@@ -458,7 +458,7 @@ ui <- fixedPage(
               tabPanel("CBC Risk",
                 h3("Contralateral Breast Cancer Risk"),
                 conditionalPanel("!output.showCBCinputs",
-                  p("This tab is only used when the relative has/had breast cancer but has not developed contralateral breast cancer.")
+                  p("This tab is only used when the relative is a female and has/had breast cancer but, has not developed contralateral breast cancer.")
                 ),
                 conditionalPanel("output.showCBCinputs",
                   h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?"),
@@ -2540,13 +2540,16 @@ server <- function(input, output, session) {
       
       # check updated cancers list for presence of BC and CBC
       if(PED()$isAffBC[which(PED()$ID == as.numeric(input$relSelect))] == 1 & 
-         PED()$isAffCBC[which(PED()$ID == as.numeric(input$relSelect))] == 0){ 
+         PED()$isAffCBC[which(PED()$ID == as.numeric(input$relSelect))] == 0 &
+         PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))] == 0){ 
         showCBCinputs(TRUE)
       } else if(showCBCinputs()){
         showCBCinputs(FALSE)
         for(cbc.var in cbcrisk.cols){
           shinyjs::reset(cbc.var)
         }
+      } else {
+        showCBCinputs(FALSE)
       }
       
       # check if any previously recorded CBC related inputs need to be removed and update them
