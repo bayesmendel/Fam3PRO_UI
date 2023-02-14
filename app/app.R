@@ -53,11 +53,11 @@ ui <- fixedPage(
     windowTitle = "PPI: PanelPRO Interface"
   ),
   
-  #### Log-in tabs ####
+  #### UI: Log-in tabs ####
   conditionalPanel("!output.loggedIn",
     tabsetPanel(id = "loginTabs",
       
-      ##### Log-in ####
+      ##### UI: Log-in ####
       tabPanel(title = "Log In",
         shinyauthr::loginUI(id = "login",
           cookie_expiry = 0,
@@ -75,7 +75,7 @@ ui <- fixedPage(
         )
       ), # end log-in tab
        
-      ##### Sign-up ####
+      ##### UI: Sign-up ####
       tabPanel(title = "Sign Up",
         
         # bot check passed
@@ -128,7 +128,7 @@ ui <- fixedPage(
         )
       ), # end sign-up tab
 
-      ##### Forgot Username or Password ####
+      ##### UI: Forgot Username or Password ####
       tabPanel(title = "Forgot Username or Password",
               
         # bot check passed
@@ -160,18 +160,18 @@ ui <- fixedPage(
         )
       ), # end forgot username/password tab
       
-      ##### Bot Check ####
+      ##### UI: Bot Check ####
       tabPanel(title = "Bot Check",
         uiOutput("botCheckUI")
       )
     ) # end of tabsetPanel for log-in tabs
   ), # end of conditionalPanel for logged out status
   
-  #### Post Log-in ####
+  #### UI: Post Log-in ####
   conditionalPanel("output.loggedIn",
     navbarPage(title = "", id = "navbarTabs",
       
-      ##### Home ####
+      ##### UI: Home ####
       tabPanel(title = "Home",
         h3("Home"),
         
@@ -240,12 +240,12 @@ ui <- fixedPage(
         
       ), # end of tab
       
-      ##### Manage Pedigrees ####
+      ##### UI: Manage Pedigrees ####
       tabPanel("Manage Pedigrees",
         h3("Manage My Pedigrees"),
         tabsetPanel(id = "managePedsTab",
                     
-          ###### Create or Load Pedigree ####
+          ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
             p("To get started, you will either need to create a new pedigree using our 
@@ -289,7 +289,7 @@ ui <- fixedPage(
             )
           ),
         
-          ###### Download Pedigrees ####
+          ###### UI: Download Pedigrees ####
           tabPanel("Download",
             h4("Download Pedigrees"),
             
@@ -330,7 +330,7 @@ ui <- fixedPage(
             ) # end of conditionalPanel to check if there are tables to download
           ), # end of download tab
           
-          ###### Delete Pedigrees ####
+          ###### UI: Delete Pedigrees ####
           tabPanel("Delete",
             h4("Delete Pedigrees"),
             
@@ -361,7 +361,7 @@ ui <- fixedPage(
         ) # end of tabsetPanels for manage pedigrees
       ), # end of tab for manage pedigrees tab
       
-      ##### Create/Modify Pedigree ####
+      ##### UI: Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
         
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
@@ -394,7 +394,7 @@ ui <- fixedPage(
           column(width = 6,
             tabsetPanel(id = "pedTabs", 
               
-              ###### Demographics ####
+              ###### UI: Demographics ####
               tabPanel("Demographics",
                 h3("Demographics"),
                 p("Enter the person's demographic information below. Inputs with an 
@@ -441,7 +441,7 @@ ui <- fixedPage(
                 )
               ), # end of demographics tab
               
-              ###### Cancer Hx ####
+              ###### UI: Cancer Hx ####
               tabPanel("Cancer Hx",
                 h3("Cancer History"),
                 p("List all first primary cancers the person has or had with the age of diagnosis."),
@@ -456,7 +456,7 @@ ui <- fixedPage(
                              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
               ), # end of cancers tab
               
-              ###### CBC Risk ####
+              ###### UI: CBC Risk ####
               tabPanel("CBC Risk",
                 h3("Contralateral Breast Cancer Risk"),
                 conditionalPanel("!output.showCBCinputs",
@@ -486,7 +486,7 @@ ui <- fixedPage(
                 )
               ),
               
-              ###### Tumor Markers ####
+              ###### UI: Tumor Markers ####
               tabPanel("Tumor Markers",
                 h3("Tumor Markers"),
                 conditionalPanel("!output.showBCMarkers & !output.showCRCMarkers",
@@ -551,7 +551,7 @@ ui <- fixedPage(
                 ) # end of conditionalPanel to display any tumor markers
               ), # end of tumor marker tab
               
-              ###### Surgical Hx ####
+              ###### UI: Surgical Hx ####
               tabPanel("Surgical Hx",
                 h3("Prophylactic Surgical History"),
                 
@@ -626,7 +626,7 @@ ui <- fixedPage(
                 ) # end of female conditionalPanel for surgical history information
               ), # end of surgery tab
               
-              ###### Genes ####
+              ###### UI: Genes ####
               tabPanel("Genes",
                 h3("Gene Testing Results"),
                 tabsetPanel(id = "geneTabs",
@@ -793,7 +793,7 @@ ui <- fixedPage(
                 ) # end tabsetPanel for gene results screen
               ), # end of gene results tab
               
-              ###### Num/Type Rels ####
+              ###### UI: Num/Type Rels ####
               tabPanel("Add Relatives",
                 h3("Number and Types of Relatives"),
                 p("Begin creating the proband's pedigree by entering the number of 
@@ -882,12 +882,12 @@ ui <- fixedPage(
         ) # end of fluidRow for create/modify pedigree tab
       ), # end of tab for create/modify pedigree
       
-      ##### Run PanelPRO ####
+      ##### UI: Run PanelPRO ####
       tabPanel("Run PanelPRO",
         h3("Run PanelPRO")
       ), # end of PanelPRO tab
       
-      ##### My Account ####
+      ##### UI: My Account ####
       tabPanel("My Account",
         h3("Account Management"),
         
@@ -942,10 +942,10 @@ ui <- fixedPage(
     ) # end of NavBarPage
   ), # end of conditionalPanel for loggedIn status
   
-  #### Footer ####
+  #### UI: Footer ####
   br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
   
-  #### Tab Switching Tags #####
+  #### UI: Tab Switching Tags #####
   # automatically go to top of tab when selecting a tab
   tags$script(" $(document).ready(function () {
          $('#navbarTabs a[data-toggle=\"tab\"]').on('click', function (e) {
@@ -1487,7 +1487,7 @@ server <- function(input, output, session) {
     if(input$newOrLoad == "Load existing" & input$existingPed == "No pedigree selected"){
       shinyjs::disable("goNewOrLoad")
     } else {
-      shinyjs::enable("goNewOrLoad")
+      delay(delay_load_ms, shinyjs::enable("goNewOrLoad"))
     }
   }, ignoreInit = T)
   
@@ -1535,6 +1535,15 @@ server <- function(input, output, session) {
                             selected = credentials()$info[["user"]])
         }
         
+        # update pedigrees available for loading
+        userPeds(unique(dbGetQuery(conn = conn,
+                                   statement = paste0("SELECT PedigreeID FROM ", 
+                                                      ifelse(input$selectUser == "", credentials()$info[["user"]], 
+                                                             input$selectUser), 
+                                                      ";"))$PedigreeID))
+        updateSelectInput(session, inputId = "existingPed",
+                          choices = c("No pedigree selected", userPeds()))
+        
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
         
@@ -1553,21 +1562,6 @@ server <- function(input, output, session) {
         } else {
           showTblExistsError(TRUE)
         }
-      }
-    }
-  })
-  
-  # update drop-down for selecting a pedigree for the admin and managers when the selected user account changes
-  observeEvent(list(input$selectUser, userPeds()), {
-    if(loggedIn()){
-      if(admin() | manager()){
-        userPeds(unique(dbGetQuery(conn = conn,
-                                   statement = paste0("SELECT PedigreeID FROM ", 
-                                                      ifelse(input$selectUser == "", credentials()$info[["user"]], 
-                                                             input$selectUser), 
-                                                      ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "existingPed",
-                          choices = c("No pedigree selected", userPeds()))
       }
     }
   })
@@ -1595,7 +1589,7 @@ server <- function(input, output, session) {
                                             input$existingPed,"';"))
       colnames(tped)[which(colnames(tped) == "CK5_6")] <- "CK5.6"
       PED(tped)
-      
+    
       # re-populate pedigree editor input widgets with new proband's information
       updateTextInput(session, "pedID", value = PED()$PedigreeID[1])
       shinyjs::disable("pedID")
@@ -1886,6 +1880,9 @@ server <- function(input, output, session) {
       hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("visPed")
       
+      # reset the pedigree loading selector
+      updateSelectInput(session, "existingPed", selected = "No pedigree selected")
+      
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
@@ -1983,7 +1980,7 @@ server <- function(input, output, session) {
     # execute actions relevant to create new and load existing
     if(input$newOrLoad == "Create new" | 
        (input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected")){
-      
+            
       # reset add relative counts
       for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
         shinyjs::reset(paste0("num", relation))
@@ -2028,7 +2025,6 @@ server <- function(input, output, session) {
                      getUsersUnderManager(manager = credentials()$info[["user"]], 
                                           my_conn = conn))
         }
-        
         users.with.tbls <- users
         for(usr in users){
           if(!dbExistsTable(conn = conn, name = usr)){
@@ -2036,6 +2032,7 @@ server <- function(input, output, session) {
           }
         }
         
+        # update users with pedigrees that can be downloaded
         if(length(users.with.tbls) > 0){
           updateSelectInput(session, inputId = "selectUserForDownload",
                             choices = users.with.tbls, 
@@ -2045,6 +2042,16 @@ server <- function(input, output, session) {
                             choices = credentials()$info[["user"]], 
                             selected = credentials()$info[["user"]])
         }
+        
+        # update pedigrees available for download
+        userPedsForDownload(
+          unique(dbGetQuery(conn = conn,
+                            statement = paste0("SELECT PedigreeID FROM ",
+                                               ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
+                                                      input$selectUserForDownload),
+                                               ";"))$PedigreeID))
+        updateSelectInput(session, inputId = "selectDownloadPeds",
+                          choices = userPedsForDownload())
         
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
@@ -2070,23 +2077,6 @@ server <- function(input, output, session) {
     }
   })
   
-  # update drop-down for selecting a pedigrees to download for the admin and managers
-  # when the selected user account changes
-  observeEvent(input$selectUserForDownload, {
-    if(loggedIn()){
-      if(admin() | manager()){
-        userPedsForDownload(
-          unique(dbGetQuery(conn = conn,
-                            statement = paste0("SELECT PedigreeID FROM ",
-                                               ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
-                                                      input$selectUserForDownload),
-                                               ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "selectDownloadPeds",
-                          choices = userPedsForDownload())
-      }
-    }
-  })
-  
   # select or de-select all pedigrees in a user account for downloading
   observeEvent(list(userPedsForDownload(), input$selectAllPeds), {
     if(input$selectAllPeds){
@@ -2103,8 +2093,8 @@ server <- function(input, output, session) {
   # and enable/disable download buttons accordingly
   observeEvent(input$selectDownloadPeds, {
     if(!is.null(input$selectDownloadPeds)){
-      shinyjs::enable("downloadPedsCSV")
-      shinyjs::enable("downloadPedsRDS")
+      delay(delay_download_ms, shinyjs::enable("downloadPedsCSV"))
+      delay(delay_download_ms, shinyjs::enable("downloadPedsRDS"))
     } else {
       shinyjs::disable("downloadPedsCSV")
       shinyjs::disable("downloadPedsRDS")
@@ -2190,6 +2180,16 @@ server <- function(input, output, session) {
                             selected = credentials()$info[["user"]])
         }
         
+        # update pedigrees available for deletion
+        userPedsForDelete(
+          unique(dbGetQuery(conn = conn,
+                            statement = paste0("SELECT PedigreeID FROM ",
+                                               ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
+                                                      input$selectUserForDelete),
+                                               ";"))$PedigreeID))
+        updateSelectInput(session, inputId = "selectDeletePeds",
+                          choices = userPedsForDelete())
+        
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
         
@@ -2213,23 +2213,6 @@ server <- function(input, output, session) {
       }
     }
   })
-  
-  # update drop-down for selecting pedigrees to delete for the admin and managers
-  # when the selected user account changes
-  observeEvent(input$selectUserForDelete, {
-    if(loggedIn()){
-      if(admin() | manager()){
-        userPedsForDelete(
-          unique(dbGetQuery(conn = conn,
-                            statement = paste0("SELECT PedigreeID FROM ",
-                                               ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
-                                                      input$selectUserForDelete),
-                                               ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "selectDeletePeds",
-                          choices = userPedsForDelete())
-      }
-    }
-  })
 
   # select or de-select all pedigrees in a user account for deletion
   observeEvent(list(userPedsForDelete(), input$selectAllPedsDelete), {
@@ -2247,7 +2230,7 @@ server <- function(input, output, session) {
   # and enable/disable deletePeds button accordingly
   observeEvent(input$selectDeletePeds, {
     if(!is.null(input$selectDeletePeds)){
-      shinyjs::enable("deletePeds")
+      delay(delay_delete_ms, shinyjs::enable("deletePeds"))
     } else {
       shinyjs::disable("deletePeds")
     }
@@ -2260,6 +2243,13 @@ server <- function(input, output, session) {
                          input$selectUserForDelete)
     } else {
       fromAcct <- credentials()$info[["user"]]
+    }
+    
+    # if the pedigree to be deleted is the one currently being edited, remove it first
+    # and force the user to either create a new pedigree or load an existing one to continue
+    if(input$pedID %in% input$selectDeletePeds){
+      PED(NULL)
+      hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
     }
     
     dbExecute(conn = conn,
@@ -3278,7 +3268,7 @@ server <- function(input, output, session) {
     } else {
       hideTab("navbarTabs", target = "Run PanelPRO", session = session)
     }
-  })
+  }, ignoreNULL = F)
   
   # Save data to pedigree when navbarTabs change
   observeEvent(input$navbarTabs, {
