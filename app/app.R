@@ -23,7 +23,7 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
-library(stringi)    # toTitleCase
+library(stringi)    # stri_trans_totitle
 
 # html
 library(htmltools)  # formatting text
@@ -396,8 +396,8 @@ ui <- fixedPage(
               
               ###### UI: Demographics ####
               tabPanel("Demographics",
-                h3("Demographics"),
-                p("Enter the person's demographic information below. Inputs with an 
+                h3(textOutput("rop1", inline = T), "Demographics"),
+                p("Enter the ", textOutput("rop2", inline = T), "demographic information below. Inputs with an 
                   astrick(*) require a response to continue to the next screen."),
                 
                 # PedigreeID
@@ -443,8 +443,9 @@ ui <- fixedPage(
               
               ###### UI: Cancer Hx ####
               tabPanel("Cancer Hx",
-                h3("Cancer History"),
-                p("List all first primary cancers the person has or had with the age of diagnosis."),
+                h3(textOutput("rop3", inline = T), "Cancer History"),
+                p("List all first primary cancers ", textOutput("rop4", inline = T), 
+                  "has or had with the age of diagnosis."),
                 
                 # cancerUI modules inserted into this container
                 tags$div(
@@ -458,12 +459,14 @@ ui <- fixedPage(
               
               ###### UI: CBC Risk ####
               tabPanel("CBC Risk",
-                h3("Contralateral Breast Cancer Risk"),
+                h3(textOutput("rop5", inline = T), "Contralateral Breast Cancer Risk"),
                 conditionalPanel("!output.showCBCinputs",
-                  p("This tab is only used when the relative is a female and has/had breast cancer but, has not developed contralateral breast cancer.")
+                  p("This tab is only used when ", textOutput("rop6", inline = T), 
+                    "is a female and has/had breast cancer but, has not developed contralateral breast cancer.")
                 ),
                 conditionalPanel("output.showCBCinputs",
-                  h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?"),
+                  h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?", 
+                     style = "margin-top:15px"),
                   selectInput("FirstBCType", label = NULL,
                               choices = bc1type.choices,
                               width = "200px"),
@@ -488,12 +491,14 @@ ui <- fixedPage(
               
               ###### UI: Tumor Markers ####
               tabPanel("Tumor Markers",
-                h3("Tumor Markers"),
+                h3(textOutput("rop7", inline = T), "Tumor Markers"),
                 conditionalPanel("!output.showBCMarkers & !output.showCRCMarkers",
-                  p("Tumor markers are only applicable if the person has/had breast cancer or colorectal cancer")
+                  p("Tumor markers are only applicable if ", textOutput("rop8", inline = T), 
+                    "has/had breast cancer or colorectal cancer.")
                 ),
                 conditionalPanel("output.showBCMarkers | output.showCRCMarkers",
-                  p("If the person was tested for any of the tumor markers related to the cancers below, report the results."),
+                  p("If ", textOutput("rop9", inline = T), 
+                    "was tested for any of the tumor markers related to the cancers below, report the results."),
                   conditionalPanel("output.showBCMarkers",
                     h4("Breast Cancer Tumor Markers"),
                     fluidRow(
@@ -553,7 +558,7 @@ ui <- fixedPage(
               
               ###### UI: Surgical Hx ####
               tabPanel("Surgical Hx",
-                h3("Prophylactic Surgical History"),
+                h3(textOutput("rop10", inline = T), "Prophylactic Surgical History"),
                 
                 # message for proph surgery is Female sex is not selected
                 conditionalPanel("input.Sex != 'Female'",
@@ -562,7 +567,8 @@ ui <- fixedPage(
                  
                 # for females
                 conditionalPanel("input.Sex == 'Female'",
-                  p("Check each surgery the person has had and enter the age at surgery."),
+                  p("Check each surgery ", textOutput("rop11", inline = T), 
+                    "has had and enter the age at surgery."),
                     
                   # mastecomties
                   fluidRow(
@@ -628,36 +634,39 @@ ui <- fixedPage(
               
               ###### UI: Genes ####
               tabPanel("Genes",
-                h3("Gene Testing Results"),
+                h3(textOutput("rop12", inline = T), "Gene Testing Results"),
                 tabsetPanel(id = "geneTabs",
                             
                   tabPanel(title = "Instructions",
                     h4("How to Enter/Edit Germline Genetic Test Results"),
-                    p("Use this screen to enter or modify germline genetic test results 
-                      for the currently selected relative. There are three tabs: 
-                      1) 'Manage Panels' allows you to add a multi-gene panel or single 
-                      gene test for the currently selected relative or delete one of their tests; 
-                      2) 'Edit Panel' allows you to edit this relative's gene test 
-                      results, if they have at least one test; 
-                      3) 'Summary Table' displays a summary of results from all of the 
-                      relative's germline genetic tests by gene, result, nucleotide, protein, and zygosity.", 
-                      style = "margin-bottom:10px")
+                    p("Use this screen to enter or modify germline genetic test results. 
+                      There are three tabs:"),
+                    tags$ol(
+                      tags$li("'Manage Panels' allows you to add a multi-gene panels or single 
+                              gene tests as well as delete one of the existing tests."),
+                      tags$li("'Edit Panel Results' allows you to edit gene test 
+                              results (if there is at least one panel)."),
+                      tags$li("'Summary Table' displays a summary of results of germline 
+                              genetic tests by gene, result, nucleotide, protein, and zygosity.")
+                    )
                   ),
                             
                   tabPanel(title = "Manage Panels",
                     fluidRow(column(width = 12, 
-                      h4("Current Panel Tests"),
+                      h4(textOutput("rop14", inline = T), "Current Panel Tests"),
                       tags$div(
                         id = "PanCont",
                         style = "width:100%"
                       ),
                       conditionalPanel("!output.atLeastOnePanel",
-                        h5("This relative does not have any gene testing results yet.")
+                        h5(textOutput("rop15", inline = T), "does not have any gene testing results yet.")
                       ),
                       br(),
                       h4("Add a Panel"),
                       p("Using the dropdown, select one of the pre-existing panels and click 'Add Panel' or select 'Create new' 
                         to make a custom panel of genes."),
+                      p("Note, do not add or create a new panel until you have received the panel results back from the lab.", 
+                        style = "color:blue"),
                       selectInput("existingPanels", label = NULL,
                                   choices = all.panel.names, selected = "No panel selected",
                                   width = "300px"),
@@ -680,18 +689,19 @@ ui <- fixedPage(
                     ))
                   ),
                   
-                  tabPanel(title = "Edit Panel",
+                  tabPanel(title = "Edit Panel Results",
                     fluidRow(column(width = 12, 
-                      h4("Edit Panel Results"),
+                      h4("Edit ", textOutput("rop16", inline = T)," Panel Results"),
                                     
                       # cannot enter results if no panels exist
                       conditionalPanel("!output.atLeastOnePanel",
-                        p("To edit panel test results, please add at least one panel on the 'Manage Panels' tab.")
+                        p("To edit panel results, please add at least one panel on the 'Manage Panels' tab.")
                       ),
                          
                       # enter results by type
                       conditionalPanel("output.atLeastOnePanel",
-                        p("Select one of the subject's panels to edit then enter the gene results by selecting the three different tabs for ",
+                        p("Select one of ", textOutput("rop17", inline = T), 
+                          " panels to edit then enter the gene results by selecting the three different tabs for ",
                           HTML("<b>pathogenic/likely pathogenic (P/LP), unknown significance (VUS),</b> or <b>
                           benign/likely benign (B/LP)</b>.")," Enter as much information about each gene variant as possible. 
                           Any genes not specified as P/LP, VUS, or B/LB will be recorded as negative."),
@@ -769,18 +779,20 @@ ui <- fixedPage(
                   
                   # tab for review panel results
                   tabPanel(title = "Summary Table",
-                    h4("Gene Summary"),
+                    h4(textOutput("rop18", inline = T), "Gene Summary"),
                     conditionalPanel("!output.atLeastOnePanel",
-                      h5("This relative does not have any panel tests; therefore, a summary table cannot be displayed.")
+                      h5(textOutput("rop19", inline = T), "does not have any panel tests; therefore, a summary table cannot be displayed.")
                     ),
                     conditionalPanel("output.atLeastOnePanel",
-                      h5("The table below is a summary of all the genes in all of panels for this individual. 
-                         Genes are marked a negative until they are recorded as 
+                      h5("The table below is a summary of all the genes in all of panels for ", 
+                         textOutput("rop20", inline = T), 
+                         "Genes are marked a negative until they are recorded as 
                          P/LP, VUS, or B/LP in any of their panels."),
                       
                       # warn user there is at least one gene with different result types recorded
                       conditionalPanel("output.dupResultGene",
-                        h5("There is at least one gene for this relative which has multiple different result types recorded. 
+                        h5("There is at least one gene for ", 
+                           textOutput("rop21", inline = T), "which has multiple different result types recorded. 
                           This is possible but, it could be an error. Please check the table below for accuracy.
                           If one of these result types is P/LP, PanelPRO will treat this gene as P/LP.", 
                           style = "color:red")
@@ -1787,7 +1799,7 @@ server <- function(input, output, session) {
           })
 
           ## observe for BC and CBC
-          observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+          observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]]), {
 
             # reset CBC inputs if cancer is not BC
             if(input[[paste0(id, '-Can')]] != "Breast"){
@@ -2483,7 +2495,7 @@ server <- function(input, output, session) {
     })
     
     ## observe for BC and CBC
-    observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+    observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]]), {
       
       # reset CBC inputs if cancer is not BC
       if(input[[paste0(id, '-Can')]] != "Breast"){
@@ -2641,6 +2653,8 @@ server <- function(input, output, session) {
         hadBC <- FALSE
         showBCMarkers(FALSE)
       }
+      
+      
       if(PED()$isAffCOL[which(PED()$ID == as.numeric(input$relSelect))] == 1){ 
         hadCRC <- TRUE 
         showCRCMarkers(TRUE)
@@ -2659,6 +2673,7 @@ server <- function(input, output, session) {
           updateSelectInput(session, m, selected = "Not Tested")
         }
       }
+      
       if(!hadCRC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
         rmCRCmarks <- TRUE
         for(m in PanelPRO:::MARKER_TESTING$COL$MARKERS){
@@ -3060,7 +3075,7 @@ server <- function(input, output, session) {
   })
   output$validPUncQty <- renderText({ validPUncQty() })
   
-  # disable visPed button if any quantities are invalid
+  # disable visPed button if any relative quantities are invalid
   observe({
     total.rel.qty.errors <- sum(
       length(validateRelNums(input$numDau)),
@@ -3315,7 +3330,7 @@ server <- function(input, output, session) {
                            dupResultGene = dupResultGene(),
                            sx = PED()$Sex[which(PED()$ID == lastRel())])
           )
-      
+
       # save pedigree to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
@@ -3334,6 +3349,129 @@ server <- function(input, output, session) {
       
     }
   }, ignoreInit = TRUE)
+  
+  # change instructions and headers based on the selected relative
+  relOrProband <- reactive({
+    if(is.null(PED())){
+      return("Proband")
+    } else {
+      return(PED()$name[which(PED()$ID == input$relSelect)])
+    }
+  })
+  
+  output$rop1 <- renderText({ paste0(relOrProband(),"'s") })          # Demographics heading
+  output$rop2 <- renderText({ paste0(tolower(relOrProband()),"'s") }) # Demographics instructions
+  output$rop3 <- renderText({ paste0(relOrProband(),"'s") })          # Cancer Hx heading
+  output$rop4 <- renderText({                                         # Cancer Hx instructions
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })     
+  output$rop5 <- renderText({ paste0(relOrProband(),"'s") })          # CBC Risk heading
+  output$rop6 <- renderText({                                         # CBC Risk cannot display warning
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })    
+  output$rop7 <- renderText({ paste0(relOrProband(),"'s") })          # Tumor Marker heading
+  output$rop8 <- renderText({                                         # Tumor Marker cannot display warning
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  output$rop9 <- renderText({                                         # Tumor Marker instructions
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  output$rop10 <- renderText({ paste0(relOrProband(),"'s") })          # Surgical Hx heading
+  output$rop11 <- renderText({                                         # Surgical Hx instructions
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  
+  # Gene/Panel relative titles
+  output$rop12 <- renderText({ paste0(relOrProband(),"'s") })
+  output$rop13 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(paste0(tolower(relOrProband()), "."))
+    } else {
+      return(paste0("the ", tolower(relOrProband()), "."))
+    }
+  })
+  output$rop14 <- renderText({ paste0(relOrProband(),"'s") })
+  output$rop15 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(relOrProband())
+    } else {
+      return(paste0("The ", tolower(relOrProband())))
+    }
+  })
+  output$rop16 <- renderText({  paste0(relOrProband(),"'s") })
+  output$rop17 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(paste0(tolower(relOrProband()), "'s"))
+    } else {
+      return(paste0("the ", tolower(relOrProband()), "'s"))
+    }
+  })
+  output$rop18 <- renderText({  paste0(relOrProband(),"'s") })
+  output$rop19 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(relOrProband())
+    } else {
+      return(paste0("The ", tolower(relOrProband())))
+    }
+  })
+  output$rop20 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(paste0(tolower(relOrProband()), "."))
+    } else {
+      return(paste0("the ", tolower(relOrProband()), "."))
+    }
+  })
+  output$rop21 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  
+  # ## Change instructions when the proband is the selected relative
+  # observeEvent(list(PED(), input$relSelect), {
+  #   
+  #   # when there is no pedigree
+  #   if(is.null(PED())){
+  #     is.pb <- FALSE
+  #     
+  #     # when the selected relative is NOT the proband
+  #   } else if(as.numeric(input$relSelect) != PED()$ID[which(PED()$isProband == 1)]){
+  #     is.pb <- FALSE
+  #     
+  #     # when the selected relative is the proband
+  #   } else if(as.numeric(input$relSelect) == PED()$ID[which(PED()$isProband == 1)]){
+  #     is.pb <- TRUE
+  #   }
+  #   
+  #   # change the instructions
+  #   if(is.pb){
+  #     
+  #   } else {
+  #     
+  #   }
+  # }, ignoreNULL = T)
   
   #### Manage navbarTabs ####
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
