@@ -364,27 +364,29 @@ ui <- fixedPage(
       ##### Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
         
-        # top row to select which relative is being edited, only show after pedigree is visualized
-        conditionalPanel("output.visPed",
-          fluidRow(
-            column(width = 3,
-              h4("Select a relative to edit:")
-            ),
-            column(width = 3,
-              selectInput("relSelect", label = NULL,
-                          choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
-                          width = "200px")
-            )
-          )
-        ),
-        
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
           
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
           conditionalPanel("output.visPed",
             column(width = 6,
-              plotOutput("drawPed")
+                   
+              # top row to select which relative is being edited
+              fluidRow(
+                column(width = 5,
+                  h4("Select a relative to edit:")
+                ),
+                column(width = 7,
+                  selectInput("relSelect", label = NULL,
+                              choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
+                              width = "200px")
+                )
+              ),
+              
+              # pedigree visualization    
+              fluidRow(
+                plotOutput("drawPed")
+              )
             )
           ),
           
