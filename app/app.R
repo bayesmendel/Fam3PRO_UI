@@ -810,12 +810,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validDauQty"),
+                      tags$head(tags$style("#validDauQty{color: red;}")),
+                      
                       numericInput("numSon",
                                    label = h5("Sons:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validSonQty"),
+                      tags$head(tags$style("#validSonQty{color: red;}"))
                     ),
                     
                     wellPanel(
@@ -826,12 +831,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validSisQty"),
+                      tags$head(tags$style("#validSisQty{color: red;}")),
+                      
                       numericInput("numBro",
                                    label = h5("Brothers:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validBroQty"),
+                      tags$head(tags$style("#validBroQty{color: red;}"))
                     )
                   ), # end of column for siblings and children
                   
@@ -844,12 +854,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validMAuntQty"),
+                      tags$head(tags$style("#validMAuntQty{color: red;}")),
+                      
                       numericInput("numMUnc",
                                    label = h5("Maternal Uncles:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validMUncQty"),
+                      tags$head(tags$style("#validMUncQty{color: red;}"))
                     ),
                     
                     wellPanel(
@@ -860,12 +875,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validPAuntQty"),
+                      tags$head(tags$style("#validPAuntQty{color: red;}")),
+                      
                       numericInput("numPUnc",
                                    label = h5("Paternal Uncles:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validPUncQty"),
+                      tags$head(tags$style("#validPUncQty{color: red;}"))
                     )
                   ) # end of column for aunts and uncles
                 ), # end of fluidRow for the entire num/type rel tab
@@ -2998,7 +3018,68 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  ##### Add Children, Siblings, Aunts/Uncles ####
+  ##### Add Kids, Sibs, Aunts/Uncles ####
+  # validate quantities of relatives
+  validDauQty <- reactive({
+    shiny::validate(validateRelNums(input$numDau))
+  })
+  output$validDauQty <- renderText({ validDauQty() })
+  
+  validSonQty <- reactive({
+    shiny::validate(validateRelNums(input$numSon))
+  })
+  output$validSonQty <- renderText({ validSonQty() })
+  
+  validSisQty <- reactive({
+    shiny::validate(validateRelNums(input$numSis))
+  })
+  output$validSisQty <- renderText({ validSisQty() })
+  
+  validBroQty <- reactive({
+    shiny::validate(validateRelNums(input$numBro))
+  })
+  output$validBroQty <- renderText({ validBroQty() })
+  
+  validMAuntQty <- reactive({
+    shiny::validate(validateRelNums(input$numMAunt))
+  })
+  output$validMAuntQty <- renderText({ validMAuntQty() })
+  
+  validMUncQty <- reactive({
+    shiny::validate(validateRelNums(input$numMUnc))
+  })
+  output$validMUncQty <- renderText({ validMUncQty() })
+  
+  validPAuntQty <- reactive({
+    shiny::validate(validateRelNums(input$numPAunt))
+  })
+  output$validPAuntQty <- renderText({ validPAuntQty() })
+  
+  validPUncQty <- reactive({
+    shiny::validate(validateRelNums(input$numPUnc))
+  })
+  output$validPUncQty <- renderText({ validPUncQty() })
+  
+  # disable visPed button if any quantities are invalid
+  observe({
+    total.rel.qty.errors <- sum(
+      length(validateRelNums(input$numDau)),
+      length(validateRelNums(input$numSon)),
+      length(validateRelNums(input$numSis)),
+      length(validateRelNums(input$numBro)),
+      length(validateRelNums(input$numMAunt)),
+      length(validateRelNums(input$numMUnc)),
+      length(validateRelNums(input$numPAunt)),
+      length(validateRelNums(input$numPUnc))
+    )
+    if(total.rel.qty.errors > 0){
+      shinyjs::disable("visPed")
+    } else if(total.rel.qty.errors == 0){
+      shinyjs::enable("visPed")
+    }
+  })
+  
+  
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
   visPed <- reactiveVal(FALSE)

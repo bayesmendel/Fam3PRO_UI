@@ -840,4 +840,19 @@ updateRelInputs <- function(rel.info, ss){
   }
 }
 
-
+#' Validate quantities of relatives to be added
+validateRelNums <- function(num.rels){
+  if(is.na(num.rels)){
+    notNA <- FALSE
+    need(notNA, "Quantity cannot be blank or NA, it must be greater than or equal to 0.")
+  } else {
+    isNum <- is.numeric(num.rels)
+    if(isNum){
+      inRange <- num.rels >= 0
+      isInt <- num.rels %% 1 == 0
+      need(all(isInt, inRange), "Quantity must be an integer greater than or equal to 0.")
+    } else {
+      need(isNum, "Quantity must be numeric.")
+    }
+  }
+}
