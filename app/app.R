@@ -180,7 +180,7 @@ ui <- fixedPage(
           is a multi-cancer/multi-gene risk prediction model which utilizes family history 
           to estimate the probability that a patient has a pathogenic or likely 
           pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and, 
-          to estimate a patient's future risk of cancer for up to 18 different cancer types. 
+          estimates a patient's future risk of cancer for up to 18 different cancer types. 
           PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users 
           have the ability to create customized models focused on specific cancers and genes.
           The PanelPRO software package was written in the statistical 
@@ -2339,8 +2339,12 @@ server <- function(input, output, session) {
       showTab("pedTabs", "Surgical Hx", select = FALSE, session)
       showTab("pedTabs", "Tumor Markers", select = FALSE, session)
       showTab("pedTabs", "Genes", select = FALSE, session)
-      showTab("pedTabs", "Add Relatives", select = FALSE, session)
       showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
+      
+      # only show add relatives tab if it is a pedigree being created, not loaded
+      if(newOrLoadFlag() == "new"){
+        showTab("pedTabs", "Add Relatives", select = FALSE, session)
+      } 
     }
   })
   
