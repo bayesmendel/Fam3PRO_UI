@@ -1,0 +1,71 @@
+PPI Testing
+
+1. Create new account
+
+2. Forgot Username and Password
+
+3. Log-in: user, manager, admin
+
+4. Download: user, manager, admin
+
+5. Delete: user, manager, admin
+
+6. Load: user, manager, admin
+
+7. Create new pedigree
+
+8. Demographics
+
+	8a. Prevent re-using pedigree names
+	
+	8b. Male and Female probands
+
+9. Cancer Hx, CBC Risk, and Tumor Markers:
+
+	9a. Add/delete cancers
+
+	9b. PanelPRO cancer
+
+	9c. Non-PanelPRO cancer
+
+	9d. Cancer Ages: NA ages, age validation
+
+	9e. Breast Cancer:
+		
+		9e.1: Tumor markers
+		
+		9e.2: With/without CBC
+		
+		9e.3: deleting breast cancer should clear tumor markers and CBC inputs
+	
+10. Surgical Hx: age validation and NA ages 
+
+11. Genes:
+
+	11a. Add/delete panels
+	
+	11b. Panels with only PanelPRO genes and non-PanelPRO genes
+	
+	11b. Add/delete PLP, VUS, and BLB genes to panels
+	
+	11c. Summary table
+	
+12. Add relatives: try quantities 0 through 2
+
+13. Switch relatives from proband, to mother or father and another relatives
+
+14. Confirm data recorded for different relatives is recorded and recorded for the correct relative 
+
+15. Create another new pedigree and confirm everything is reset
+
+16. Load another pedigree and confirm inputs and modules adjust correctly
+
+17. Confirm newly created pedigrees can be loaded and are accurate
+
+18. Confirm newly created pedigrees can be downloaded and are accurate
+
+19. Confirm newly create pedigrees can be deleted
+
+20. Log-out 
+
+

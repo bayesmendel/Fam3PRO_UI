@@ -17,7 +17,6 @@ validateCanAge <- function(in.age, cur.age){
   }
 }
 
-
 # validate CBC ages are valid and between the 1st BC age and current age
 validateCBCAge <- function(can, cbc.age, bc.age, cur.age){
   if(can == "Breast" & !is.na(cbc.age)){
@@ -139,22 +138,9 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL,
     where = "beforeEnd",
     ui = canUI(id = id, rel = rel, vals = values, sex = sex)
   )
-
-  # add a server for checking the validity of the entered cancer age
-  validateCanAgeServer(id,
-                       in.age = inp[[paste0(id, "-CanAge")]],
-                       cur.age = inp$Age)
-
-  # add a server for checking the validity of the entered CBC age
-  validateCBCAgeServer(id,
-                       can = inp[[paste0(id, "-Can")]],
-                       cbc.age = inp[[paste0(id, "-CBCAge")]],
-                       bc.age = inp[[paste0(id, "-CanAge")]],
-                       cur.age = inp$Age)
   
   return(list(cr = cr, trackMax = trackMax, id = id))
 }
-
 
 #' Remove one cancerUI module from a relative's cancer hx
 #' 
@@ -259,7 +245,6 @@ removeCancer <- function(cr = canReactive$canNums, rel,
   # return updated cancer reactive
   return(cr)
 }
-
 
 #' Update the selectInput choices for selecting cancer names for PanelPRO cancers 
 #' or for updating the Other cancer choices for the non-PanelPRO cancers in the 

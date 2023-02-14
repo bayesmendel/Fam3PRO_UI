@@ -5,8 +5,9 @@ library(shiny)
 library(shinyBS)    # shiny tool tips
 library(shinyjs)    # java script tools
 
-# pedigrees
+# pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
+library(cbcrisk)    # Swati's cbcrisk model
 library(PanelPRO)
 
 # database and user accounts
@@ -21,47 +22,36 @@ library(httr)       # authentication for gmail
 # data manipulation
 library(tidyverse)
 library(rlang)
-library(jsonlite)
+library(jsonlite)   # convert to/from JSON strings to R data frames
 library(stringi)    # toTitleCase
 
 # html
-library(htmltools)
+library(htmltools)  # formatting text
 
 # tables
 library(DT)
 
-## load data
-
-
-## utility functions and variables
-source("./vars.R")
-source("./ped-utils.R")
-source("./demo-utils.R")
-source("./can-utils.R")
-source("./surg-utils.R")
-source("./gene-utils.R")
-source("./modules.R")
-source("./accnt-utils.R")
-
-
+#### UI 
 ui <- fixedPage(
+  
+  # Google analytics
+  tags$head(includeHTML(("google-analytics.html"))),
+  
+  # allows shinyjs commands
+  useShinyjs(),
   
   # adjust all tab's padding for all tabSetPanels
   tags$style(HTML(".tabbable > .nav > li > a {padding:5px;}")),
   
   # title and log-out button
   titlePanel(
-    tagList(
-      span("PPI: PanelPRO Interface",
-           div(class = "pull-right", shinyauthr::logoutUI(id = "logout")))
-    )
+    title = 
+      tagList(
+        span("PPI: PanelPRO Interface",
+             div(class = "pull-right", shinyauthr::logoutUI(id = "logout")))
+      ),
+    windowTitle = "PPI: PanelPRO Interface"
   ),
-  
-  # Google analytics
-  # tags$head(includeHTML(("google-analytics.html"))),
-  
-  # allows shinyjs commands like disable (and others?)
-  useShinyjs(),
   
   #### Log-in tabs ####
   conditionalPanel("!output.loggedIn",
@@ -183,18 +173,70 @@ ui <- fixedPage(
       
       ##### Home ####
       tabPanel(title = "Home",
-        h3("PPI Home"),
-        h4("What is PPI?"),
-        p("The PanelPRO Interface (PPI) is a website where users can interact with 
-          the PanelPRO software. PanelPRO was create by the BayesMendel Lab at 
-          Dana-Farber Cancer Institute and is a multi-cancer/multi-gene risk prediction model 
-          which utilizes family history to estimate the probability a patient has a 
-          a pathogenic or likely pathogenic variant of one or more of their genes as well 
-          as their future risk of a variety of different cancer types."),
+        h3("Home"),
+        
+        h4("What are PanelPRO and PPI?"),
+        p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute, 
+          is a multi-cancer/multi-gene risk prediction model which utilizes family history 
+          to estimate the probability that a patient has a pathogenic or likely 
+          pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and, 
+          estimates a patient's future risk of cancer for up to 18 different cancer types. 
+          PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users 
+          have the ability to create customized models focused on specific cancers and genes.
+          The PanelPRO software package was written in the statistical 
+          programming language R. You can learn more about PanelPRO at the ",
+          a("BayesMendel lab's website", href = "https://projects.iq.harvard.edu/bayesmendel/about"), "."),
+        p("This website is named the PanelPRO Interface (PPI) because it allows clinicians and researchers to 
+          utilize PanelPRO without having to use R or know how write code in R. 
+          PPI allows users to create pedigrees formatted for PanelPRO and then run 
+          the PanelPRO model, or one of its sub-models, on those pedigrees to obtain 
+          carrier probabilities and future cancer risk estimates for their patients or study samples. 
+          Users can also save pedigrees they created on this site to their account which can be 
+          viewed, updated, downloaded, and (re)analyzed by PanelPRO."),
+        br(),
+        
+        h4("Beta Version"),
+        p("This website is a beta version that is still in development and we are working towards adding more 
+          features. For the time being, you can use this site to create, store, view, download, and delete 
+          pedigrees however, users cannot run PanelPRO on those pedigrees yet. We hope to add this capability soon."),
+        p("If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
+          at the bottom of the page."),
+        br(),
         
         h4("How to Use PPI"),
+        p("First, navigate to the 'Manage Pedigrees' tab at the top of the page where you can 
+          create a new pedigree, load a pedigree you created previously on this site, or 
+          download one or more pedigrees in .csv or .rds format."),
+        p("To run PanelPRO, you will first either need to create a new pedigree or load an 
+          existing one which you previously saved to your account. Once you do either of these 
+          actions you will have access to the 'Create/Modify Pedigree' and the 'Run PanelPRO' pages."),
+        p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
+        p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
+          to your user account and you can come back at any time to modify your saved pedigrees 
+          and run/re-run them through PanelPRO."),
+        br(),
+        
+        h4("Privacy"),
+        p("This website is not authorized to store any identifiable patient data including, but not limited to, 
+          patient names (including parts of names or initials), ages above 89, medical record numbers (MRNs), 
+          months and days of birth, diagnoses, surgeries, enrollment, or other dates (years are okay), location, contact information, or 
+          insurance information. When creating names for your pedigrees, do not use any of these identifiers 
+          in whole or in part. The identifiers used to differentiate relatives in each pedigree created using PPI 
+          will use generic labels like 'Proband' or 'Sister 1'."),
+        p("Website admins have access to all pedigrees saved to all user accounts."),
+        p("Users can delete any or all pedigrees saved to their account at any time by navigating to 
+          the 'Manage Pedigrees' page and then navigating to the 'Delete' tab on that page. Users with manager 
+          level permissions may also do this for any user account for which they manage."),
+        p("This website uses an https encryption protocol to protect data that is transmitted between our servers 
+          and our users and vice versa. This website also uses Google Analytics to help manage compute resources. We have configured 
+          Google Analytics to maximize patient and user privacy however, it still records the location 
+          of users at the country level and the date and time of access."),
+        br(),
         
         h4("Support and Contact Information"),
+        p("Please direct all questions to your study or site PI."),
+        p("If you find any bugs, have suggestions to improve the website, or are interested in 
+          working with us, please email us at: hereditarycancer AT ds.dfci.harvard DOT edu")
         
       ), # end of tab
       
@@ -322,12 +364,14 @@ ui <- fixedPage(
       ##### Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
         
-        # top row to hold save pedigree button
+        # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
-           
-          # select which relative is being edited, only show after pedigree is visualized
-          column(width = 6, align = "left",
-            conditionalPanel("input.visPed",
+          
+          # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
+          conditionalPanel("output.visPed",
+            column(width = 6,
+                   
+              # top row to select which relative is being edited
               fluidRow(
                 column(width = 5,
                   h4("Select a relative to edit:")
@@ -337,25 +381,12 @@ ui <- fixedPage(
                               choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
                               width = "200px")
                 )
+              ),
+              
+              # pedigree visualization    
+              fluidRow(
+                plotOutput("drawPed")
               )
-            )
-          ),
-          
-          # save pedigree
-          column(width = 6, align = "right",
-            actionButton("savePed", label = "Save Pedigree",
-                         icon = icon('save'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:0px; margin-bottom:0px;")
-          )
-        ),
-        
-        # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
-        fluidRow(
-          
-          # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
-          conditionalPanel("input.visPed",
-            column(width = 6,
-              plotOutput("drawPed")
             )
           ),
           
@@ -373,7 +404,7 @@ ui <- fixedPage(
                 textInput("pedID", label = h5("*Unique Pedigree ID:"),
                           value = "",
                           width = "225px"),
-                conditionalPanel("!input.visPed",
+                conditionalPanel("!output.visPed",
                   h5("Privacy note: the ID number cannot contain identifying information.",
                      style = "color:blue")
                 ),
@@ -429,7 +460,7 @@ ui <- fixedPage(
               tabPanel("CBC Risk",
                 h3("Contralateral Breast Cancer Risk"),
                 conditionalPanel("!output.showCBCinputs",
-                  p("This tab is only used when the relative has/had breast cancer but has not developed contralateral breast cancer.")
+                  p("This tab is only used when the relative is a female and has/had breast cancer but, has not developed contralateral breast cancer.")
                 ),
                 conditionalPanel("output.showCBCinputs",
                   h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?"),
@@ -914,9 +945,7 @@ ui <- fixedPage(
   #### Footer ####
   br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
   
-  
   #### Tab Switching Tags #####
-  
   # automatically go to top of tab when selecting a tab
   tags$script(" $(document).ready(function () {
          $('#navbarTabs a[data-toggle=\"tab\"]').on('click', function (e) {
@@ -931,8 +960,6 @@ ui <- fixedPage(
                });
                });"
   )
-  
-    
 ) # end of UI
 
 
@@ -1007,7 +1034,6 @@ server <- function(input, output, session) {
   loggedIn <- reactive(req(credentials()$user_auth))
   output$loggedIn <- reactive({loggedIn()})
   outputOptions(output, 'loggedIn', suspendWhenHidden = FALSE)
-  
   
   ##### Bot Check ####
   botCheckNums <- reactiveVal(NULL)
@@ -1150,12 +1176,9 @@ server <- function(input, output, session) {
       # initialize the user's table with the example_pedigree from the admin's account
       example_pedigree <- dbGetQuery(conn = conn,
                                      statement = "SELECT * FROM admin WHERE PedigreeID='example_pedigree'")
-      mod.ped.cols <- ped.cols
-      mod.ped.cols[which(ped.cols == "CK5.6")] <- "CK5_6"
-      saveTableToMaster(conne = conn,
+      savePedigreeToDB(conne = conn,
                         user = input$newUsername,
-                        tmp_tbl = example_pedigree,
-                        col.info = setNames(ped.col.dtypes, mod.ped.cols))
+                        tmp_tbl = example_pedigree)
       
       shinyjs::refresh()
       
@@ -1183,7 +1206,6 @@ server <- function(input, output, session) {
       }
     }
   })
-  
   
   ##### Account Recovery ####
   # switch to forgot credentials tab if forgot button clicked
@@ -1403,9 +1425,7 @@ server <- function(input, output, session) {
   # email address than the one previously entered
   observeEvent(input$diffEmail, { shinyjs::refresh() })
   
-  
   ##### Add Managers from My Account Tab ####
-  
   # enable/disable add managers button if usernames are in the add managers input or not
   observeEvent(input$selManagers2, {
     if(is.null(input$selManagers2)){
@@ -1458,14 +1478,8 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
   }, ignoreInit = TRUE)
   
-  
   #### Manage User Pedigrees ####
   ##### Load/Create New Pedigree ####
-  # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
-  observe({
-    hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
-  })
   
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
@@ -1535,7 +1549,7 @@ server <- function(input, output, session) {
           
           # update the tables available for loading
           updateSelectInput(session, inputId = "existingPed",
-                            choices = userPeds())
+                            choices = c("No pedigree selected", userPeds()))
         } else {
           showTblExistsError(TRUE)
         }
@@ -1593,19 +1607,19 @@ server <- function(input, output, session) {
       proband.info <- PED()[which(PED()$ID == proband.id),]
       updateRelInputs(rel.info = proband.info, ss = session)
       shinyjs::disable("Sex")
-      
-      #### Reset cancer and gene reactives and UI modules and create data frames 
-      #### for cancer and gene data by 
+
+      #### Reset cancer and gene reactives and UI modules and create data frames
+      #### for cancer and gene data by
       master.can.df <- NULL
       master.gene.df <- NULL
       for(rl in PED()$ID){
-        
+
         ### 1: RESET
         # CANCERS, iterate through this relative's cancer hx dictionary, if there is at least one cancer
         if(any(names(canReactive$canNums) == as.character(rl))){
           if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
             for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
-  
+
               # update the cancer reactive object, remove the cancerUI module and delete it from memory
               canReactive$canNums <-
                 removeCancer(cr = canReactive$canNums,
@@ -1613,22 +1627,22 @@ server <- function(input, output, session) {
                              inp = input,
                              ss = session,
                              trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
-  
+
               # remove the module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
             }
           }
-          
+
           # else, create an empty cancer tracked for this relative
         } else {
           canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
-        
+
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
             for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
-              
+
               # update the geneReactive and also remove and delete all related UI modules for this panel
               out <-
                 removePanel(gr = geneReactive$GeneNums,
@@ -1638,26 +1652,26 @@ server <- function(input, output, session) {
                             inp = input,
                             ss = session)
               geneReactive$GeneNums <- out$gr
-              
+
               # remove each geneUI module associated with this panel from memory
               for(tmp.geneMod.id in out$panel.geneMod.ids){
                 remove_shiny_inputs(tmp.geneMod.id, input)
               }
-              
+
               # remove the panel module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), input)
             }
           }
-          
+
           # else initialize gene tracker for this realtive
         } else {
           geneReactive$GeneNums[[as.character(rl)]] <- relTemplate.trackGenes
         }
-        
+
         ### 2: ORGANIZE JSON DATA TO BE LOADED INTO DATA FRAMES
         ## CANCERS
         if(!is.na(PED()$cancersJSON[which(PED()$ID == rl)])){
-          
+
           # convert JSON into a data frame of cancers
           mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[which(PED()$ID == rl)])
           can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
@@ -1671,14 +1685,14 @@ server <- function(input, output, session) {
             mutate(cbcAge = NA) %>%
             mutate(age = na_if(age, "NA")) %>%
             mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
-          
+
           # combine contralateral into same row as breast and drop the CBC row
           if(any(can.df$cancer == "Breast") & any(can.df$cancer == "Contralateral")){
             can.df$cbc[which(can.df$cancer == "Breast")] <- "Yes"
             can.df$cbcAge[which(can.df$cancer == "Breast")] <- can.df$age[which(can.df$cancer == "Contralateral")]
             can.df <- can.df[which(can.df$cancer != "Contralateral"),]
           }
-          
+
           # append to data frame of cancers for all relatives
           if(is.null(master.can.df)){
             master.can.df <- can.df
@@ -1686,10 +1700,10 @@ server <- function(input, output, session) {
             master.can.df <- rbind(master.can.df, can.df)
           }
         } # end of if statement to check if there was any content in cancersJSON for this relative
-        
+
         ## GENES
         if(!is.na(PED()$genesJSON[which(PED()$ID == rl)])){
-          
+
           # convert JSON into a data frame of genes
           mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[which(PED()$ID == rl)])
           gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
@@ -1697,7 +1711,7 @@ server <- function(input, output, session) {
             gene.df %>%
             mutate(across(.cols = everything(), ~as.character(.))) %>%
             mutate(rel = rl)
-          
+
           # append to data frame of genes for all relatives
           if(is.null(master.gene.df)){
             master.gene.df <- gene.df
@@ -1710,141 +1724,164 @@ server <- function(input, output, session) {
       ### 3: CREATE AND POPULATE MODULES
       ## CANCER
       # create and populate canUI modules
-      lapply(1:nrow(master.can.df), function(x){
-        
-        # create the canUI modules with pre-populated inputs
-        out <- addCancer(cr = canReactive$canNums,
-                         rel = master.can.df$rel[x],
-                         inp = input,
-                         values = list(can = master.can.df$cancer[x],
-                                       age = master.can.df$age[x],
-                                       other = master.can.df$other[x],
-                                       cbc = master.can.df$cbc[x],
-                                       cbcAge = master.can.df$cbcAge[x]),
-                         sex = master.can.df$sex[x])
-        canReactive$canNums <- out$cr
-        trackMax <- out$trackMax
-        id <- out$id
-        
-        # create a remove module button observer for each UI module created
-        observeEvent(input[[paste0(id, '-removeCan')]], {
-          canReactive$canNums <- removeCancer(cr = canReactive$canNums,
-                                              rel = master.can.df$rel[x],
-                                              inp = input,
-                                              ss = session,
-                                              trackMax = trackMax)
+      if(!is.null(master.can.df)){
+        lapply(1:nrow(master.can.df), function(x){
+          
+          # create the canUI modules with pre-populated inputs
+          out <- addCancer(cr = canReactive$canNums,
+                           rel = master.can.df$rel[x],
+                           inp = input,
+                           values = list(can = master.can.df$cancer[x],
+                                         age = master.can.df$age[x],
+                                         other = master.can.df$other[x],
+                                         cbc = master.can.df$cbc[x],
+                                         cbcAge = master.can.df$cbcAge[x]),
+                           sex = master.can.df$sex[x])
+          canReactive$canNums <- out$cr
+          trackMax <- out$trackMax
+          id <- out$id
+          
+          # add a server for checking the validity of the entered cancer age
+          observeEvent(list(input[[paste0(id, "-CanAge")]], input$Age), {
+            validateCanAgeServer(id,
+                                 in.age = input[[paste0(id, "-CanAge")]],
+                                 cur.age = PED()$CurAge[which(PED()$ID == master.can.df$rel[x])])
+          })
+          
+          # add a server for checking the validity of the entered CBC age
+          observeEvent(list(input[[paste0(id, "-CBCAge")]], 
+                            input$Age,
+                            input[[paste0(id, "-Can")]], 
+                            input[[paste0(id, "-CanAge")]]), {
+                              validateCBCAgeServer(id,
+                                                   can = input[[paste0(id, "-Can")]],
+                                                   cbc.age = input[[paste0(id, "-CBCAge")]],
+                                                   bc.age = input[[paste0(id, "-CanAge")]],
+                                                   cur.age = PED()$CurAge[which(PED()$ID == master.can.df$rel[x])])
+                            })
 
-          # remove the module's inputs from memory
-          remove_shiny_inputs(id, input)
+          # create a remove module button observer for each UI module created
+          observeEvent(input[[paste0(id, '-removeCan')]], {
+            canReactive$canNums <- removeCancer(cr = canReactive$canNums,
+                                                rel = master.can.df$rel[x],
+                                                inp = input,
+                                                ss = session,
+                                                trackMax = trackMax)
+
+            # remove the module's inputs from memory
+            remove_shiny_inputs(id, input)
+          })
+
+          ## observe for BC and CBC
+          observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+
+            # reset CBC inputs if cancer is not BC
+            if(input[[paste0(id, '-Can')]] != "Breast"){
+              shinyjs::reset(id = paste0(id, '-CBC'))
+              shinyjs::reset(id = paste0(id, '-CBCAge'))
+            }
+
+            # reset CBC age if CBC is no longer selected
+            if(input[[paste0(id, '-CBC')]] == "No"){
+              shinyjs::reset(id = paste0(id, '-CBCAge'))
+            }
+          }, ignoreInit = T, ignoreNULL = T)
+
+          # create a cancer selection observer which will trigger an update of all of the cancer dropdown
+          # choices for each of the person's cancer UI modules
+          observeEvent(input[[paste0(id, '-Can')]], {
+            updateCancerDropdowns(cr = canReactive$canNums,
+                                  rel = master.can.df$rel[x],
+                                  inp = input,
+                                  ss = session,
+                                  type = "cancer")
+          })
         })
-        
-        ## observe for BC and CBC
-        observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
-          
-          # reset CBC inputs if cancer is not BC
-          if(input[[paste0(id, '-Can')]] != "Breast"){
-            shinyjs::reset(id = paste0(id, '-CBC'))
-            shinyjs::reset(id = paste0(id, '-CBCAge'))
-          }
-          
-          # reset CBC age if CBC is no longer selected
-          if(input[[paste0(id, '-CBC')]] == "No"){
-            shinyjs::reset(id = paste0(id, '-CBCAge'))
-          }
-        }, ignoreInit = T, ignoreNULL = T)
-        
-        # create a cancer selection observer which will trigger an update of all of the cancer dropdown
-        # choices for each of the person's cancer UI modules
-        observeEvent(input[[paste0(id, '-Can')]], {
-          updateCancerDropdowns(cr = canReactive$canNums,
-                                rel = master.can.df$rel[x],
-                                inp = input,
-                                ss = session,
-                                type = "cancer")
-        })
-      })
+      }
       
       ## GENES
       # create and populate panelUI modules
-      lapply(1:nrow(master.gene.df), function(x){
-        
-        # prevent duplication of panels
-        newPan <- FALSE
-        if(x == 1){
-          newPan <- TRUE
-        } else if(master.gene.df$panel[x] != master.gene.df$panel[x-1]){
-          newPan <- TRUE
-        }
-        if(newPan){
-          
-          # create the panelUI module with pre-populated input values
-          out <- addPanel(gr = geneReactive$GeneNums,
-                          rel = master.gene.df$rel[x],
-                          inp = input,
-                          ss = session,
-                          pan.name = master.gene.df$panel[x])
-          geneReactive$GeneNums <- out$gr
-          panel.module.id.num <- out$panel.module.id.num
-          panMod.id <- out$panMod.id
-          
-          # create a remove module button observer for each panelUI module created
-          observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
-            out.rm <- removePanel(gr = geneReactive$GeneNums,
-                                  rel = master.gene.df$rel[x],
-                                  pan.name = master.gene.df$panel[x],
-                                  panel.module.id.num = panel.module.id.num,
-                                  inp = input,
-                                  ss = session)
-            geneReactive$GeneNums <- out.rm$gr
-            
-            # remove each geneUI module associated with this panel from memory
-            for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
-              remove_shiny_inputs(tmp.geneMod.id, input)
-            }
-            
-            # remove the panel module's inputs from memory
-            remove_shiny_inputs(panMod.id, input)
-            
-          }) # end of removePanel observeEvent
-        } # end of if statement to prevent duplication panels
-      }) # end of lapply for creating panelUI modules
-      
-      ## create the geneUI modules by iterating through the rows of the master table of gene results
-      lapply(1:nrow(master.gene.df), function(y){
-        rtype <- master.gene.df$result[y]
-        
-        # only create geneUI modules for non-Neg results
-        if(rtype != "Neg"){
-          out <- addGene(gr = geneReactive$GeneNums,
-                         rel = master.gene.df$rel[y],
-                         inp = input,
-                         p.name = master.gene.df$panel[y],
-                         rtype = rtype,
-                         vals = list(gene = master.gene.df$gene[y],
-                                     nuc = master.gene.df$nuc[y],
-                                     prot = master.gene.df$prot[y],
-                                     zyg = master.gene.df$zyg[y]))
-          geneReactive$GeneNums <- out$gr
-          gene.module.id.num <- out$gene.module.id.num
-          geneMod.id <- out$geneMod.id
-          
-          # create a remove module button observer for each UI module created
-          observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
-            geneReactive$GeneNums <-
-              removeGene(gr = geneReactive$GeneNums,
-                         rel = master.gene.df$rel[y],
-                         inp = input,
-                         p.name = master.gene.df$panel[y],
-                         gene.module.id.num = gene.module.id.num,
-                         geneMod.id = geneMod.id,
-                         rtype = rtype)
-            
-            # remove the module's inputs from memory
-            remove_shiny_inputs(geneMod.id, input)
-          })
-        } # end of if statement checking if the result type is non-Negative
-      }) # end of lapply for creating geneUI modules
-      
+      if(!is.null(master.gene.df)){
+        lapply(1:nrow(master.gene.df), function(x){
+  
+          # prevent duplication of panels
+          newPan <- FALSE
+          if(x == 1){
+            newPan <- TRUE
+          } else if(master.gene.df$panel[x] != master.gene.df$panel[x-1]){
+            newPan <- TRUE
+          }
+          if(newPan){
+  
+            # create the panelUI module with pre-populated input values
+            out <- addPanel(gr = geneReactive$GeneNums,
+                            rel = master.gene.df$rel[x],
+                            inp = input,
+                            ss = session,
+                            pan.name = master.gene.df$panel[x])
+            geneReactive$GeneNums <- out$gr
+            panel.module.id.num <- out$panel.module.id.num
+            panMod.id <- out$panMod.id
+  
+            # create a remove module button observer for each panelUI module created
+            observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
+              out.rm <- removePanel(gr = geneReactive$GeneNums,
+                                    rel = master.gene.df$rel[x],
+                                    pan.name = master.gene.df$panel[x],
+                                    panel.module.id.num = panel.module.id.num,
+                                    inp = input,
+                                    ss = session)
+              geneReactive$GeneNums <- out.rm$gr
+  
+              # remove each geneUI module associated with this panel from memory
+              for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
+                remove_shiny_inputs(tmp.geneMod.id, input)
+              }
+  
+              # remove the panel module's inputs from memory
+              remove_shiny_inputs(panMod.id, input)
+  
+            }) # end of removePanel observeEvent
+          } # end of if statement to prevent duplication panels
+        }) # end of lapply for creating panelUI modules
+  
+        ## create the geneUI modules by iterating through the rows of the master table of gene results
+        lapply(1:nrow(master.gene.df), function(y){
+          rtype <- master.gene.df$result[y]
+  
+          # only create geneUI modules for non-Neg results
+          if(rtype != "Neg"){
+            out <- addGene(gr = geneReactive$GeneNums,
+                           rel = master.gene.df$rel[y],
+                           inp = input,
+                           p.name = master.gene.df$panel[y],
+                           rtype = rtype,
+                           vals = list(gene = master.gene.df$gene[y],
+                                       nuc = master.gene.df$nuc[y],
+                                       prot = master.gene.df$prot[y],
+                                       zyg = master.gene.df$zyg[y]))
+            geneReactive$GeneNums <- out$gr
+            gene.module.id.num <- out$gene.module.id.num
+            geneMod.id <- out$geneMod.id
+  
+            # create a remove module button observer for each UI module created
+            observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
+              geneReactive$GeneNums <-
+                removeGene(gr = geneReactive$GeneNums,
+                           rel = master.gene.df$rel[y],
+                           inp = input,
+                           p.name = master.gene.df$panel[y],
+                           gene.module.id.num = gene.module.id.num,
+                           geneMod.id = geneMod.id,
+                           rtype = rtype)
+  
+              # remove the module's inputs from memory
+              remove_shiny_inputs(geneMod.id, input)
+            })
+          } # end of if statement checking if the result type is non-Negative
+        }) # end of lapply for creating geneUI modules
+      } # end of if statement to check if master.gene.df is not NULL
+
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("visPed")
@@ -1866,6 +1903,26 @@ server <- function(input, output, session) {
       }
       
       # cancers
+      # reset modules and inputs
+      for(rl in as.numeric(names(canReactive$canNums))){
+        
+        # iterate through this relative's cancer hx dictionary, if there is at least one cancer
+        if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
+          for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
+            
+            # update the cancer reactive object, remove the cancerUI module and delete it from memory
+            canReactive$canNums <-
+              removeCancer(cr = canReactive$canNums,
+                           rel = as.character(rl),
+                           inp = input,
+                           ss = session,
+                           trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
+            
+            # remove the module's inputs from memory
+            remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
+          }
+        }
+      }
       canReactive$canNums <- trackCans.init
       
       # cbc
@@ -1888,6 +1945,34 @@ server <- function(input, output, session) {
       # genes
       shinyjs::reset("existingPanels")
       shinyjs::reset("editPanel")
+      
+      # reset modules and inputs
+      for(rl in as.numeric(names(geneReactive$GeneNums))){
+        
+        # iterate through this relative's panel dictionary, if there is at least one panel
+        if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
+          for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
+            
+            # update the geneReactive and also remove and delete all related UI modules for this panel
+            out <-
+              removePanel(gr = geneReactive$GeneNums,
+                          rel = as.character(rl),
+                          pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
+                          panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
+                          inp = input,
+                          ss = session)
+            geneReactive$GeneNums <- out$gr
+            
+            # remove each geneUI module associated with this panel from memory
+            for(tmp.geneMod.id in out$panel.geneMod.ids){
+              remove_shiny_inputs(tmp.geneMod.id, input)
+            }
+            
+            # remove the panel module's inputs from memory
+            remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), input)
+          }
+        }
+      }
       geneReactive$GeneNums <- trackGenes.init
       
       # add relatives
@@ -1904,12 +1989,13 @@ server <- function(input, output, session) {
         shinyjs::reset(paste0("num", relation))
       }
       
+      # update selected users for loading, downloading, and deleting a pedigree
       updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
       updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForDelete", selected = credentials()$info[["user"]])
       
-      # show the pedigree and panelpro tabs when the button is clicked the first time
+      # show the pedigree edit/create tab when the button is clicked the first time
       showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-      showTab("navbarTabs", target = "Run PanelPRO", session = session)
       
       # update selected tabs
       updateTabsetPanel(session, "pedTabs", selected = "Demographics")
@@ -2175,50 +2261,25 @@ server <- function(input, output, session) {
     } else {
       fromAcct <- credentials()$info[["user"]]
     }
+    
     dbExecute(conn = conn,
               statement = paste0("DELETE FROM ", fromAcct, 
                                  " WHERE PedigreeID IN ('", 
                                  paste0(input$selectDeletePeds, collapse = "','"), 
-                                 "';"))
+                                 "');"))
+    
+    # update the list of pedigrees that can be loaded, downloaded, and deleted
+    updated.peds <- unique(dbGetQuery(conn = conn,
+                                      statement = paste0("SELECT PedigreeID FROM ", 
+                                                         fromAcct, 
+                                                         ";"))$PedigreeID)
+    userPeds(updated.peds)
+    userPedsForDownload(updated.peds)
+    userPedsForDelete(updated.peds)
   }, ignoreInit = T)
   
-  ##### Save Pedigree #######
-  observeEvent(input$savePed, {
-    if(!is.null(PED())){
-      
-      # save data for currently selected relative to the pedigree prior to saving pedigree to database
-      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
-                           cr = canReactive$canNums,
-                           sr = surgReactive$lst,
-                           gr = geneReactive$GeneNums,
-                           dupResultGene = dupResultGene(),
-                           sx = input$Sex)
-      )
-      
-      # the database cannot have columns with . in the name
-      s.ped <- PED()
-      colnames(s.ped)[which(colnames(s.ped) == "CK5.6")] <- "CK5_6"
-      mod.ped.cols <- ped.cols
-      mod.ped.cols[which(ped.cols == "CK5.6")] <- "CK5_6"
-      
-      # save
-      saveTableToMaster(conne = conn,
-                        user = credentials()$info[["user"]],
-                        tmp_tbl = s.ped,
-                        col.info = setNames(ped.col.dtypes, mod.ped.cols))
-      
-      # update the list of pedigrees that can be loaded, downloaded, and deleted
-      updated.peds <- unique(dbGetQuery(conn = conn,
-                                        statement = paste0("SELECT PedigreeID FROM ", 
-                                                           credentials()$info[["user"]], 
-                                                           ";"))$PedigreeID)
-      userPeds(updated.peds)
-      userPedsForDownload(updated.peds)
-      userPedsForDelete(updated.peds)
-    }
-  }, ignoreInit = T)
-  
-  #### Demographics / Create Pedigree ####
+  #### Edit Pedigree ####
+  ##### Demographics / Create Pedigree ####
   # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
   nonUniqPedID <- reactiveVal(FALSE)
   output$nonUniqPedID <- reactive({ nonUniqPedID() })
@@ -2278,27 +2339,17 @@ server <- function(input, output, session) {
       showTab("pedTabs", "Surgical Hx", select = FALSE, session)
       showTab("pedTabs", "Tumor Markers", select = FALSE, session)
       showTab("pedTabs", "Genes", select = FALSE, session)
-      showTab("pedTabs", "Add Relatives", select = FALSE, session)
       showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
+      
+      # only show add relatives tab if it is a pedigree being created, not loaded
+      if(newOrLoadFlag() == "new"){
+        showTab("pedTabs", "Add Relatives", select = FALSE, session)
+      } 
     }
   })
   
   # instantiate the pedigree reactive
   PED <- reactiveVal(NULL)
-  
-  # check if ped exists for conditionalPanels
-  pedExists <- reactiveVal(FALSE)
-  output$pedExists <- reactive({ pedExists() })
-  outputOptions(output, 'pedExists', suspendWhenHidden = FALSE)
-  observeEvent(PED(), {
-    if(is.null(PED())){
-      pedExists(FALSE)
-      shinyjs::disable("savePed")
-    } else {
-      pedExists(TRUE)
-      shinyjs::enable("savePed")
-    }
-  }, ignoreNULL = F)
   
   # initialize the pedigree when user leave the proband demographics tab
   onDemoTab <- reactiveVal(TRUE)
@@ -2312,9 +2363,9 @@ server <- function(input, output, session) {
       shinyjs::disable("Sex")
       
       # initialize new pedigree with proband and parents if no pedigree exists
-      create.parents <- FALSE
+      new.ped <- FALSE
       if(is.null(PED())){
-        create.parents <- TRUE
+        new.ped <- TRUE
         if(input$Sex == "Female"){
           ps <- 0
         } else if(input$Sex == "Male"){
@@ -2332,7 +2383,7 @@ server <- function(input, output, session) {
                              an.aj = input$ancAJ, an.it = input$ancIt)
       
       # if this is this is the initialization of the three person pedigree, add the parents
-      if(create.parents){
+      if(new.ped){
         
         # populate mother's race and Ancestry information
         t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
@@ -2345,9 +2396,24 @@ server <- function(input, output, session) {
                                an.aj = input$ancAJ, an.it = input$ancIt)
       }
       
-      # update the pedigree
+      # update the pedigree object
       PED(t.ped)
       
+      # save to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
+      # update the list of pedigrees that can be loaded, downloaded, and deleted
+      if(new.ped){
+        updated.peds <- unique(dbGetQuery(conn = conn,
+                                          statement = paste0("SELECT PedigreeID FROM ", 
+                                                             credentials()$info[["user"]], 
+                                                             ";"))$PedigreeID)
+        userPeds(updated.peds)
+        userPedsForDownload(updated.peds)
+        userPedsForDelete(updated.peds)
+      }
     } # if statement to check whether the pedigree could be created based on the tab and minimum info required
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2358,24 +2424,9 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  
-  
-  
-  # FOR TESTING: VIEW PEDIGREE EVERY TIME IT CHANGES
-  observeEvent(PED(), { View(PED()) }, ignoreNULL = T)
-  
-  
-  
-  
-  #### Cancer History ####
+  ##### Cancer History ####
   # save the number of cancers for each person in the pedigree
   canReactive <- reactiveValues(canNums = trackCans.init)
-  
-  
-  
-  # # FOR TESTING
-  # observeEvent(canReactive$canNums, { View(canReactive$canNums )})
-  
   
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
@@ -2388,6 +2439,25 @@ server <- function(input, output, session) {
     canReactive$canNums <- out$cr
     trackMax <- out$trackMax
     id <- out$id
+    
+    # add a server for checking the validity of the entered cancer age
+    observeEvent(list(input[[paste0(id, "-CanAge")]], input$Age), {
+      validateCanAgeServer(id,
+                           in.age = input[[paste0(id, "-CanAge")]],
+                           cur.age = PED()$CurAge[which(PED()$ID == rel)])
+    })
+    
+    # add a server for checking the validity of the entered CBC age
+    observeEvent(list(input[[paste0(id, "-CBCAge")]], 
+                      input$Age,
+                      input[[paste0(id, "-Can")]], 
+                      input[[paste0(id, "-CanAge")]]), {
+      validateCBCAgeServer(id,
+                           can = input[[paste0(id, "-Can")]],
+                           cbc.age = input[[paste0(id, "-CBCAge")]],
+                           bc.age = input[[paste0(id, "-CanAge")]],
+                           cur.age = PED()$CurAge[which(PED()$ID == rel)])
+    })
     
     ### Cancer UI Remove Observer
     # create a remove module button observer for each UI module created
@@ -2449,6 +2519,11 @@ server <- function(input, output, session) {
     # transfer information to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, sx = input$Sex, cancers.and.ages = can.df))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2459,42 +2534,44 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### CBC Risk ####
+  ##### CBC Risk ####
   # keep track of whether CBC inputs should be shown or not
   showCBCinputs <- reactiveVal(FALSE)
   output$showCBCinputs <- reactive({ showCBCinputs() })
   outputOptions(output, 'showCBCinputs', suspendWhenHidden = FALSE)
-  observeEvent(list(PED(), input$relSelect), {
+  observeEvent(list(PED(), input$relSelect, canReactive$canNums), {
     if(is.null(PED())){
       showCBCinputs(FALSE)
     } else {
       
       # check updated cancers list for presence of BC and CBC
       if(PED()$isAffBC[which(PED()$ID == as.numeric(input$relSelect))] == 1 & 
-         PED()$isAffCBC[which(PED()$ID == as.numeric(input$relSelect))] == 0){ 
+         PED()$isAffCBC[which(PED()$ID == as.numeric(input$relSelect))] == 0 &
+         PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))] == 0){ 
         showCBCinputs(TRUE)
+      } else if(showCBCinputs()){
+        showCBCinputs(FALSE)
+        for(cbc.var in cbcrisk.cols){
+          shinyjs::reset(cbc.var)
+        }
       } else {
         showCBCinputs(FALSE)
       }
       
       # check if any previously recorded CBC related inputs need to be removed and update them
-      rmCBCinputs <- FALSE
       if(!showCBCinputs() & 
-         any(!is.na(PED()[which(PED()$ID == input$relSelect), cbcrisk.cols]))){
-        rmCBCinputs <- TRUE
-        for(cbc.var in cbcrisk.cols){
-          shinyjs::reset(cbc.var)
-        }
-      }
-      
-      # update CBC risk columns in pedigree if required
-      if(rmCBCinputs){
+         any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), cbcrisk.cols]))){
         PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                           cbc.info = list(FirstBCType = input$FirstBCType,
                                           AntiEstrogen = input$AntiEstrogen,
                                           HRPreneoplasia = input$HRPreneoplasia,
                                           BreastDensity = input$BreastDensity,
                                           FirstBCTumorSize = input$FirstBCTumorSize)))
+        
+        # save pedigree to database
+        savePedigreeToDB(conne = conn,
+                         user = credentials()$info[["user"]],
+                         tmp_tbl = PED())
       }
     }
   })
@@ -2517,6 +2594,11 @@ server <- function(input, output, session) {
                                         FirstBCTumorSize = input$FirstBCTumorSize)
                         )
           )
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2527,7 +2609,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### Tumor Markers ####
+  ##### Tumor Markers ####
   # condition to inform UI whether to display tumor markers or not, based on cancer hx
   showBCMarkers <- reactiveVal(FALSE)
   showCRCMarkers <- reactiveVal(FALSE)
@@ -2560,14 +2642,14 @@ server <- function(input, output, session) {
       # check if any previously recorded markers need to be removed and update the inputs
       rmBCmarks <- FALSE
       rmCRCmarks <- FALSE
-      if(!hadBC & any(!is.na(PED()[which(PED()$ID == input$relSelect), PanelPRO:::MARKER_TESTING$BC$MARKERS]))){
+      if(!hadBC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$BC$MARKERS]))){
         rmBCmarks <- TRUE
         for(m in PanelPRO:::MARKER_TESTING$BC$MARKERS){
           m <- ifelse(m == "CK5.6", "CK56", m)
           updateSelectInput(session, m, selected = "Not Tested")
         }
       }
-      if(!hadCRC & any(!is.na(PED()[which(PED()$ID == input$relSelect), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
+      if(!hadCRC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
         rmCRCmarks <- TRUE
         for(m in PanelPRO:::MARKER_TESTING$COL$MARKERS){
           updateSelectInput(session, m, selected = "Not Tested")
@@ -2579,6 +2661,11 @@ server <- function(input, output, session) {
         PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                           er = input$ER, pr = input$PR, her2 = input$HER2,
                           ck5.6 = input$CK56, ck14 = input$CK14, msi = input$MSI))
+        
+        # save pedigree to database
+        savePedigreeToDB(conne = conn,
+                         user = credentials()$info[["user"]],
+                         tmp_tbl = PED())
       }
     }
   })
@@ -2590,6 +2677,11 @@ server <- function(input, output, session) {
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                         er = input$ER, pr = input$PR, her2 = input$HER2,
                         ck5.6 = input$CK56, ck14 = input$CK14, msi = input$MSI))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2601,8 +2693,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE, ignoreNULL = FALSE)
   
   
-  #### Surgical History ####
-  
+  ##### Surgical History ####
   # store for prophylactic surgeries
   surgReactive <- reactiveValues(lst = riskmods.inputs.store)
   observeEvent(list(input$Mast, input$MastAge), {
@@ -2643,7 +2734,7 @@ server <- function(input, output, session) {
   # if sex is changed from female to male, clear all surgical data from inputs and ped
   observeEvent(list(input$Sex), {
     if(!is.null(PED())){
-      if(PED()$Sex[which(PED()$ID == input$relSelect)] == 0){
+      if(PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))] == 0){
         if(input$Sex == "Male"){
           for(sg in c("Mast", "Hyst", "Ooph")){
             updateCheckboxInput(session, sg, value = FALSE)
@@ -2653,6 +2744,11 @@ server <- function(input, output, session) {
             tmp.ped[[paste0("interAge", sg)]][which(tmp.ped$ID == input$relSelect)] <- NA
             PED(tmp.ped)
           }
+          
+          # save pedigree to database
+          savePedigreeToDB(conne = conn,
+                           user = credentials()$info[["user"]],
+                           tmp_tbl = PED())
         }
       }
     }
@@ -2661,19 +2757,19 @@ server <- function(input, output, session) {
   ## validate surgery ages
   # Oophorectomy age
   validOophAge <- reactive({
-    shiny::validate(validateSurgAge(input$OophAge, input$Age, PED()$AgeOC[which(PED()$ID == input$relSelect)]))
+    shiny::validate(validateSurgAge(input$OophAge, input$Age, PED()$AgeOC[which(PED()$ID == as.numeric(input$relSelect))]))
   })
   output$validOophAge <- renderText({ validOophAge() })
   
   # Mastectomy age
   validMastAge <- reactive({
-    shiny::validate(validateSurgAge(input$MastAge, input$Age, PED()$AgeCBC[which(PED()$ID == input$relSelect)]))
+    shiny::validate(validateSurgAge(input$MastAge, input$Age, PED()$AgeCBC[which(PED()$ID == as.numeric(input$relSelect))]))
   })
   output$validMastAge <- renderText({ validMastAge() })
   
   # Hysterectomy age
   validHystAge <- reactive({
-    shiny::validate(validateSurgAge(input$HystAge, input$Age, PED()$AgeENDO[which(PED()$ID == input$relSelect)]))
+    shiny::validate(validateSurgAge(input$HystAge, input$Age, PED()$AgeENDO[which(PED()$ID == as.numeric(input$relSelect))]))
   })
   output$validHystAge <- renderText({ validHystAge() })
   
@@ -2682,6 +2778,11 @@ server <- function(input, output, session) {
   observeEvent(input$pedTabs, {
     if(onSurgTab() & input$pedTabs != "Surgical Hx" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, riskmods.and.ages = surgReactive$lst))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2693,18 +2794,11 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  #### Genes ####
+  ##### Genes ####
   # track the panel and gene UI modules
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
-  
-  # # FOR TESTING
-  # observeEvent(geneReactive$GeneNums, { View(geneReactive$GeneNums )})
-  
-  
-  
-  ##### Panels ####
-  
+  ###### Panels ####
   ### check if the current relative has a least one panel
   atLeastOnePanel <- reactiveVal(FALSE)
   output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
@@ -2760,7 +2854,7 @@ server <- function(input, output, session) {
   ### create new panel (PLACEHOLDER)
   
   
-  ##### PLP Genes ####
+  ###### PLP Genes ####
   # add a PLP geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
   # has a least on panel
@@ -2796,7 +2890,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   
-  ##### VUS Genes ####
+  ###### VUS Genes ####
   # add a VUS geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
   # has a least on panel
@@ -2832,7 +2926,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
 
 
-  ##### BLB Genes ####
+  ###### BLB Genes ####
   # add a BLB geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
   # has a least on panel
@@ -2867,9 +2961,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  
-  ##### Summary Table & Store ####
-
+  ###### Summary Table & Store ####
   # indicator same gene is listed in more than one result category
   dupResultGene <- reactiveVal(FALSE)
   output$dupResultGene <- reactive({ dupResultGene() })
@@ -2901,6 +2993,11 @@ server <- function(input, output, session) {
     if(onGeneTab() & input$pedTabs != "Genes" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
                         gene.results = panelSum()))
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2911,14 +3008,15 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### Add Children, Siblings, Aunts/Uncles ####
-  
+  ##### Add Children, Siblings, Aunts/Uncles ####
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
   visPed <- reactiveVal(FALSE)
+  output$visPed <- reactive({ visPed() })
+  outputOptions(output, 'visPed', suspendWhenHidden = FALSE)
   observeEvent(input$visPed, {
     
-    # update reactive value
+    # update reactive value which triggers showing/hiding the visualized pedigree
     visPed(TRUE)
     
     # only add family members if this is a new pedigree
@@ -3058,6 +3156,11 @@ server <- function(input, output, session) {
         geneReactive$GeneNums[[as.character(np)]] <- relTemplate.trackGenes
       }
       
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
       # update relative selector with all relatives in the pedigree
       updateSelectInput(session = session, inputId = "relSelect", 
                         choices = setNames(PED()$ID, PED()$name), 
@@ -3072,10 +3175,14 @@ server <- function(input, output, session) {
     } # end of if statement for confirming the pedigree is a new creation
   }, ignoreInit = TRUE)
   
-  #### Visualize Pedigree ####
+  ##### Visualize Pedigree ####
   # temporarily: draw pedigree in kinship2
   # replace with pedigreejs
   output$drawPed <- renderPlot({
+    
+    # check pedigree is not NULL, if so issue warning
+    shiny::validate(need(PED(), "The pedigree object PED() is NULL"))
+    
     plot_fam <-
       PED() %>%
       mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
@@ -3109,14 +3216,6 @@ server <- function(input, output, session) {
       }
     }
     
-    
-    
-    
-    View(plot_fam)
-    
-    
-    
-    
     # plot
     dped <- pedigree(id = plot_fam$name,
                      momid = plot_fam$nameMother,
@@ -3126,13 +3225,13 @@ server <- function(input, output, session) {
     plot(dped[paste0(input$pedID)])
   })
   
-  #### Switch Selected Relative ####
+  ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband
   lastRel <- reactiveVal(1)
   
   # 1) save data to pedigree when the relative is switched or if navbarTabs change
   # 2) repopulate inputs with new relative's data from the pedigree
-  observeEvent(list(input$relSelect, input$navbarTabs), {
+  observeEvent(input$relSelect, {
     
     # only execute if a pedigree has been created
     if(!is.null(PED())){
@@ -3146,6 +3245,11 @@ server <- function(input, output, session) {
                            sx = PED()$Sex[which(PED()$ID == lastRel())])
           )
       
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
       # update the last relative selected
       lastRel(as.numeric(input$relSelect))
       
@@ -3157,10 +3261,44 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       
-    } # end of if statement for input$visPed == TRUE
+    }
   }, ignoreInit = TRUE)
   
-  #### PanelPRO ####
+  #### Manage navbarTabs ####
+  # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
+  observe({
+    hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
+    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+  })
+  
+  # only show Run PanelPRO tab when a pedigree has been created or loaded
+  observeEvent(PED(), {
+    if(!is.null(PED())){
+      showTab("navbarTabs", target = "Run PanelPRO", session = session)
+    } else {
+      hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+    }
+  })
+  
+  # Save data to pedigree when navbarTabs change
+  observeEvent(input$navbarTabs, {
+    if(!is.null(PED())){
+      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
+                           cr = canReactive$canNums,
+                           sr = surgReactive$lst,
+                           gr = geneReactive$GeneNums,
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+      )
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+    }
+  }, ignoreInit = TRUE)
+  
+  #### PanelPRO PLACEHOLDER ####
 
   
 }

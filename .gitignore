@@ -55,3 +55,9 @@
 # secrets
 **.json
 **/test_accounts.txt
+
+# database files
+sql-db-dump/
+
+# google analytics
+**/google-analytics.html

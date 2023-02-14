@@ -116,7 +116,6 @@ assumeBackground <- function(tmp.ped, assume.from = NULL, id = NULL){
                 an.aj = NPPAJ, an.it = NPPIt)
 }
 
-
 # validate age values are between min.age and m
 validateAge <- function(cur.age){
   if(!is.na(cur.age)){
