@@ -2542,7 +2542,7 @@ server <- function(input, output, session) {
       if(PED()$isAffBC[which(PED()$ID == as.numeric(input$relSelect))] == 1 & 
          PED()$isAffCBC[which(PED()$ID == as.numeric(input$relSelect))] == 0){ 
         showCBCinputs(TRUE)
-      } else {
+      } else if(showCBCinputs()){
         showCBCinputs(FALSE)
         for(cbc.var in cbcrisk.cols){
           shinyjs::reset(cbc.var)
@@ -2550,14 +2550,8 @@ server <- function(input, output, session) {
       }
       
       # check if any previously recorded CBC related inputs need to be removed and update them
-      rmCBCinputs <- FALSE
       if(!showCBCinputs() & 
          any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), cbcrisk.cols]))){
-        rmCBCinputs <- TRUE
-      }
-      
-      # update CBC risk columns in pedigree if required
-      if(rmCBCinputs){
         PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                           cbc.info = list(FirstBCType = input$FirstBCType,
                                           AntiEstrogen = input$AntiEstrogen,
