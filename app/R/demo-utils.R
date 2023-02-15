@@ -132,25 +132,25 @@ validateAge <- function(cur.age, oldest.child.age = NA, youngest.parent.age = NA
         # check person is younger than their youngest parent by 10 years or more
         youngerThanParent <- TRUE
         if(!is.na(youngest.parent.age)){
-          youngerThanParent <- cur.age <= youngest.parent.age - 10
+          youngerThanParent <- cur.age <= youngest.parent.age - min.parent.child.age.diff
         }
         
         # check person is older than their oldest child by 10 years or more
         olderThanChild <- TRUE
         if(!is.na(oldest.child.age)){
-          olderThanChild <- cur.age >= oldest.child.age + 10
+          olderThanChild <- cur.age >= oldest.child.age + min.parent.child.age.diff
         }
         
         # message if parent or child age rules violated
         if(!youngerThanParent & !olderThanChild){
           need(all(youngerThanParent, olderThanChild),
-               paste0("Age must be at least 10 years older than their oldest child, ", oldest.child.age,", and 10 years younger than their youngest parent, ",youngest.parent.age,"."))
+               paste0("Age must be at least ", min.parent.child.age.diff," years older than their oldest child, ", oldest.child.age,", and 10 years younger than their youngest parent, ",youngest.parent.age,"."))
         } else if(!youngerThanParent){
           need(youngerThanParent,
-               paste0("Age must be at least 10 years younger than their youngest parent, ", youngest.parent.age,"."))
+               paste0("Age must be at least ", min.parent.child.age.diff," years younger than their youngest parent, ", youngest.parent.age,"."))
         } else if(!olderThanChild){
           need(olderThanChild,
-               paste0("Age must be at least 10 years older than their oldest child, ", oldest.child.age,"."))
+               paste0("Age must be at least ", min.parent.child.age.diff," years older than their oldest child, ", oldest.child.age,"."))
         }
         
         # CurAge was not in range or was not an integer

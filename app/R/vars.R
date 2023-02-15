@@ -52,6 +52,7 @@ expireCode <- 10000
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
 max.age <- 89
 min.age <- 1
+min.parent.child.age.diff <- 10
 
 # sex choices
 sex.choices <- c(" "=" ","Female"="Female","Male"="Male")
