@@ -799,7 +799,7 @@ ui <- fixedPage(
                       ),
                       
                       # data frame with panel summary information
-                      DT::dataTableOutput("panelSum")
+                      DT::DTOutput("panelSum")
                     )
                   ) # end of tab for gene results summary
                 ) # end tabsetPanel for gene results screen
@@ -3002,7 +3002,7 @@ server <- function(input, output, session) {
   })
 
   # output formatted data table colored by result type
-  output$panelSum <- DT::renderDataTable({
+  output$panelSum <- DT::renderDT({
     if(!is.null(panelSum())){
       datatable(panelSum()) %>%
         formatStyle('Result',
@@ -3010,7 +3010,7 @@ server <- function(input, output, session) {
                                                  c("MistyRose","LightGreen","AliceBlue","white")),
                     fontWeight = 'bold')
     }
-  })
+  }, server = F)
 
   # add data to pedigree when user navigates off of the tab
   onGeneTab <- reactiveVal(FALSE)
