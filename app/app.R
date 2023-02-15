@@ -2363,7 +2363,44 @@ server <- function(input, output, session) {
   
   # validate current age
   validAge <- reactive({
-    shiny::validate(validateAge(input$Age))
+    if(is.null(PED())){
+      return(shiny::validate(validateAge(input$Age)))
+    } else {
+      
+      # check for parents and get parent's ages
+      mom.age <- PED()$CurAge[which(PED()$ID == PED()$MotherID[which(PED()$ID == as.numeric(input$relSelect))])]
+      dad.age <- PED()$CurAge[which(PED()$ID == PED()$FatherID[which(PED()$ID == as.numeric(input$relSelect))])]
+      if(length(mom.age) == 0 & length(dad.age) == 0){
+        p.ages <- NA
+      } else if(length(mom.age) == 0){
+        p.ages <- dad.age
+      } else if(length(dad.age) == 0){
+        p.ages <- mom.age
+      } else {
+        p.ages <- c(mom.age, dad.age)
+      }
+      if(all(is.na(p.ages))){
+        youngest.parent.age <- NA
+      } else {
+        youngest.parent.age <- min(p.ages, na.rm = T)
+      }
+      
+      # check for children and get their ages
+      children.ids <- c(PED()$ID[which(PED()$MotherID == as.numeric(input$relSelect))],
+                        PED()$ID[which(PED()$FatherID == as.numeric(input$relSelect))])
+      if(length(children.ids) > 0){
+        child.ages <- PED()$CurAge[which(PED()$ID %in% children.ids)]
+        if(all(is.na(child.ages))){
+          oldest.child.age <- NA
+        } else {
+          oldest.child.age <- max(child.ages, na.rm = T)
+        }
+      } else {
+        oldest.child.age <- NA
+      }
+      
+      return(shiny::validate(validateAge(input$Age, oldest.child.age, youngest.parent.age)))
+    }
   })
   output$validAge <- renderText({ validAge() })
   
@@ -2396,15 +2433,8 @@ server <- function(input, output, session) {
   
   # hide/show tabs if on the demographics tab based on if minimum information to create
   # a pedigree is present or not
-  observeEvent(pbMinInfo(), {
-    if(!pbMinInfo()){
-      hideTab("pedTabs", "Cancer Hx", session)
-      hideTab("pedTabs", "CBC Risk", session)
-      hideTab("pedTabs", "Surgical Hx", session)
-      hideTab("pedTabs", "Tumor Markers", session)
-      hideTab("pedTabs", "Genes", session)
-      hideTab("pedTabs", "Add Relatives", session)
-    } else if(pbMinInfo()){
+  observeEvent(list(pbMinInfo(), PED()), {
+    if(pbMinInfo() & !is.null(PED())){
       showTab("pedTabs", "Cancer Hx", select = FALSE, session)
       showTab("pedTabs", "CBC Risk", select = FALSE, session)
       showTab("pedTabs", "Surgical Hx", select = FALSE, session)
@@ -2415,6 +2445,13 @@ server <- function(input, output, session) {
       if(newOrLoadFlag() == "new"){
         showTab("pedTabs", "Add Relatives", select = FALSE, session)
       } 
+    } else {
+      hideTab("pedTabs", "Cancer Hx", session)
+      hideTab("pedTabs", "CBC Risk", session)
+      hideTab("pedTabs", "Surgical Hx", session)
+      hideTab("pedTabs", "Tumor Markers", session)
+      hideTab("pedTabs", "Genes", session)
+      hideTab("pedTabs", "Add Relatives", session)
     }
   })
   
@@ -2471,7 +2508,7 @@ server <- function(input, output, session) {
   observeEvent(input$pedTabs, {
     
     # execute if the previous tab was the proband demographics tab and the current tab is different
-    if(onDemoTab() & input$pedTabs != "Demographics"){
+    if(onDemoTab() & input$pedTabs != "Demographics" & !is.null(PED())){
       
       # populate proband's demographics data and PedigreeID
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age, 
