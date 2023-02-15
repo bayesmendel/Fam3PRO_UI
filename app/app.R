@@ -2268,8 +2268,21 @@ server <- function(input, output, session) {
     }
   }, ignoreNULL = F)
   
-  # delete the selected pedigrees
+  # user confirms deletion
   observeEvent(input$deletePeds, {
+    showModal(modalDialog(
+      tagList(p("Are you sure you want to delete the selected pedigrees from your account? 
+                You cannot undo this action.")),
+      title = "Deletion Confirmation",
+      footer = tagList(
+        actionButton("confirmDeletePeds", "Delete"),
+        modalButton("Cancel")
+      )
+    ))
+  })
+  
+  # delete the selected pedigrees
+  observeEvent(input$confirmDeletePeds, {
     if(admin() | manager()){
       fromAcct <- ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
                          input$selectUserForDelete)
@@ -2298,6 +2311,10 @@ server <- function(input, output, session) {
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
+    
+    # remove the confirmation pop-up window
+    removeModal()
+    
   }, ignoreInit = T)
   
   #### Edit Pedigree ####
@@ -2354,14 +2371,12 @@ server <- function(input, output, session) {
       hideTab("pedTabs", "Tumor Markers", session)
       hideTab("pedTabs", "Genes", session)
       hideTab("pedTabs", "Add Relatives", session)
-      hideTab("pedTabs", "Family Tree and Relative Information", session)
     } else if(pbMinInfo()){
       showTab("pedTabs", "Cancer Hx", select = FALSE, session)
       showTab("pedTabs", "CBC Risk", select = FALSE, session)
       showTab("pedTabs", "Surgical Hx", select = FALSE, session)
       showTab("pedTabs", "Tumor Markers", select = FALSE, session)
       showTab("pedTabs", "Genes", select = FALSE, session)
-      showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
       
       # only show add relatives tab if it is a pedigree being created, not loaded
       if(newOrLoadFlag() == "new"){
