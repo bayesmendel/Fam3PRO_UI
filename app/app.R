@@ -368,7 +368,7 @@ ui <- fixedPage(
         fluidRow(
           
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
-          conditionalPanel("output.visPed",
+          conditionalPanel("output.showPed",
             column(width = 6,
                    
               # top row to select which relative is being edited
@@ -404,7 +404,7 @@ ui <- fixedPage(
                 textInput("pedID", label = h5("*Unique Pedigree ID:"),
                           value = "",
                           width = "225px"),
-                conditionalPanel("!output.visPed",
+                conditionalPanel("!output.showPed",
                   h5("Privacy note: the ID number cannot contain identifying information.",
                      style = "color:blue")
                 ),
@@ -425,19 +425,30 @@ ui <- fixedPage(
                 textOutput("validAge"),
                 tags$head(tags$style("#validAge{color: red;}")),
                 
-                # race, ethnicity, and ancestry inputs
-                selectInput("race", label = h5("Race:"),
-                            choices = rc.choices,
-                            selected = "Other or Unreported",
-                            width = "45%"),
-                selectInput("eth", label = h5("Hispanic Ethnicity:"),
-                            choices = et.choices,
-                            selected = "Other or Unreported",
-                            width = "45%"),
-                h5("Ancestry (check all that apply):"),
-                div(style = "margin-left:25px",
-                  checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
-                  checkboxInput("ancIt", label = "Italian")
+                # is pedigree does not exist yet, show a create pedigree button
+                conditionalPanel("!output.pedExists",
+                  actionButton("createPed", label = "Create Pedigree",
+                               icon = icon('play'),
+                               style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+                ),
+                
+                # once a pedigree exists, show other demographic options
+                conditionalPanel("output.pedExists",
+                  
+                  # race, ethnicity, and ancestry inputs
+                  selectInput("race", label = h5("Race:"),
+                              choices = rc.choices,
+                              selected = "Other or Unreported",
+                              width = "45%"),
+                  selectInput("eth", label = h5("Hispanic Ethnicity:"),
+                              choices = et.choices,
+                              selected = "Other or Unreported",
+                              width = "45%"),
+                  h5("Ancestry (check all that apply):"),
+                  div(style = "margin-left:25px",
+                    checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
+                    checkboxInput("ancIt", label = "Italian")
+                  )
                 )
               ), # end of demographics tab
               
@@ -905,7 +916,7 @@ ui <- fixedPage(
                 # button to create visual pedigree
                 h4("To Continue"),
                 h5("Press the button below to create the proband's pedigree."),
-                actionButton("visPed", label = "Create Pedigree", icon = icon('play'),
+                actionButton("showPed", label = "Create Pedigree", icon = icon('play'),
                              style = "color: white; background-color: #10699B; border-color: #10699B")
                 
               ) # end of number and type of rels tab
@@ -962,7 +973,9 @@ ui <- fixedPage(
         ),
         conditionalPanel("output.manager",
           p("Your user account has manager level permissions. This means you can load, run, view, edit, save, 
-            download and delete pedigrees from any user account which listed your username as one of their managers.")
+            download and delete pedigrees from any user account which listed your username as one of their managers."),
+          p("You currently manage the following accounts:"),
+          tagAppendAttributes(textOutput("managedAccts"), style="white-space:pre-wrap;")
         ),
         conditionalPanel("!output.manager & !output.admin",
           p("Your account has user level permissions. This means you can load, run, view, edit, save, 
@@ -1510,6 +1523,19 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
   }, ignoreInit = TRUE)
   
+  ##### Show Managed Accounts ####
+  output$managedAccts <- renderText({
+    if(manager()){
+      maccnts <- dbGetQuery(conn = conn,
+                            statement = paste0("SELECT user FROM managers ", 
+                                               "WHERE manager='", credentials()$info[["user"]],"';"
+                                               ))$user
+      return(paste0(maccnts, collapse = "\n"))
+    } else {
+      return("")
+    }
+  })
+  
   #### Manage User Pedigrees ####
   ##### Load/Create New Pedigree ####
   
@@ -1910,7 +1936,7 @@ server <- function(input, output, session) {
 
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
-      shinyjs::click("visPed")
+      shinyjs::click("showPed")
       
       # reset the pedigree loading selector
       updateSelectInput(session, "existingPed", selected = "No pedigree selected")
@@ -2005,7 +2031,7 @@ server <- function(input, output, session) {
       geneReactive$GeneNums <- trackGenes.init
       
       # add relatives
-      visPed(FALSE)
+      showPed(FALSE)
       
     } # end of else for creating a new pedigree
     
@@ -2342,6 +2368,7 @@ server <- function(input, output, session) {
   output$validAge <- renderText({ validAge() })
   
   # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
+  # also disable/enable create pedigree button based on presense/absense of minimum necessary information
   pbMinInfo <- reactiveVal(FALSE)
   output$pbMinInfo <- reactive({ pbMinInfo() })
   outputOptions(output, 'pbMinInfo', suspendWhenHidden = FALSE)
@@ -2358,6 +2385,12 @@ server <- function(input, output, session) {
       pbMinInfo(TRUE)
     } else {
       pbMinInfo(FALSE)
+    }
+    
+    if(pbMinInfo()){
+      shinyjs::enable("createPed")
+    } else {
+      shinyjs::disable("createPed")
     }
   }, ignoreInit = T)
   
@@ -2387,70 +2420,76 @@ server <- function(input, output, session) {
   
   # instantiate the pedigree reactive
   PED <- reactiveVal(NULL)
+  pedExists <- reactiveVal(FALSE)
+  output$pedExists <- reactive({ pedExists() })
+  outputOptions(output, 'pedExists', suspendWhenHidden = FALSE)
+  observeEvent(PED(), {
+    if(!is.null(PED())){
+      pedExists(TRUE)
+    } else {
+      pedExists(FALSE)
+    }
+  }, ignoreInit = T, ignoreNULL = F)
   
-  # initialize the pedigree when user leave the proband demographics tab
+  # initialize the pedigree when the user clicks the "Create pedigree" buttons
+  observeEvent(input$createPed, {
+    
+    # lock fields
+    shinyjs::disable("pedID")
+    shinyjs::disable("Sex")
+    
+    # initialize new pedigree with proband and parents
+    if(input$Sex == "Female"){
+      ps <- 0
+    } else if(input$Sex == "Male"){
+      ps <- 1
+    } else {
+      ps <- NA
+    }
+    PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
+    
+    # populate proband's age
+    PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age))
+    
+    # save to database
+    savePedigreeToDB(conne = conn,
+                     user = credentials()$info[["user"]],
+                     tmp_tbl = PED())
+    
+    # update the list of pedigrees that can be loaded, downloaded, and deleted
+    updated.peds <- unique(dbGetQuery(conn = conn,
+                                      statement = paste0("SELECT PedigreeID FROM ", 
+                                                         credentials()$info[["user"]], 
+                                                         ";"))$PedigreeID)
+    userPeds(updated.peds)
+    userPedsForDownload(updated.peds)
+    userPedsForDelete(updated.peds)
+  })
+  
+  # populate the age, race, ethnicity, and ancestry values in the pedigree whenever the user leaves the demographics tab
   onDemoTab <- reactiveVal(TRUE)
   observeEvent(input$pedTabs, {
     
     # execute if the previous tab was the proband demographics tab and the current tab is different
-    if(onDemoTab() & input$pedTabs != "Demographics" & pbMinInfo()){
-      
-      # lock fields
-      shinyjs::disable("pedID")
-      shinyjs::disable("Sex")
-      
-      # initialize new pedigree with proband and parents if no pedigree exists
-      new.ped <- FALSE
-      if(is.null(PED())){
-        new.ped <- TRUE
-        if(input$Sex == "Female"){
-          ps <- 0
-        } else if(input$Sex == "Male"){
-          ps <- 1
-        } else {
-          ps <- NA
-        }
-        PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
-      }
+    if(onDemoTab() & input$pedTabs != "Demographics"){
       
       # populate proband's demographics data and PedigreeID
-      t.ped <- PED()
-      t.ped <- popPersonData(tmp.ped = t.ped, id = input$relSelect, cur.age = input$Age, 
-                             rc = input$race, et = input$eth, 
-                             an.aj = input$ancAJ, an.it = input$ancIt)
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age, 
+                        rc = input$race, et = input$eth, 
+                        an.aj = input$ancAJ, an.it = input$ancIt))
       
-      # if this is this is the initialization of the three person pedigree, add the parents
-      if(new.ped){
-        
-        # populate mother's race and Ancestry information
-        t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
-                               rc = input$race, et = input$eth, 
-                               an.aj = input$ancAJ, an.it = input$ancIt)
-        
-        # populate father's race and Ancestry information
-        t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$FatherID[which(t.ped$isProband == 1)], 
-                               rc = input$race, et = input$eth, 
-                               an.aj = input$ancAJ, an.it = input$ancIt)
+      # if the mother and father's information cannot be set individually yet (pedigree has not been visualized)
+      # then assume they have the same background as the proband
+      if(!showPed()){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
       }
-      
-      # update the pedigree object
-      PED(t.ped)
       
       # save to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
       
-      # update the list of pedigrees that can be loaded, downloaded, and deleted
-      if(new.ped){
-        updated.peds <- unique(dbGetQuery(conn = conn,
-                                          statement = paste0("SELECT PedigreeID FROM ", 
-                                                             credentials()$info[["user"]], 
-                                                             ";"))$PedigreeID)
-        userPeds(updated.peds)
-        userPedsForDownload(updated.peds)
-        userPedsForDelete(updated.peds)
-      }
     } # if statement to check whether the pedigree could be created based on the tab and minimum info required
     
     # update the reactive value to detect if the current tab is the target tab
@@ -3090,7 +3129,7 @@ server <- function(input, output, session) {
   })
   output$validPUncQty <- renderText({ validPUncQty() })
   
-  # disable visPed button if any relative quantities are invalid
+  # disable showPed button if any relative quantities are invalid
   observe({
     total.rel.qty.errors <- sum(
       length(validateRelNums(input$numDau)),
@@ -3103,22 +3142,22 @@ server <- function(input, output, session) {
       length(validateRelNums(input$numPUnc))
     )
     if(total.rel.qty.errors > 0){
-      shinyjs::disable("visPed")
+      shinyjs::disable("showPed")
     } else if(total.rel.qty.errors == 0){
-      shinyjs::enable("visPed")
+      shinyjs::enable("showPed")
     }
   })
   
   
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
-  visPed <- reactiveVal(FALSE)
-  output$visPed <- reactive({ visPed() })
-  outputOptions(output, 'visPed', suspendWhenHidden = FALSE)
-  observeEvent(input$visPed, {
+  showPed <- reactiveVal(FALSE)
+  output$showPed <- reactive({ showPed() })
+  outputOptions(output, 'showPed', suspendWhenHidden = FALSE)
+  observeEvent(input$showPed, {
     
     # update reactive value which triggers showing/hiding the visualized pedigree
-    visPed(TRUE)
+    showPed(TRUE)
     
     # only add family members if this is a new pedigree
     if(newOrLoadFlag() == "new"){
@@ -3514,6 +3553,13 @@ server <- function(input, output, session) {
                            dupResultGene = dupResultGene(),
                            sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
       )
+      
+      # if tab is switched prior to pedigree being visualized, when the parent's
+      # race/eth/anc cannot be individually set, assume those values from the proband
+      if(input$pedTabs == "Demographics" & !showPed() & newOrLoadFlag() == "new"){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
+      }
       
       # save pedigree to database
       savePedigreeToDB(conne = conn,
