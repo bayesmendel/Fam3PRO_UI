@@ -2031,11 +2031,11 @@ server <- function(input, output, session) {
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
-      PED(NULL)
       
       ## reset inputs and input reactives
       shinyjs::reset("relSelect")
       lastRel(1)
+      PED(NULL)
       
       # demo
       shinyjs::enable("pedID")
@@ -2111,13 +2111,15 @@ server <- function(input, output, session) {
             }
             
             # remove the panel module's inputs from memory
-            remove_shiny_inputs(paste0("rel", rl, "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), input)
+            remove_shiny_inputs(paste0("rel", rl, 
+                                       "PanelModule", geneReactive$GeneNums[[as.character(rl)]]$dict[pMod]), 
+                                input)
           }
         }
       }
       geneReactive$GeneNums <- trackGenes.init
       
-      # add relatives
+      # show "add relatives" tab and don't display the pedigree tree & table
       showPed(FALSE)
       
     } # end of else for creating a new pedigree
@@ -2134,6 +2136,8 @@ server <- function(input, output, session) {
       # update selected users for loading, downloading, and deleting a pedigree
       updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
       updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForCopyTo", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForCopyFrom", selected = credentials()$info[["user"]])
       updateSelectInput(session, "selectUserForDelete", selected = credentials()$info[["user"]])
       
       # show the pedigree edit/create tab when the button is clicked the first time
@@ -3182,56 +3186,63 @@ server <- function(input, output, session) {
   output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
   outputOptions(output, 'atLeastOnePanel', suspendWhenHidden = FALSE)
   observeEvent(list(geneReactive$GeneNums, input$relSelect), {
-    if(geneReactive$GeneNums[[input$relSelect]]$panels$panel1$name == "No panel selected"){
-      atLeastOnePanel(FALSE)
+    
+    # if statement to address bug fix that occurs when resetting inputs during create new pedigree process 
+    # while previous relSelect was not the proband, mother, or father
+    if(any(names(geneReactive$GeneNums) == input$relSelect)){
+      if(geneReactive$GeneNums[[input$relSelect]]$panels$panel1$name == "No panel selected"){
+        atLeastOnePanel(FALSE)
+      } else {
+        atLeastOnePanel(TRUE)
+      }
     } else {
-      atLeastOnePanel(TRUE)
+      atLeastOnePanel(FALSE)
     }
   })
-  
+
   ### add an existing panel
   observeEvent(input$addPanel, {
-    
+
     # check that the selected panel is an actual panel
     if(!input$existingPanels %in% c("No panel selected", "Create new")){
       rel <- input$relSelect
       pan.name <- input$existingPanels
-      out <- addPanel(gr = geneReactive$GeneNums, 
-                      rel = rel, 
+      out <- addPanel(gr = geneReactive$GeneNums,
+                      rel = rel,
                       inp = input,
                       ss = session,
                       pan.name = pan.name)
       geneReactive$GeneNums <- out$gr
       panel.module.id.num <- out$panel.module.id.num
       panMod.id <- out$panMod.id
-      
+
       ## panelUI Remove Observer
       # create a remove module button observer for each panelUI module created
       observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
-        out.rm <- removePanel(gr = geneReactive$GeneNums, 
-                              rel = rel, 
+        out.rm <- removePanel(gr = geneReactive$GeneNums,
+                              rel = rel,
                               pan.name = pan.name,
                               panel.module.id.num = panel.module.id.num,
-                              inp = input, 
+                              inp = input,
                               ss = session)
         geneReactive$GeneNums <- out.rm$gr
-        
+
         # remove each geneUI module associated with this panel from memory
         for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
           remove_shiny_inputs(tmp.geneMod.id, input)
         }
-        
+
         # remove the panel module's inputs from memory
         remove_shiny_inputs(panMod.id, input)
-        
+
       }) # end of removePanel observeEvent
     } # end of if statement to check if the request to create the new panel had a valid panel name
   }) # end of observeEvent for creating a new panelUI module
-  
-  
+
+
   ### create new panel (PLACEHOLDER)
-  
-  
+
+
   ###### PLP Genes ####
   # add a PLP geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
@@ -3241,33 +3252,33 @@ server <- function(input, output, session) {
       rel <- input$relSelect
       p.name <- input$editPanel
       rtype <- "PLP"
-      out <- addGene(gr = geneReactive$GeneNums, 
-                     rel = rel, 
-                     inp = input, 
-                     p.name = p.name, 
+      out <- addGene(gr = geneReactive$GeneNums,
+                     rel = rel,
+                     inp = input,
+                     p.name = p.name,
                      rtype = rtype)
       geneReactive$GeneNums <- out$gr
       gene.module.id.num <- out$gene.module.id.num
       geneMod.id <- out$geneMod.id
-      
+
       # create a remove module button observer for each UI module created
       observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
-        geneReactive$GeneNums <- 
-          removeGene(gr = geneReactive$GeneNums, 
-                     rel = rel, 
-                     inp = input, 
-                     p.name = p.name, 
+        geneReactive$GeneNums <-
+          removeGene(gr = geneReactive$GeneNums,
+                     rel = rel,
+                     inp = input,
+                     p.name = p.name,
                      gene.module.id.num = gene.module.id.num,
                      geneMod.id = geneMod.id,
                      rtype = rtype)
-        
+
         # remove the module's inputs from memory
         remove_shiny_inputs(geneMod.id, input)
       })
     }
   }, ignoreInit = TRUE)
-  
-  
+
+
   ###### VUS Genes ####
   # add a VUS geneUI module on button click and advance the module counter
   # note, a conditionalPanel ensures the button is only displayed if the relative
@@ -3277,26 +3288,26 @@ server <- function(input, output, session) {
       rel <- input$relSelect
       p.name <- input$editPanel
       rtype <- "VUS"
-      out <- addGene(gr = geneReactive$GeneNums, 
-                     rel = rel, 
-                     inp = input, 
-                     p.name = p.name, 
+      out <- addGene(gr = geneReactive$GeneNums,
+                     rel = rel,
+                     inp = input,
+                     p.name = p.name,
                      rtype = rtype)
       geneReactive$GeneNums <- out$gr
       gene.module.id.num <- out$gene.module.id.num
       geneMod.id <- out$geneMod.id
-      
+
       # create a remove module button observer for each UI module created
       observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
-        geneReactive$GeneNums <- 
-          removeGene(gr = geneReactive$GeneNums, 
-                     rel = rel, 
-                     inp = input, 
-                     p.name = p.name, 
+        geneReactive$GeneNums <-
+          removeGene(gr = geneReactive$GeneNums,
+                     rel = rel,
+                     inp = input,
+                     p.name = p.name,
                      gene.module.id.num = gene.module.id.num,
                      geneMod.id = geneMod.id,
                      rtype = rtype)
-        
+
         # remove the module's inputs from memory
         remove_shiny_inputs(geneMod.id, input)
       })
@@ -3313,32 +3324,32 @@ server <- function(input, output, session) {
       rel <- input$relSelect
       p.name <- input$editPanel
       rtype <- "BLB"
-      out <- addGene(gr = geneReactive$GeneNums, 
-                     rel = rel, 
-                     inp = input, 
-                     p.name = p.name, 
+      out <- addGene(gr = geneReactive$GeneNums,
+                     rel = rel,
+                     inp = input,
+                     p.name = p.name,
                      rtype = rtype)
       geneReactive$GeneNums <- out$gr
       gene.module.id.num <- out$gene.module.id.num
       geneMod.id <- out$geneMod.id
-      
+
       # create a remove module button observer for each UI module created
       observeEvent(input[[paste0(geneMod.id, '-removeGene')]], {
-        geneReactive$GeneNums <- 
-          removeGene(gr = geneReactive$GeneNums, 
-                     rel = rel, 
-                     inp = input, 
-                     p.name = p.name, 
+        geneReactive$GeneNums <-
+          removeGene(gr = geneReactive$GeneNums,
+                     rel = rel,
+                     inp = input,
+                     p.name = p.name,
                      gene.module.id.num = gene.module.id.num,
                      geneMod.id = geneMod.id,
                      rtype = rtype)
-        
+
         # remove the module's inputs from memory
         remove_shiny_inputs(geneMod.id, input)
       })
     }
   }, ignoreInit = TRUE)
-  
+
   ###### Summary Table & Store ####
   # indicator same gene is listed in more than one result category
   dupResultGene <- reactiveVal(FALSE)
@@ -3347,7 +3358,7 @@ server <- function(input, output, session) {
 
   # panel summary table
   panelSum <- reactive({
-    out <- makeGeneDF(rel = input$relSelect, gr = geneReactive$GeneNums, 
+    out <- makeGeneDF(rel = input$relSelect, gr = geneReactive$GeneNums,
                       dupResultGene = dupResultGene(),
                       inp = input)
     dupResultGene(out$dupResultGene)
@@ -3371,13 +3382,13 @@ server <- function(input, output, session) {
     if(onGeneTab() & input$pedTabs != "Genes" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
                         gene.results = panelSum()))
-      
+
       # save pedigree to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
     }
-    
+
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Genes"){
       onGeneTab(TRUE)
@@ -3441,9 +3452,9 @@ server <- function(input, output, session) {
       length(validateRelNums(input$numPUnc))
     )
     if(total.rel.qty.errors > 0){
-      shinyjs::disable("showPed")
+      shinyjs::disable("showPedButton")
     } else if(total.rel.qty.errors == 0){
-      shinyjs::enable("showPed")
+      shinyjs::enable("showPedButton")
     }
   })
   
@@ -3776,7 +3787,6 @@ server <- function(input, output, session) {
       return(PED()$name[which(PED()$ID == input$relSelect)])
     }
   })
-  
   output$rop1 <- renderText({ paste0(relOrProband(),"'s") })          # Demographics heading
   output$rop2 <- renderText({ paste0(tolower(relOrProband()),"'s") }) # Demographics instructions
   output$rop3 <- renderText({ paste0(relOrProband(),"'s") })          # Cancer Hx heading
@@ -3866,30 +3876,6 @@ server <- function(input, output, session) {
       return(paste0("the ", tolower(relOrProband())))
     }
   })
-  
-  # ## Change instructions when the proband is the selected relative
-  # observeEvent(list(PED(), input$relSelect), {
-  #   
-  #   # when there is no pedigree
-  #   if(is.null(PED())){
-  #     is.pb <- FALSE
-  #     
-  #     # when the selected relative is NOT the proband
-  #   } else if(as.numeric(input$relSelect) != PED()$ID[which(PED()$isProband == 1)]){
-  #     is.pb <- FALSE
-  #     
-  #     # when the selected relative is the proband
-  #   } else if(as.numeric(input$relSelect) == PED()$ID[which(PED()$isProband == 1)]){
-  #     is.pb <- TRUE
-  #   }
-  #   
-  #   # change the instructions
-  #   if(is.pb){
-  #     
-  #   } else {
-  #     
-  #   }
-  # }, ignoreNULL = T)
   
   #### Manage navbarTabs ####
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
