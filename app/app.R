@@ -2031,11 +2031,11 @@ server <- function(input, output, session) {
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
-      PED(NULL)
       
       ## reset inputs and input reactives
       shinyjs::reset("relSelect")
       lastRel(1)
+      PED(NULL)
       
       # demo
       shinyjs::enable("pedID")
@@ -2134,6 +2134,8 @@ server <- function(input, output, session) {
       # update selected users for loading, downloading, and deleting a pedigree
       updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
       updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForCopyTo", selected = credentials()$info[["user"]])
+      updateSelectInput(session, "selectUserForCopyFrom", selected = credentials()$info[["user"]])
       updateSelectInput(session, "selectUserForDelete", selected = credentials()$info[["user"]])
       
       # show the pedigree edit/create tab when the button is clicked the first time
@@ -3441,9 +3443,9 @@ server <- function(input, output, session) {
       length(validateRelNums(input$numPUnc))
     )
     if(total.rel.qty.errors > 0){
-      shinyjs::disable("showPed")
+      shinyjs::disable("showPedButton")
     } else if(total.rel.qty.errors == 0){
-      shinyjs::enable("showPed")
+      shinyjs::enable("showPedButton")
     }
   })
   
@@ -3776,7 +3778,6 @@ server <- function(input, output, session) {
       return(PED()$name[which(PED()$ID == input$relSelect)])
     }
   })
-  
   output$rop1 <- renderText({ paste0(relOrProband(),"'s") })          # Demographics heading
   output$rop2 <- renderText({ paste0(tolower(relOrProband()),"'s") }) # Demographics instructions
   output$rop3 <- renderText({ paste0(relOrProband(),"'s") })          # Cancer Hx heading
@@ -3866,30 +3867,6 @@ server <- function(input, output, session) {
       return(paste0("the ", tolower(relOrProband())))
     }
   })
-  
-  # ## Change instructions when the proband is the selected relative
-  # observeEvent(list(PED(), input$relSelect), {
-  #   
-  #   # when there is no pedigree
-  #   if(is.null(PED())){
-  #     is.pb <- FALSE
-  #     
-  #     # when the selected relative is NOT the proband
-  #   } else if(as.numeric(input$relSelect) != PED()$ID[which(PED()$isProband == 1)]){
-  #     is.pb <- FALSE
-  #     
-  #     # when the selected relative is the proband
-  #   } else if(as.numeric(input$relSelect) == PED()$ID[which(PED()$isProband == 1)]){
-  #     is.pb <- TRUE
-  #   }
-  #   
-  #   # change the instructions
-  #   if(is.pb){
-  #     
-  #   } else {
-  #     
-  #   }
-  # }, ignoreNULL = T)
   
   #### Manage navbarTabs ####
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
