@@ -252,7 +252,7 @@ ui <- fixedPage(
             h4("Create New or Load Existing Pedigree"),
             p("To get started, you will either need to create a new pedigree using our 
               pedigree builder or load an existing pedigree from your user account."),
-            radioButtons("newOrLoad", "Select an start-up option:",
+            radioButtons("newOrLoad", "Select a start-up option:",
                          choices = c("Create new", "Load existing"),
                          selected = "Create new"),
             
@@ -495,13 +495,12 @@ ui <- fixedPage(
                              width = "150px"),
                 textOutput("validAge"),
                 tags$head(tags$style("#validAge{color: red;}")),
-                br(),
                 
                 # is pedigree does not exist yet, show a create pedigree button
                 conditionalPanel("!output.pedExists",
                   actionButton("createPed", label = "Create Pedigree",
                                icon = icon('file'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+                               style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
                 ),
                 
                 # once a pedigree exists, show other demographic options
