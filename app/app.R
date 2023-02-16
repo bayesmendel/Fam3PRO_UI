@@ -250,6 +250,9 @@ ui <- fixedPage(
           ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
+            p(strong("The currently loaded pedigree name/ID is: "), 
+              textOutput("currentPed1", inline = T), 
+              style = "font-size:17px"),
             p("To get started, you will either need to create a new pedigree using our 
               pedigree builder or load an existing pedigree from your user account."),
             radioButtons("newOrLoad", "Select a start-up option:",
@@ -294,6 +297,9 @@ ui <- fixedPage(
           ###### UI: Preview Pedigree ####
           tabPanel("Preview",
             h4("Preview Current Pedigree"),
+            p(strong("The currently loaded pedigree name/ID is: "), 
+              textOutput("currentPed2", inline = T), 
+              style = "font-size:17px"),
             p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
             tabsetPanel(id = "pedVisualsViewer",
                         
@@ -1645,6 +1651,33 @@ server <- function(input, output, session) {
   })
   
   #### Manage User Pedigrees ####
+  ## currently loaded pedigree name
+  currentPed <- reactive({
+    if(!is.null(PED())){
+      return(PED()$PedigreeID[1])
+    } else {
+      return(NULL)
+    }
+  })
+  
+  # text for new/load screen
+  output$currentPed1 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet.")
+    }
+  })
+  
+  # text for preview screen
+  output$currentPed2 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+    }
+  })
+  
   ##### Load/Create New Pedigree ####
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
