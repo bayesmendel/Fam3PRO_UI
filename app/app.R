@@ -459,11 +459,10 @@ ui <- fixedPage(
               ###### UI: Demographics ####
               tabPanel("Demographics",
                 h3(textOutput("rop1", inline = T), "Demographics"),
-                p("Enter the ", textOutput("rop2", inline = T), "demographic information below. Inputs with an 
-                  astrick(*) require a response to continue to the next screen."),
+                p("Enter the ", textOutput("rop2", inline = T), "demographic information below."),
                 
                 # PedigreeID
-                textInput("pedID", label = h5("*Unique Pedigree ID:"),
+                textInput("pedID", label = h5("Unique Pedigree ID:"),
                           value = "",
                           width = "225px"),
                 conditionalPanel("!output.showPed",
@@ -476,12 +475,22 @@ ui <- fixedPage(
                      style = "color:red")
                 ),
                 
-                # sex, age
-                selectInput("Sex", label = h5("*Sex assigned at birth:"),
+                # sex, deceased status, age
+                selectInput("Sex", label = h5("Sex assigned at birth:"),
                             choices = sex.choices,
                             width = "150px"),
+                h5("Check here if deceased:"),
+                div(style = "margin-left:25px",
+                    checkboxInput("isDead", label = "Deceased")
+                ),
+                conditionalPanel("input.isDead",
+                  h5("Age of Death (1 to 89):")
+                ),
+                conditionalPanel("!input.isDead",
+                  h5("Current Age (1 to 89):")
+                ),
                 numericInput("Age",
-                             label = h5("*Current Age (1 to 89):"),
+                             label = NULL,
                              value = NA, min = min.age, max = max.age, step = 1,
                              width = "150px"),
                 textOutput("validAge"),
@@ -497,12 +506,6 @@ ui <- fixedPage(
                 
                 # once a pedigree exists, show other demographic options
                 conditionalPanel("output.pedExists",
-                                 
-                  # deceased
-                  h5("Check here if deceased:", style = "margin-top:-10px"),
-                  div(style = "margin-left:25px",
-                    checkboxInput("isDead", label = "Deceased")
-                  ),
                   
                   # race, ethnicity, and ancestry inputs
                   selectInput("race", label = h5("Race:"),
@@ -2665,6 +2668,8 @@ server <- function(input, output, session) {
   output$pbMinInfo <- reactive({ pbMinInfo() })
   outputOptions(output, 'pbMinInfo', suspendWhenHidden = FALSE)
   observeEvent(list(input$pedID, input$Sex, input$Age, validAge(), PED()), {
+    
+    # check if minimum information has been entered/conditions met to start a new pedigree
     if(is.null(PED()) &
        newOrLoadFlag() == "new" & 
        input$pedID != "" & 
@@ -2679,12 +2684,13 @@ server <- function(input, output, session) {
       pbMinInfo(FALSE)
     }
     
+    # enable/disable create pedigree button
     if(pbMinInfo()){
       shinyjs::enable("createPed")
     } else {
       shinyjs::disable("createPed")
     }
-  }, ignoreInit = T)
+  }, ignoreInit = F)
   
   # hide/show tabs if the minimum information to create a pedigree is present or not and the pedigree has been created
   observeEvent(list(pbMinInfo(), PED()), {
@@ -2739,8 +2745,8 @@ server <- function(input, output, session) {
     }
     PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
     
-    # populate proband's age
-    PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age))
+    # populate proband's age and deceased status
+    PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age, is.dead = input$isDead))
     
     # save to database
     savePedigreeToDB(conne = conn,
