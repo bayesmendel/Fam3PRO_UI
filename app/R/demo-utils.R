@@ -117,13 +117,46 @@ assumeBackground <- function(tmp.ped, assume.from = NULL, id = NULL){
 }
 
 # validate age values are between min.age and m
-validateAge <- function(cur.age){
+validateAge <- function(cur.age, oldest.child.age = NA, youngest.parent.age = NA){
+  
+  # check if CurAge is not NA (NA is acceptable)
   if(!is.na(cur.age)){
     isNum <- is.numeric(cur.age)
-    if(isNum){ 
+      
+    # check CurAge is in range and an integer
+    if(isNum){
       inRange <- (cur.age >= min.age & cur.age <= max.age)
       isInt <- cur.age %% 1 == 0
-      need(all(isInt, inRange), paste0("Age must be an integer from ", min.age," to ",max.age,"."))
+      if(inRange & isInt){
+        
+        # check person is younger than their youngest parent by 10 years or more
+        youngerThanParent <- TRUE
+        if(!is.na(youngest.parent.age)){
+          youngerThanParent <- cur.age <= youngest.parent.age - min.parent.child.age.diff
+        }
+        
+        # check person is older than their oldest child by 10 years or more
+        olderThanChild <- TRUE
+        if(!is.na(oldest.child.age)){
+          olderThanChild <- cur.age >= oldest.child.age + min.parent.child.age.diff
+        }
+        
+        # message if parent or child age rules violated
+        if(!youngerThanParent & !olderThanChild){
+          need(all(youngerThanParent, olderThanChild),
+               paste0("Age must be at least ", min.parent.child.age.diff," years older than their oldest child, ", oldest.child.age,", and 10 years younger than their youngest parent, ",youngest.parent.age,"."))
+        } else if(!youngerThanParent){
+          need(youngerThanParent,
+               paste0("Age must be at least ", min.parent.child.age.diff," years younger than their youngest parent, ", youngest.parent.age,"."))
+        } else if(!olderThanChild){
+          need(olderThanChild,
+               paste0("Age must be at least ", min.parent.child.age.diff," years older than their oldest child, ", oldest.child.age,"."))
+        }
+        
+        # CurAge was not in range or was not an integer
+      } else {
+        need(all(isInt, inRange), paste0("Age must be an integer from ", min.age," to ",max.age,"."))
+      }
     } else {
       need(isNum, paste0("Age must an integer from ", min.age," to ", max.age,"."))
     }

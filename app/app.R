@@ -23,7 +23,7 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
-library(stringi)    # toTitleCase
+library(stringi)    # stri_trans_totitle
 
 # html
 library(htmltools)  # formatting text
@@ -53,11 +53,11 @@ ui <- fixedPage(
     windowTitle = "PPI: PanelPRO Interface"
   ),
   
-  #### Log-in tabs ####
+  #### UI: Log-in tabs ####
   conditionalPanel("!output.loggedIn",
     tabsetPanel(id = "loginTabs",
       
-      ##### Log-in ####
+      ##### UI: Log-in ####
       tabPanel(title = "Log In",
         shinyauthr::loginUI(id = "login",
           cookie_expiry = 0,
@@ -75,7 +75,7 @@ ui <- fixedPage(
         )
       ), # end log-in tab
        
-      ##### Sign-up ####
+      ##### UI: Sign-up ####
       tabPanel(title = "Sign Up",
         
         # bot check passed
@@ -95,7 +95,7 @@ ui <- fixedPage(
             studies that have multiple providers enrolling patients into the same study. 
             Your manager(s) must have already created their own user account(s) with 'manager' 
             level permissions."),
-          selectizeInput("selManagers1", label = "Enter managers' usernames",
+          selectizeInput("selManagers1", label = "Enter managers' usernames:",
                          selected = "",
                          choices = "",
                          multiple = TRUE,
@@ -128,7 +128,7 @@ ui <- fixedPage(
         )
       ), # end sign-up tab
 
-      ##### Forgot Username or Password ####
+      ##### UI: Forgot Username or Password ####
       tabPanel(title = "Forgot Username or Password",
               
         # bot check passed
@@ -160,18 +160,18 @@ ui <- fixedPage(
         )
       ), # end forgot username/password tab
       
-      ##### Bot Check ####
+      ##### UI: Bot Check ####
       tabPanel(title = "Bot Check",
         uiOutput("botCheckUI")
       )
     ) # end of tabsetPanel for log-in tabs
   ), # end of conditionalPanel for logged out status
   
-  #### Post Log-in ####
+  #### UI: Post Log-in ####
   conditionalPanel("output.loggedIn",
     navbarPage(title = "", id = "navbarTabs",
       
-      ##### Home ####
+      ##### UI: Home ####
       tabPanel(title = "Home",
         h3("Home"),
         
@@ -223,7 +223,9 @@ ui <- fixedPage(
           insurance information. When creating names for your pedigrees, do not use any of these identifiers 
           in whole or in part. The identifiers used to differentiate relatives in each pedigree created using PPI 
           will use generic labels like 'Proband' or 'Sister 1'."),
-        p("Website admins have access to all pedigrees saved to all user accounts."),
+        p("Website admins have access to all pedigrees saved to all user accounts and if you assigned other users 
+          as managers for your account, those accounts can also access all of your saved pedigrees. Admins nor managers 
+          have access to your password, however."),
         p("Users can delete any or all pedigrees saved to their account at any time by navigating to 
           the 'Manage Pedigrees' page and then navigating to the 'Delete' tab on that page. Users with manager 
           level permissions may also do this for any user account for which they manage."),
@@ -240,17 +242,17 @@ ui <- fixedPage(
         
       ), # end of tab
       
-      ##### Manage Pedigrees ####
+      ##### UI: Manage Pedigrees ####
       tabPanel("Manage Pedigrees",
         h3("Manage My Pedigrees"),
         tabsetPanel(id = "managePedsTab",
                     
-          ###### Create or Load Pedigree ####
+          ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
             p("To get started, you will either need to create a new pedigree using our 
               pedigree builder or load an existing pedigree from your user account."),
-            radioButtons("newOrLoad", "Select an start-up option:",
+            radioButtons("newOrLoad", "Select a start-up option:",
                          choices = c("Create new", "Load existing"),
                          selected = "Create new"),
             
@@ -288,8 +290,50 @@ ui <- fixedPage(
                            style = "color: white; background-color: #10699B; border-color: #10699B")
             )
           ),
+          
+          ###### UI: Copy Pedigree ####
+          tabPanel("Copy",
+            h4("Copy A Pedigree"),
+            p("This screen allows you to take a pedigree saved to your user account and 
+              create a copy of it under a new name."),
+            
+            # for admins and managers, select the user account to copy from first
+            conditionalPanel("output.admin | output.manager",
+              selectInput(inputId = "selectUserForCopyFrom", label = "Select a user account to copy from:", 
+                          choices = c(""))
+            ),
+            
+            # if there are not pedigrees to copy from the selected user account, tell the user
+            conditionalPanel(condition = "output.showTblExistsErrorCopy",
+              p("You do not have any saved pedigrees.")
+            ),
+            
+            # if the user account does have saved pedigrees
+            conditionalPanel(condition = "!output.showTblExistsErrorCopy",
+              selectInput("selectCopyPed", label = "Select a pedigree to copy:",
+                          selected = "No pedigree selected", 
+                          choices = "No pedigree selected"),
+              conditionalPanel("input.selectCopyPed != 'No pedigree selected'",
+                               
+                # for admins and managers, select the user account to copy from first
+                conditionalPanel("output.admin | output.manager",
+                  selectInput(inputId = "selectUserForCopyTo", label = "Select a user account to copy to:", 
+                              choices = c(""))
+                ),
+                textInput("newPedName", label = "New pedigree name:"),
+                h5("Privacy note: the new pedigree name cannot contain identifying information.", 
+                   style = "color:blue"),
+                textOutput("validPedID"),
+                tags$head(tags$style("#validPedID{color: red;}")),
+                actionButton("copyPed", label = "Copy Pedigree",
+                             icon = icon('copy'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+              )
+              
+            ) # end of conditionalPanel to check if there are tables to download
+          ),
         
-          ###### Download Pedigrees ####
+          ###### UI: Download Pedigrees ####
           tabPanel("Download",
             h4("Download Pedigrees"),
             
@@ -330,9 +374,10 @@ ui <- fixedPage(
             ) # end of conditionalPanel to check if there are tables to download
           ), # end of download tab
           
-          ###### Delete Pedigrees ####
+          ###### UI: Delete Pedigrees ####
           tabPanel("Delete",
             h4("Delete Pedigrees"),
+            p("Note: once a pedigree is deleted, you cannot undo it."),
             
             # for admins and managers, select the user account to delete from first
             conditionalPanel("output.admin | output.manager",
@@ -361,14 +406,14 @@ ui <- fixedPage(
         ) # end of tabsetPanels for manage pedigrees
       ), # end of tab for manage pedigrees tab
       
-      ##### Create/Modify Pedigree ####
+      ##### UI: Create/Modify Pedigree ####
       tabPanel("Create/Modify Pedigree",
         
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
           
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
-          conditionalPanel("output.visPed",
+          conditionalPanel("output.showPed",
             column(width = 6,
                    
               # top row to select which relative is being edited
@@ -383,9 +428,26 @@ ui <- fixedPage(
                 )
               ),
               
-              # pedigree visualization    
-              fluidRow(
-                plotOutput("drawPed")
+              # pedigree visualization (table and tree)
+              tabsetPanel(id = "pedVisuals",
+                          
+                # tree
+                tabPanel(title = "Tree",
+                  plotOutput("treePed")
+                ),
+                
+                # table
+                tabPanel(title = "Table",
+                  fluidRow(
+                    column(width = 12, 
+                           style = "height:800px; width:100%",
+                           DTOutput("tablePed"),
+                           p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
+                             are shown in this table. To see the full table, download the pedigree.",
+                             style = "color:blue")
+                    )
+                  )
+                )
               )
             )
           ),
@@ -394,17 +456,16 @@ ui <- fixedPage(
           column(width = 6,
             tabsetPanel(id = "pedTabs", 
               
-              ###### Demographics ####
+              ###### UI: Demographics ####
               tabPanel("Demographics",
-                h3("Demographics"),
-                p("Enter the person's demographic information below. Inputs with an 
-                  astrick(*) require a response to continue to the next screen."),
+                h3(textOutput("rop1", inline = T), "Demographics"),
+                p("Enter the ", textOutput("rop2", inline = T), "demographic information below."),
                 
                 # PedigreeID
-                textInput("pedID", label = h5("*Unique Pedigree ID:"),
+                textInput("pedID", label = h5("Unique Pedigree ID:"),
                           value = "",
                           width = "225px"),
-                conditionalPanel("!output.visPed",
+                conditionalPanel("!output.showPed",
                   h5("Privacy note: the ID number cannot contain identifying information.",
                      style = "color:blue")
                 ),
@@ -414,37 +475,59 @@ ui <- fixedPage(
                      style = "color:red")
                 ),
                 
-                # sex and age
-                selectInput("Sex", label = h5("*Sex assigned at birth:"),
+                # sex, deceased status, age
+                selectInput("Sex", label = h5("Sex assigned at birth:"),
                             choices = sex.choices,
                             width = "150px"),
+                h5("Check here if deceased:"),
+                div(style = "margin-left:25px",
+                    checkboxInput("isDead", label = "Deceased")
+                ),
+                conditionalPanel("input.isDead",
+                  h5("Age of Death (1 to 89):")
+                ),
+                conditionalPanel("!input.isDead",
+                  h5("Current Age (1 to 89):")
+                ),
                 numericInput("Age",
-                             label = h5("*Current Age (1 to 89):"),
+                             label = NULL,
                              value = NA, min = min.age, max = max.age, step = 1,
                              width = "150px"),
                 textOutput("validAge"),
                 tags$head(tags$style("#validAge{color: red;}")),
                 
-                # race, ethnicity, and ancestry inputs
-                selectInput("race", label = h5("Race:"),
-                            choices = rc.choices,
-                            selected = "Other or Unreported",
-                            width = "45%"),
-                selectInput("eth", label = h5("Hispanic Ethnicity:"),
-                            choices = et.choices,
-                            selected = "Other or Unreported",
-                            width = "45%"),
-                h5("Ancestry (check all that apply):"),
-                div(style = "margin-left:25px",
-                  checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
-                  checkboxInput("ancIt", label = "Italian")
+                # is pedigree does not exist yet, show a create pedigree button
+                conditionalPanel("!output.pedExists",
+                  actionButton("createPed", label = "Create Pedigree",
+                               icon = icon('file'),
+                               style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+                ),
+                
+                # once a pedigree exists, show other demographic options
+                conditionalPanel("output.pedExists",
+                  
+                  # race, ethnicity, and ancestry inputs
+                  selectInput("race", label = h5("Race:"),
+                              choices = rc.choices,
+                              selected = "Other or Unreported",
+                              width = "45%"),
+                  selectInput("eth", label = h5("Hispanic Ethnicity:"),
+                              choices = et.choices,
+                              selected = "Other or Unreported",
+                              width = "45%"),
+                  h5("Ancestry (check all that apply):"),
+                  div(style = "margin-left:25px",
+                    checkboxInput("ancAJ", label = "Ashkenazi Jewish"),
+                    checkboxInput("ancIt", label = "Italian")
+                  )
                 )
               ), # end of demographics tab
               
-              ###### Cancer Hx ####
+              ###### UI: Cancer Hx ####
               tabPanel("Cancer Hx",
-                h3("Cancer History"),
-                p("List all first primary cancers the person has or had with the age of diagnosis."),
+                h3(textOutput("rop3", inline = T), "Cancer History"),
+                p("List all first primary cancers ", textOutput("rop4", inline = T), 
+                  "has or had with the age of diagnosis."),
                 
                 # cancerUI modules inserted into this container
                 tags$div(
@@ -456,14 +539,16 @@ ui <- fixedPage(
                              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
               ), # end of cancers tab
               
-              ###### CBC Risk ####
+              ###### UI: CBC Risk ####
               tabPanel("CBC Risk",
-                h3("Contralateral Breast Cancer Risk"),
+                h3(textOutput("rop5", inline = T), "Contralateral Breast Cancer Risk"),
                 conditionalPanel("!output.showCBCinputs",
-                  p("This tab is only used when the relative is a female and has/had breast cancer but, has not developed contralateral breast cancer.")
+                  p("This tab is only used when ", textOutput("rop6", inline = T), 
+                    "is a female and has/had breast cancer but, has not developed contralateral breast cancer.")
                 ),
                 conditionalPanel("output.showCBCinputs",
-                  h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?"),
+                  h5("Was the 1st breast cancer pure invasive, mixed invasive and DCIS, or unknown?", 
+                     style = "margin-top:15px"),
                   selectInput("FirstBCType", label = NULL,
                               choices = bc1type.choices,
                               width = "200px"),
@@ -471,7 +556,7 @@ ui <- fixedPage(
                   selectInput("AntiEstrogen", label = NULL,
                               choices = antiest.hrpre.choices,
                               width = "125px"),
-                  h5("Does the relative have a history of high risk pre-neoplasia (ie atypical hyperplasia or LCIS?)"),
+                  h5("Is there a personal history of high risk pre-neoplasia (ie atypical hyperplasia or LCIS?)"),
                   selectInput("HRPreneoplasia", label = NULL,
                               choices = antiest.hrpre.choices,
                               width = "125px"),
@@ -486,14 +571,16 @@ ui <- fixedPage(
                 )
               ),
               
-              ###### Tumor Markers ####
+              ###### UI: Tumor Markers ####
               tabPanel("Tumor Markers",
-                h3("Tumor Markers"),
+                h3(textOutput("rop7", inline = T), "Tumor Markers"),
                 conditionalPanel("!output.showBCMarkers & !output.showCRCMarkers",
-                  p("Tumor markers are only applicable if the person has/had breast cancer or colorectal cancer")
+                  p("Tumor markers are only applicable if ", textOutput("rop8", inline = T), 
+                    "has/had breast cancer or colorectal cancer.")
                 ),
                 conditionalPanel("output.showBCMarkers | output.showCRCMarkers",
-                  p("If the person was tested for any of the tumor markers related to the cancers below, report the results."),
+                  p("If ", textOutput("rop9", inline = T), 
+                    "was tested for any of the tumor markers related to the cancers below, report the results."),
                   conditionalPanel("output.showBCMarkers",
                     h4("Breast Cancer Tumor Markers"),
                     fluidRow(
@@ -551,9 +638,9 @@ ui <- fixedPage(
                 ) # end of conditionalPanel to display any tumor markers
               ), # end of tumor marker tab
               
-              ###### Surgical Hx ####
+              ###### UI: Surgical Hx ####
               tabPanel("Surgical Hx",
-                h3("Prophylactic Surgical History"),
+                h3(textOutput("rop10", inline = T), "Prophylactic Surgical History"),
                 
                 # message for proph surgery is Female sex is not selected
                 conditionalPanel("input.Sex != 'Female'",
@@ -562,7 +649,8 @@ ui <- fixedPage(
                  
                 # for females
                 conditionalPanel("input.Sex == 'Female'",
-                  p("Check each surgery the person has had and enter the age at surgery."),
+                  p("Check each surgery ", textOutput("rop11", inline = T), 
+                    "has had and enter the age at surgery."),
                     
                   # mastecomties
                   fluidRow(
@@ -626,38 +714,41 @@ ui <- fixedPage(
                 ) # end of female conditionalPanel for surgical history information
               ), # end of surgery tab
               
-              ###### Genes ####
+              ###### UI: Genes ####
               tabPanel("Genes",
-                h3("Gene Testing Results"),
+                h3(textOutput("rop12", inline = T), "Gene Testing Results"),
                 tabsetPanel(id = "geneTabs",
                             
                   tabPanel(title = "Instructions",
                     h4("How to Enter/Edit Germline Genetic Test Results"),
-                    p("Use this screen to enter or modify germline genetic test results 
-                      for the currently selected relative. There are three tabs: 
-                      1) 'Manage Panels' allows you to add a multi-gene panel or single 
-                      gene test for the currently selected relative or delete one of their tests; 
-                      2) 'Edit Panel' allows you to edit this relative's gene test 
-                      results, if they have at least one test; 
-                      3) 'Summary Table' displays a summary of results from all of the 
-                      relative's germline genetic tests by gene, result, nucleotide, protein, and zygosity.", 
-                      style = "margin-bottom:10px")
+                    p("Use this screen to enter or modify germline genetic test results. 
+                      There are three tabs:"),
+                    tags$ol(
+                      tags$li("'Manage Panels' allows you to add a multi-gene panels or single 
+                              gene tests as well as delete one of the existing tests."),
+                      tags$li("'Edit Panel Results' allows you to edit gene test 
+                              results (if there is at least one panel)."),
+                      tags$li("'Summary Table' displays a summary of results of germline 
+                              genetic tests by gene, result, nucleotide, protein, and zygosity.")
+                    )
                   ),
                             
                   tabPanel(title = "Manage Panels",
                     fluidRow(column(width = 12, 
-                      h4("Current Panel Tests"),
+                      h4(textOutput("rop14", inline = T), "Current Panel Tests"),
                       tags$div(
                         id = "PanCont",
                         style = "width:100%"
                       ),
                       conditionalPanel("!output.atLeastOnePanel",
-                        h5("This relative does not have any gene testing results yet.")
+                        h5(textOutput("rop15", inline = T), "does not have any gene testing results yet.")
                       ),
                       br(),
                       h4("Add a Panel"),
                       p("Using the dropdown, select one of the pre-existing panels and click 'Add Panel' or select 'Create new' 
                         to make a custom panel of genes."),
+                      p("Note, do not add or create a new panel until you have received the panel results back from the lab.", 
+                        style = "color:blue"),
                       selectInput("existingPanels", label = NULL,
                                   choices = all.panel.names, selected = "No panel selected",
                                   width = "300px"),
@@ -666,32 +757,36 @@ ui <- fixedPage(
                       
                       # create new panel
                       conditionalPanel("input.existingPanels == 'Create new'",
-                        p("Enter the genes in your panel below. 
-                          When you start typing, the dropdown will filter to genes for you to select. 
-                          You can also add genes that are not in the dropdown. When done, give it a name and select the 
-                          'Create and Add Panel' button."),
-                        textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
-                        selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
-                                       choices = all.genes, multiple = TRUE,
-                                       width = "500px"),
-                        actionButton("createPanel", label = "Create and Add Panel",
-                                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                                       
+                        p("Sorry, this feature is not currently available but we are working on it."),
+                                       
+                        # p("Enter the genes in your panel below. 
+                        #   When you start typing, the dropdown will filter to genes for you to select. 
+                        #   You can also add genes that are not in the dropdown. When done, give it a name and select the 
+                        #   'Create and Add Panel' button."),
+                        # textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
+                        # selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
+                        #                choices = all.genes, multiple = TRUE,
+                        #                width = "500px"),
+                        # actionButton("createPanel", label = "Create and Add Panel",
+                        #              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
                       )
                     ))
                   ),
                   
-                  tabPanel(title = "Edit Panel",
+                  tabPanel(title = "Edit Panel Results",
                     fluidRow(column(width = 12, 
-                      h4("Edit Panel Results"),
+                      h4("Edit ", textOutput("rop16", inline = T)," Panel Results"),
                                     
                       # cannot enter results if no panels exist
                       conditionalPanel("!output.atLeastOnePanel",
-                        p("To edit panel test results, please add at least one panel on the 'Manage Panels' tab.")
+                        p("To edit panel results, please add at least one panel on the 'Manage Panels' tab.")
                       ),
                          
                       # enter results by type
                       conditionalPanel("output.atLeastOnePanel",
-                        p("Select one of the subject's panels to edit then enter the gene results by selecting the three different tabs for ",
+                        p("Select one of ", textOutput("rop17", inline = T), 
+                          " panels to edit then enter the gene results by selecting the three different tabs for ",
                           HTML("<b>pathogenic/likely pathogenic (P/LP), unknown significance (VUS),</b> or <b>
                           benign/likely benign (B/LP)</b>.")," Enter as much information about each gene variant as possible. 
                           Any genes not specified as P/LP, VUS, or B/LB will be recorded as negative."),
@@ -769,31 +864,33 @@ ui <- fixedPage(
                   
                   # tab for review panel results
                   tabPanel(title = "Summary Table",
-                    h4("Gene Summary"),
+                    h4(textOutput("rop18", inline = T), "Gene Summary"),
                     conditionalPanel("!output.atLeastOnePanel",
-                      h5("This relative does not have any panel tests; therefore, a summary table cannot be displayed.")
+                      h5(textOutput("rop19", inline = T), "does not have any panel tests; therefore, a summary table cannot be displayed.")
                     ),
                     conditionalPanel("output.atLeastOnePanel",
-                      h5("The table below is a summary of all the genes in all of panels for this individual. 
-                         Genes are marked a negative until they are recorded as 
+                      h5("The table below is a summary of all the genes in all of panels for ", 
+                         textOutput("rop20", inline = T), 
+                         "Genes are marked a negative until they are recorded as 
                          P/LP, VUS, or B/LP in any of their panels."),
                       
                       # warn user there is at least one gene with different result types recorded
                       conditionalPanel("output.dupResultGene",
-                        h5("There is at least one gene for this relative which has multiple different result types recorded. 
+                        h5("There is at least one gene for ", 
+                           textOutput("rop21", inline = T), "which has multiple different result types recorded. 
                           This is possible but, it could be an error. Please check the table below for accuracy.
                           If one of these result types is P/LP, PanelPRO will treat this gene as P/LP.", 
-                          style = "color:red")
+                          style = "color:blue")
                       ),
                       
                       # data frame with panel summary information
-                      DT::dataTableOutput("panelSum")
+                      DT::DTOutput("panelSum")
                     )
                   ) # end of tab for gene results summary
                 ) # end tabsetPanel for gene results screen
               ), # end of gene results tab
               
-              ###### Num/Type Rels ####
+              ###### UI: Num/Type Rels ####
               tabPanel("Add Relatives",
                 h3("Number and Types of Relatives"),
                 p("Begin creating the proband's pedigree by entering the number of 
@@ -810,12 +907,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validDauQty"),
+                      tags$head(tags$style("#validDauQty{color: red;}")),
+                      
                       numericInput("numSon",
                                    label = h5("Sons:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validSonQty"),
+                      tags$head(tags$style("#validSonQty{color: red;}"))
                     ),
                     
                     wellPanel(
@@ -826,12 +928,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validSisQty"),
+                      tags$head(tags$style("#validSisQty{color: red;}")),
+                      
                       numericInput("numBro",
                                    label = h5("Brothers:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validBroQty"),
+                      tags$head(tags$style("#validBroQty{color: red;}"))
                     )
                   ), # end of column for siblings and children
                   
@@ -844,12 +951,17 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validMAuntQty"),
+                      tags$head(tags$style("#validMAuntQty{color: red;}")),
+                      
                       numericInput("numMUnc",
                                    label = h5("Maternal Uncles:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validMUncQty"),
+                      tags$head(tags$style("#validMUncQty{color: red;}"))
                     ),
                     
                     wellPanel(
@@ -860,20 +972,25 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
+                      textOutput("validPAuntQty"),
+                      tags$head(tags$style("#validPAuntQty{color: red;}")),
+                      
                       numericInput("numPUnc",
                                    label = h5("Paternal Uncles:"),
                                    value = 0,
                                    min = 0,
                                    step = 1, 
-                                   width = "125px")
+                                   width = "125px"),
+                      textOutput("validPUncQty"),
+                      tags$head(tags$style("#validPUncQty{color: red;}"))
                     )
                   ) # end of column for aunts and uncles
                 ), # end of fluidRow for the entire num/type rel tab
                 
                 # button to create visual pedigree
                 h4("To Continue"),
-                h5("Press the button below to create the proband's pedigree."),
-                actionButton("visPed", label = "Create Pedigree", icon = icon('play'),
+                h5("Press the button below to display the proband's pedigree."),
+                actionButton("showPedButton", label = "Display Pedigree", icon = icon('tv'),
                              style = "color: white; background-color: #10699B; border-color: #10699B")
                 
               ) # end of number and type of rels tab
@@ -882,14 +999,19 @@ ui <- fixedPage(
         ) # end of fluidRow for create/modify pedigree tab
       ), # end of tab for create/modify pedigree
       
-      ##### Run PanelPRO ####
+      ##### UI: Run PanelPRO ####
       tabPanel("Run PanelPRO",
-        h3("Run PanelPRO")
+        h3("Run PanelPRO"),
+        p("Sorry, this feature is not currently available but we are working on it.")
       ), # end of PanelPRO tab
       
-      ##### My Account ####
+      ##### UI: My Account ####
       tabPanel("My Account",
         h3("Account Management"),
+        
+        h4("Username"),
+        textOutput("userIs"),
+        br(),
         
         h4("Password Reset"),
         p("To reset your password, log-out then select the 'Forgot Username or Password' button 
@@ -930,7 +1052,9 @@ ui <- fixedPage(
         ),
         conditionalPanel("output.manager",
           p("Your user account has manager level permissions. This means you can load, run, view, edit, save, 
-            download and delete pedigrees from any user account which listed your username as one of their managers.")
+            download and delete pedigrees from any user account which listed your username as one of their managers."),
+          p("You currently manage the following accounts:"),
+          tagAppendAttributes(textOutput("managedAccts"), style="white-space:pre-wrap;")
         ),
         conditionalPanel("!output.manager & !output.admin",
           p("Your account has user level permissions. This means you can load, run, view, edit, save, 
@@ -942,10 +1066,10 @@ ui <- fixedPage(
     ) # end of NavBarPage
   ), # end of conditionalPanel for loggedIn status
   
-  #### Footer ####
+  #### UI: Footer ####
   br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
   
-  #### Tab Switching Tags #####
+  #### UI: Tab Switching Tags #####
   # automatically go to top of tab when selecting a tab
   tags$script(" $(document).ready(function () {
          $('#navbarTabs a[data-toggle=\"tab\"]').on('click', function (e) {
@@ -1425,7 +1549,10 @@ server <- function(input, output, session) {
   # email address than the one previously entered
   observeEvent(input$diffEmail, { shinyjs::refresh() })
   
-  ##### Add Managers from My Account Tab ####
+  ##### My Account ####
+  output$userIs <- renderText(credentials()$info[["user"]])
+  
+  ###### Add Managers from My Account Tab ####
   # enable/disable add managers button if usernames are in the add managers input or not
   observeEvent(input$selManagers2, {
     if(is.null(input$selManagers2)){
@@ -1478,16 +1605,28 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
   }, ignoreInit = TRUE)
   
+  ###### Show Managed Accounts ####
+  output$managedAccts <- renderText({
+    if(manager()){
+      maccnts <- dbGetQuery(conn = conn,
+                            statement = paste0("SELECT user FROM managers ", 
+                                               "WHERE manager='", credentials()$info[["user"]],"';"
+                                               ))$user
+      return(paste0(maccnts, collapse = "\n"))
+    } else {
+      return("")
+    }
+  })
+  
   #### Manage User Pedigrees ####
   ##### Load/Create New Pedigree ####
-  
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
   observeEvent(list(input$existingPed, input$newOrLoad), {
     if(input$newOrLoad == "Load existing" & input$existingPed == "No pedigree selected"){
       shinyjs::disable("goNewOrLoad")
     } else {
-      shinyjs::enable("goNewOrLoad")
+      shinyjs::delay(delay_load_ms, shinyjs::enable("goNewOrLoad"))
     }
   }, ignoreInit = T)
   
@@ -1542,10 +1681,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsError(FALSE)
-          userPeds(unique(dbGetQuery(conn = conn,
-                                     statement = paste0("SELECT PedigreeID FROM ", 
+          userPeds(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
                                                         credentials()$info[["user"]], 
-                                                        ";"))$PedigreeID))
+                                                        ";"))$PedigreeID
+          )))
           
           # update the tables available for loading
           updateSelectInput(session, inputId = "existingPed",
@@ -1557,20 +1698,18 @@ server <- function(input, output, session) {
     }
   })
   
-  # update drop-down for selecting a pedigree for the admin and managers when the selected user account changes
+  # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUser, userPeds()), {
-    if(loggedIn()){
-      if(admin() | manager()){
-        userPeds(unique(dbGetQuery(conn = conn,
-                                   statement = paste0("SELECT PedigreeID FROM ", 
-                                                      ifelse(input$selectUser == "", credentials()$info[["user"]], 
-                                                             input$selectUser), 
-                                                      ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "existingPed",
-                          choices = c("No pedigree selected", userPeds()))
-      }
-    }
-  })
+    userPeds(sort(unique(
+      dbGetQuery(conn = conn,
+                        statement = paste0("SELECT PedigreeID FROM ",
+                                           ifelse(input$selectUser == "", credentials()$info[["user"]],
+                                                  input$selectUser),
+                                           ";"))$PedigreeID
+    )))
+    updateSelectInput(session, inputId = "existingPed",
+                      choices = userPeds())
+  }, ignoreInit = T, ignoreNULL = T)
   
   newOrLoadFlag <- reactiveVal("new")
   observeEvent(input$goNewOrLoad, {
@@ -1595,7 +1734,7 @@ server <- function(input, output, session) {
                                             input$existingPed,"';"))
       colnames(tped)[which(colnames(tped) == "CK5_6")] <- "CK5.6"
       PED(tped)
-      
+    
       # re-populate pedigree editor input widgets with new proband's information
       updateTextInput(session, "pedID", value = PED()$PedigreeID[1])
       shinyjs::disable("pedID")
@@ -1607,19 +1746,19 @@ server <- function(input, output, session) {
       proband.info <- PED()[which(PED()$ID == proband.id),]
       updateRelInputs(rel.info = proband.info, ss = session)
       shinyjs::disable("Sex")
-
+      
       #### Reset cancer and gene reactives and UI modules and create data frames
       #### for cancer and gene data by
       master.can.df <- NULL
       master.gene.df <- NULL
       for(rl in PED()$ID){
-
+      
         ### 1: RESET
         # CANCERS, iterate through this relative's cancer hx dictionary, if there is at least one cancer
         if(any(names(canReactive$canNums) == as.character(rl))){
           if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
             for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
-
+              
               # update the cancer reactive object, remove the cancerUI module and delete it from memory
               canReactive$canNums <-
                 removeCancer(cr = canReactive$canNums,
@@ -1627,22 +1766,22 @@ server <- function(input, output, session) {
                              inp = input,
                              ss = session,
                              trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
-
+              
               # remove the module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
             }
           }
-
+          
           # else, create an empty cancer tracked for this relative
         } else {
           canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
-
+        
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
             for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
-
+              
               # update the geneReactive and also remove and delete all related UI modules for this panel
               out <-
                 removePanel(gr = geneReactive$GeneNums,
@@ -1773,7 +1912,7 @@ server <- function(input, output, session) {
           })
 
           ## observe for BC and CBC
-          observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+          observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]]), {
 
             # reset CBC inputs if cancer is not BC
             if(input[[paste0(id, '-Can')]] != "Breast"){
@@ -1884,7 +2023,10 @@ server <- function(input, output, session) {
 
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
-      shinyjs::click("visPed")
+      shinyjs::click("showPedButton")
+      
+      # reset the pedigree loading selector
+      updateSelectInput(session, "existingPed", selected = "No pedigree selected")
       
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
@@ -1898,7 +2040,7 @@ server <- function(input, output, session) {
       # demo
       shinyjs::enable("pedID")
       shinyjs::enable("Sex")
-      for(demo.var in c("pedID", "Sex", "Age", "race", "eth", "ancAJ", "ancIt")){
+      for(demo.var in c("pedID", "Sex", "Age", "isDead", "race", "eth", "ancAJ", "ancIt")){
         shinyjs::reset(demo.var)
       }
       
@@ -1976,14 +2118,14 @@ server <- function(input, output, session) {
       geneReactive$GeneNums <- trackGenes.init
       
       # add relatives
-      visPed(FALSE)
+      showPed(FALSE)
       
     } # end of else for creating a new pedigree
     
     # execute actions relevant to create new and load existing
     if(input$newOrLoad == "Create new" | 
        (input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected")){
-      
+            
       # reset add relative counts
       for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
         shinyjs::reset(paste0("num", relation))
@@ -2001,12 +2143,174 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "pedTabs", selected = "Demographics")
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
+      updateTabsetPanel(session, "pedVisuals", selected = "Tree")
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
     }
   }, ignoreInit = T)
   
+  ##### Copy Pedigree ####
+  # keep dropdowns of user tables and pedigrees available for copy updated at all times
+  userPedsForCopyFrom <- reactiveVal(NULL)
+  userPedsForCopyTo <- reactiveVal(NULL)
+  showTblExistsErrorCopy <- reactiveVal(FALSE)
+  output$showTblExistsErrorCopy <- reactive({ showTblExistsErrorCopy() })
+  outputOptions(output, 'showTblExistsErrorCopy', suspendWhenHidden = FALSE)
+  observe({
+    if(loggedIn()){
+      
+      # for admin, make all user tables available
+      if(admin() | manager()){
+        showTblExistsErrorCopy(FALSE)
+        
+        # for admin, start with all usernames
+        if(admin()){
+          users <- getUserbase(conn)$user
+          
+          # for a manager, start with all usernames assigned to that manager
+        } else if(manager()){
+          users <- c(credentials()$info[["user"]],
+                     getUsersUnderManager(manager = credentials()$info[["user"]], 
+                                          my_conn = conn))
+        }
+        
+        users.with.tbls <- users
+        for(usr in users){
+          if(!dbExistsTable(conn = conn, name = usr)){
+            users.with.tbls <- users.with.tbls[users.with.tbls != usr]
+          }
+        }
+        
+        if(length(users.with.tbls) > 0){
+          updateSelectInput(session, inputId = "selectUserForCopyFrom",
+                            choices = users.with.tbls, 
+                            selected = credentials()$info[["user"]])
+          updateSelectInput(session, inputId = "selectUserForCopyTo",
+                            choices = users.with.tbls, 
+                            selected = credentials()$info[["user"]])
+        } else {
+          updateSelectInput(session, inputId = "selectUserForCopyFrom",
+                            choices = credentials()$info[["user"]], 
+                            selected = credentials()$info[["user"]])
+          updateSelectInput(session, inputId = "selectUserForCopyTo",
+                            choices = credentials()$info[["user"]], 
+                            selected = credentials()$info[["user"]])
+        }
+        
+        # for non-admins and non-managers, only show sub-tables in their master table
+      } else {
+        
+        # check if the user has a master table
+        hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
+        if(hasTbl){
+          showTblExistsErrorCopy(FALSE)
+          userPedsForCopyFrom(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
+                                          credentials()$info[["user"]], 
+                                          ";"))$PedigreeID
+          )))
+          userPedsForCopyTo(userPedsForCopyFrom())
+          
+          # update the tables available for copy
+          updateSelectInput(session, inputId = "selectCopyPed",
+                            selected = "No pedigree selected",
+                            choices = c("No pedigree selected", userPedsForCopyFrom()))
+        } else {
+          showTblExistsErrorCopy(TRUE)
+        }
+      }
+    }
+  })
+  
+  # for admins and managers, update the pedigrees available to copy from based on the user account selected
+  observeEvent(list(input$selectUserForCopyFrom, userPedsForCopyFrom()), {
+    userPedsForCopyFrom(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
+                                           input$selectUserForCopyFrom),
+                                    ";"))$PedigreeID
+    )))
+    updateSelectInput(session, inputId = "selectCopyPed",
+                      choices = c("No pedigree selected", userPedsForCopyFrom()))
+  }, ignoreInit = T, ignoreNULL = T)
+  
+  # for admins and managers, update the pedigrees in the copy to account
+  observeEvent(input$selectUserForCopyTo, {
+    userPedsForCopyTo(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
+                                           input$selectUserForCopyTo),
+                                    ";"))$PedigreeID
+    )))
+    
+  }, ignoreInit = T, ignoreNULL = T)
+  
+  # validate the new pedigree name
+  validPedID <- reactive({
+    paste(
+      need(all(userPedsForCopyTo() != input$newPedName),
+           "Your account already has a pedigree with this ID number, choose another name."),
+      need(input$newPedName != "example_pedigree",
+           "'example_pedigree' is a reserved pedigree name, pick another name."),
+      need(input$newPedName != input$selectCopyPed,
+           "The copy's name cannot be the same as the original.")
+    )
+  })
+  output$validPedID <- renderText({ shiny::validate(validPedID()) })
+  
+  # check that copy is possible based on if at least one pedigree is selected
+  # and enable/disable copy button accordingly
+  observeEvent(list(input$selectCopyPed, input$newPedName, 
+                    userPedsForCopyTo(), userPedsForCopyFrom(),
+                    input$selectUserForCopyTo, input$selectUserForCopyFrom), {
+    if(input$selectCopyPed != "No pedigree selected" & length(validPedID()) == 0){
+      shinyjs::delay(delay_copy_ms, shinyjs::enable("copyPed"))
+    } else {
+      shinyjs::disable("copyPed")
+    }
+  }, ignoreInit = F, ignoreNULL = T)
+  
+  # copy the selected pedigrees
+  observeEvent(input$copyPed, {
+    if(admin() | manager()){
+      fromAcct <- ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
+                         input$selectUserForCopyFrom)
+      toAcct <- ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
+                       input$selectUserForCopyTo)
+    } else {
+      fromAcct <- credentials()$info[["user"]]
+      toAcct <- credentials()$info[["user"]]
+    }
+    
+    # retrieve and rename the pedigree
+    tmp.ped <- 
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT * FROM ", fromAcct, 
+                                    " WHERE PedigreeID='", input$selectCopyPed, "';"))
+    tmp.ped$PedigreeID <- input$newPedName
+    
+    # save to new pedigree to database
+    savePedigreeToDB(conne = conn,
+                     user = toAcct,
+                     tmp_tbl = tmp.ped)
+    
+    # update the list of pedigrees that can be loaded, downloaded, and deleted
+    updated.peds <- sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ", toAcct, ";"))$PedigreeID
+    ))
+    userPeds(updated.peds)
+    userPedsForDownload(updated.peds)
+    userPedsForDelete(updated.peds)
+    userPedsForCopyFrom(updated.peds)
+    userPedsForCopyTo(updated.peds)
+    
+  }, ignoreInit = T)
+  
   ##### Download Pedigrees ####
-  # keep dropdowns of user tables and pedigrees available for downloading updated at all times
+  # keep drop-downs of user tables and pedigrees available for downloading updated at all times
   userPedsForDownload <- reactiveVal(NULL)
   showTblExistsErrorDownload <- reactiveVal(FALSE)
   output$showTblExistsErrorDownload <- reactive({ showTblExistsErrorDownload() })
@@ -2028,7 +2332,6 @@ server <- function(input, output, session) {
                      getUsersUnderManager(manager = credentials()$info[["user"]], 
                                           my_conn = conn))
         }
-        
         users.with.tbls <- users
         for(usr in users){
           if(!dbExistsTable(conn = conn, name = usr)){
@@ -2036,13 +2339,14 @@ server <- function(input, output, session) {
           }
         }
         
+        # update users with pedigrees that can be downloaded
         if(length(users.with.tbls) > 0){
           updateSelectInput(session, inputId = "selectUserForDownload",
-                            choices = users.with.tbls, 
+                            choices = users.with.tbls,
                             selected = credentials()$info[["user"]])
         } else {
           updateSelectInput(session, inputId = "selectUserForDownload",
-                            choices = credentials()$info[["user"]], 
+                            choices = credentials()$info[["user"]],
                             selected = credentials()$info[["user"]])
         }
         
@@ -2053,12 +2357,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsErrorDownload(FALSE)
-          userPedsForDownload(
-            unique(dbGetQuery(conn = conn,
-                              statement = paste0("SELECT PedigreeID FROM ", 
-                                                 credentials()$info[["user"]], 
-                                                 ";"))$PedigreeID)
-          )
+          userPedsForDownload(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
+                                          credentials()$info[["user"]], 
+                                          ";"))$PedigreeID
+          )))
           
           # update the tables available for loading
           updateSelectInput(session, inputId = "selectDownloadPeds",
@@ -2070,25 +2374,21 @@ server <- function(input, output, session) {
     }
   })
   
-  # update drop-down for selecting a pedigrees to download for the admin and managers
-  # when the selected user account changes
-  observeEvent(input$selectUserForDownload, {
-    if(loggedIn()){
-      if(admin() | manager()){
-        userPedsForDownload(
-          unique(dbGetQuery(conn = conn,
-                            statement = paste0("SELECT PedigreeID FROM ",
-                                               ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
-                                                      input$selectUserForDownload),
-                                               ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "selectDownloadPeds",
-                          choices = userPedsForDownload())
-      }
-    }
-  })
+  # for admins and managers, update the pedigrees available based on the user account selected
+  observeEvent(list(input$selectUserForDownload, userPedsForDownload()), {
+    userPedsForDownload(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
+                                           input$selectUserForDownload),
+                                    ";"))$PedigreeID
+    )))
+    updateSelectInput(session, inputId = "selectDownloadPeds",
+                      choices = userPedsForDownload())
+  }, ignoreInit = T, ignoreNULL = T)
   
   # select or de-select all pedigrees in a user account for downloading
-  observeEvent(list(userPedsForDownload(), input$selectAllPeds), {
+  observeEvent(input$selectAllPeds, {
     if(input$selectAllPeds){
       updateSelectInput(session, "selectDownloadPeds",
                         selected = userPedsForDownload(),
@@ -2103,8 +2403,8 @@ server <- function(input, output, session) {
   # and enable/disable download buttons accordingly
   observeEvent(input$selectDownloadPeds, {
     if(!is.null(input$selectDownloadPeds)){
-      shinyjs::enable("downloadPedsCSV")
-      shinyjs::enable("downloadPedsRDS")
+      shinyjs::delay(delay_download_ms, shinyjs::enable("downloadPedsCSV"))
+      shinyjs::delay(delay_download_ms, shinyjs::enable("downloadPedsRDS"))
     } else {
       shinyjs::disable("downloadPedsCSV")
       shinyjs::disable("downloadPedsRDS")
@@ -2197,12 +2497,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsErrorDelete(FALSE)
-          userPedsForDelete(
-            unique(dbGetQuery(conn = conn,
-                              statement = paste0("SELECT PedigreeID FROM ", 
-                                                 credentials()$info[["user"]], 
-                                                 ";"))$PedigreeID)
-          )
+          userPedsForDelete(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
+                                          credentials()$info[["user"]], 
+                                          ";"))$PedigreeID
+          )))
           
           # update the tables available for deletion
           updateSelectInput(session, inputId = "selectDeletePeds",
@@ -2214,22 +2514,18 @@ server <- function(input, output, session) {
     }
   })
   
-  # update drop-down for selecting pedigrees to delete for the admin and managers
-  # when the selected user account changes
-  observeEvent(input$selectUserForDelete, {
-    if(loggedIn()){
-      if(admin() | manager()){
-        userPedsForDelete(
-          unique(dbGetQuery(conn = conn,
-                            statement = paste0("SELECT PedigreeID FROM ",
-                                               ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
-                                                      input$selectUserForDelete),
-                                               ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "selectDeletePeds",
-                          choices = userPedsForDelete())
-      }
-    }
-  })
+  # for admins and managers, update the pedigrees available based on the user account selected
+  observeEvent(list(input$selectUserForDelete, userPedsForDelete()), {
+    userPedsForDelete(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
+                                           input$selectUserForDelete),
+                                    ";"))$PedigreeID
+    )))
+    updateSelectInput(session, inputId = "selectDeletePeds",
+                      choices = userPedsForDelete())
+  }, ignoreInit = T, ignoreNULL = T)
 
   # select or de-select all pedigrees in a user account for deletion
   observeEvent(list(userPedsForDelete(), input$selectAllPedsDelete), {
@@ -2247,19 +2543,39 @@ server <- function(input, output, session) {
   # and enable/disable deletePeds button accordingly
   observeEvent(input$selectDeletePeds, {
     if(!is.null(input$selectDeletePeds)){
-      shinyjs::enable("deletePeds")
+      shinyjs::delay(delay_delete_ms, shinyjs::enable("deletePeds"))
     } else {
       shinyjs::disable("deletePeds")
     }
   }, ignoreNULL = F)
   
-  # delete the selected pedigrees
+  # user confirms deletion
   observeEvent(input$deletePeds, {
+    showModal(modalDialog(
+      tagList(p("Are you sure you want to delete the selected pedigrees from your account? 
+                You cannot undo this action.")),
+      title = "Deletion Confirmation",
+      footer = tagList(
+        actionButton("confirmDeletePeds", "Delete"),
+        modalButton("Cancel")
+      )
+    ))
+  })
+  
+  # delete the selected pedigrees
+  observeEvent(input$confirmDeletePeds, {
     if(admin() | manager()){
       fromAcct <- ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
                          input$selectUserForDelete)
     } else {
       fromAcct <- credentials()$info[["user"]]
+    }
+    
+    # if the pedigree to be deleted is the one currently being edited, remove it first
+    # and force the user to either create a new pedigree or load an existing one to continue
+    if(input$pedID %in% input$selectDeletePeds){
+      PED(NULL)
+      hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
     }
     
     dbExecute(conn = conn,
@@ -2269,13 +2585,19 @@ server <- function(input, output, session) {
                                  "');"))
     
     # update the list of pedigrees that can be loaded, downloaded, and deleted
-    updated.peds <- unique(dbGetQuery(conn = conn,
-                                      statement = paste0("SELECT PedigreeID FROM ", 
-                                                         fromAcct, 
-                                                         ";"))$PedigreeID)
+    updated.peds <- sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ", fromAcct, ";"))$PedigreeID
+    ))
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
+    userPedsForCopyFrom(updated.peds)
+    userPedsForCopyTo(updated.peds)
+    
+    # remove the confirmation pop-up window
+    removeModal()
+    
   }, ignoreInit = T)
   
   #### Edit Pedigree ####
@@ -2298,15 +2620,55 @@ server <- function(input, output, session) {
   
   # validate current age
   validAge <- reactive({
-    shiny::validate(validateAge(input$Age))
+    if(is.null(PED())){
+      return(shiny::validate(validateAge(input$Age)))
+    } else {
+      
+      # check for parents and get parent's ages
+      mom.age <- PED()$CurAge[which(PED()$ID == PED()$MotherID[which(PED()$ID == as.numeric(input$relSelect))])]
+      dad.age <- PED()$CurAge[which(PED()$ID == PED()$FatherID[which(PED()$ID == as.numeric(input$relSelect))])]
+      if(length(mom.age) == 0 & length(dad.age) == 0){
+        p.ages <- NA
+      } else if(length(mom.age) == 0){
+        p.ages <- dad.age
+      } else if(length(dad.age) == 0){
+        p.ages <- mom.age
+      } else {
+        p.ages <- c(mom.age, dad.age)
+      }
+      if(all(is.na(p.ages))){
+        youngest.parent.age <- NA
+      } else {
+        youngest.parent.age <- min(p.ages, na.rm = T)
+      }
+      
+      # check for children and get their ages
+      children.ids <- c(PED()$ID[which(PED()$MotherID == as.numeric(input$relSelect))],
+                        PED()$ID[which(PED()$FatherID == as.numeric(input$relSelect))])
+      if(length(children.ids) > 0){
+        child.ages <- PED()$CurAge[which(PED()$ID %in% children.ids)]
+        if(all(is.na(child.ages))){
+          oldest.child.age <- NA
+        } else {
+          oldest.child.age <- max(child.ages, na.rm = T)
+        }
+      } else {
+        oldest.child.age <- NA
+      }
+      
+      return(shiny::validate(validateAge(input$Age, oldest.child.age, youngest.parent.age)))
+    }
   })
   output$validAge <- renderText({ validAge() })
   
   # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
+  # also disable/enable create pedigree button based on presense/absense of minimum necessary information
   pbMinInfo <- reactiveVal(FALSE)
   output$pbMinInfo <- reactive({ pbMinInfo() })
   outputOptions(output, 'pbMinInfo', suspendWhenHidden = FALSE)
   observeEvent(list(input$pedID, input$Sex, input$Age, validAge(), PED()), {
+    
+    # check if minimum information has been entered/conditions met to start a new pedigree
     if(is.null(PED()) &
        newOrLoadFlag() == "new" & 
        input$pedID != "" & 
@@ -2320,100 +2682,113 @@ server <- function(input, output, session) {
     } else {
       pbMinInfo(FALSE)
     }
-  }, ignoreInit = T)
+    
+    # enable/disable create pedigree button
+    if(pbMinInfo()){
+      shinyjs::enable("createPed")
+    } else {
+      shinyjs::disable("createPed")
+    }
+  }, ignoreInit = F)
   
-  # hide/show tabs if on the demographics tab based on if minimum information to create
-  # a pedigree is present or not
-  observeEvent(pbMinInfo(), {
-    if(!pbMinInfo()){
+  # hide/show tabs if the minimum information to create a pedigree is present or not and the pedigree has been created
+  observeEvent(list(pbMinInfo(), PED()), {
+    if(pbMinInfo() & !is.null(PED())){
+      showTab("pedTabs", "Cancer Hx", select = FALSE, session)
+      showTab("pedTabs", "CBC Risk", select = FALSE, session)
+      showTab("pedTabs", "Surgical Hx", select = FALSE, session)
+      showTab("pedTabs", "Tumor Markers", select = FALSE, session)
+      showTab("pedTabs", "Genes", select = FALSE, session)
+      
+      # only show add relatives tab if it is a pedigree being created, not loaded
+      if(newOrLoadFlag() == "new" & !showPed()){
+        showTab("pedTabs", "Add Relatives", select = FALSE, session)
+      } 
+    } else {
       hideTab("pedTabs", "Cancer Hx", session)
       hideTab("pedTabs", "CBC Risk", session)
       hideTab("pedTabs", "Surgical Hx", session)
       hideTab("pedTabs", "Tumor Markers", session)
       hideTab("pedTabs", "Genes", session)
       hideTab("pedTabs", "Add Relatives", session)
-      hideTab("pedTabs", "Family Tree and Relative Information", session)
-    } else if(pbMinInfo()){
-      showTab("pedTabs", "Cancer Hx", select = FALSE, session)
-      showTab("pedTabs", "CBC Risk", select = FALSE, session)
-      showTab("pedTabs", "Surgical Hx", select = FALSE, session)
-      showTab("pedTabs", "Tumor Markers", select = FALSE, session)
-      showTab("pedTabs", "Genes", select = FALSE, session)
-      showTab("pedTabs", "Family Tree and Relative Information", select = FALSE, session)
-      
-      # only show add relatives tab if it is a pedigree being created, not loaded
-      if(newOrLoadFlag() == "new"){
-        showTab("pedTabs", "Add Relatives", select = FALSE, session)
-      } 
     }
   })
   
   # instantiate the pedigree reactive
   PED <- reactiveVal(NULL)
+  pedExists <- reactiveVal(FALSE)
+  output$pedExists <- reactive({ pedExists() })
+  outputOptions(output, 'pedExists', suspendWhenHidden = FALSE)
+  observeEvent(PED(), {
+    if(!is.null(PED())){
+      pedExists(TRUE)
+    } else {
+      pedExists(FALSE)
+    }
+  }, ignoreInit = T, ignoreNULL = F)
   
-  # initialize the pedigree when user leave the proband demographics tab
+  # initialize the pedigree when the user clicks the "Create pedigree" buttons
+  observeEvent(input$createPed, {
+    
+    # lock fields
+    shinyjs::disable("pedID")
+    shinyjs::disable("Sex")
+    
+    # initialize new pedigree with proband and parents
+    if(input$Sex == "Female"){
+      ps <- 0
+    } else if(input$Sex == "Male"){
+      ps <- 1
+    } else {
+      ps <- NA
+    }
+    PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
+    
+    # populate proband's age and deceased status
+    PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age, is.dead = input$isDead))
+    
+    # save to database
+    savePedigreeToDB(conne = conn,
+                     user = credentials()$info[["user"]],
+                     tmp_tbl = PED())
+    
+    # update the list of pedigrees that can be loaded, downloaded, and deleted
+    updated.peds <- sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ", credentials()$info[["user"]], ";"))$PedigreeID
+    ))
+    userPeds(updated.peds)
+    userPedsForDownload(updated.peds)
+    userPedsForDelete(updated.peds)
+    userPedsForCopyFrom(updated.peds)
+    userPedsForCopyTo(updated.peds)
+  })
+  
+  # populate the age, race, ethnicity, and ancestry values in the pedigree whenever the user leaves the demographics tab
   onDemoTab <- reactiveVal(TRUE)
   observeEvent(input$pedTabs, {
     
     # execute if the previous tab was the proband demographics tab and the current tab is different
-    if(onDemoTab() & input$pedTabs != "Demographics" & pbMinInfo()){
-      
-      # lock fields
-      shinyjs::disable("pedID")
-      shinyjs::disable("Sex")
-      
-      # initialize new pedigree with proband and parents if no pedigree exists
-      new.ped <- FALSE
-      if(is.null(PED())){
-        new.ped <- TRUE
-        if(input$Sex == "Female"){
-          ps <- 0
-        } else if(input$Sex == "Male"){
-          ps <- 1
-        } else {
-          ps <- NA
-        }
-        PED(initPed(pedigree.id = input$pedID, pb.sex = ps))
-      }
+    if(onDemoTab() & input$pedTabs != "Demographics" & !is.null(PED())){
       
       # populate proband's demographics data and PedigreeID
-      t.ped <- PED()
-      t.ped <- popPersonData(tmp.ped = t.ped, id = input$relSelect, cur.age = input$Age, 
-                             rc = input$race, et = input$eth, 
-                             an.aj = input$ancAJ, an.it = input$ancIt)
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
+                        cur.age = input$Age, is.dead = input$isDead,
+                        rc = input$race, et = input$eth, 
+                        an.aj = input$ancAJ, an.it = input$ancIt))
       
-      # if this is this is the initialization of the three person pedigree, add the parents
-      if(new.ped){
-        
-        # populate mother's race and Ancestry information
-        t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$MotherID[which(t.ped$isProband == 1)], 
-                               rc = input$race, et = input$eth, 
-                               an.aj = input$ancAJ, an.it = input$ancIt)
-        
-        # populate father's race and Ancestry information
-        t.ped <- popPersonData(tmp.ped = t.ped, id = t.ped$FatherID[which(t.ped$isProband == 1)], 
-                               rc = input$race, et = input$eth, 
-                               an.aj = input$ancAJ, an.it = input$ancIt)
+      # if the mother and father's information cannot be set individually yet (pedigree has not been visualized)
+      # then assume they have the same background as the proband
+      if(!showPed()){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
       }
-      
-      # update the pedigree object
-      PED(t.ped)
       
       # save to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
       
-      # update the list of pedigrees that can be loaded, downloaded, and deleted
-      if(new.ped){
-        updated.peds <- unique(dbGetQuery(conn = conn,
-                                          statement = paste0("SELECT PedigreeID FROM ", 
-                                                             credentials()$info[["user"]], 
-                                                             ";"))$PedigreeID)
-        userPeds(updated.peds)
-        userPedsForDownload(updated.peds)
-        userPedsForDelete(updated.peds)
-      }
     } # if statement to check whether the pedigree could be created based on the tab and minimum info required
     
     # update the reactive value to detect if the current tab is the target tab
@@ -2473,7 +2848,7 @@ server <- function(input, output, session) {
     })
     
     ## observe for BC and CBC
-    observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]], input$relSelect), {
+    observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]]), {
       
       # reset CBC inputs if cancer is not BC
       if(input[[paste0(id, '-Can')]] != "Breast"){
@@ -2631,6 +3006,8 @@ server <- function(input, output, session) {
         hadBC <- FALSE
         showBCMarkers(FALSE)
       }
+      
+      
       if(PED()$isAffCOL[which(PED()$ID == as.numeric(input$relSelect))] == 1){ 
         hadCRC <- TRUE 
         showCRCMarkers(TRUE)
@@ -2649,6 +3026,7 @@ server <- function(input, output, session) {
           updateSelectInput(session, m, selected = "Not Tested")
         }
       }
+      
       if(!hadCRC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
         rmCRCmarks <- TRUE
         for(m in PanelPRO:::MARKER_TESTING$COL$MARKERS){
@@ -2977,7 +3355,7 @@ server <- function(input, output, session) {
   })
 
   # output formatted data table colored by result type
-  output$panelSum <- DT::renderDataTable({
+  output$panelSum <- DT::renderDT({
     if(!is.null(panelSum())){
       datatable(panelSum()) %>%
         formatStyle('Result',
@@ -2985,7 +3363,7 @@ server <- function(input, output, session) {
                                                  c("MistyRose","LightGreen","AliceBlue","white")),
                     fontWeight = 'bold')
     }
-  })
+  }, server = F)
 
   # add data to pedigree when user navigates off of the tab
   onGeneTab <- reactiveVal(FALSE)
@@ -3008,16 +3386,77 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  ##### Add Children, Siblings, Aunts/Uncles ####
+  ##### Add Kids, Sibs, Aunts/Uncles ####
+  # validate quantities of relatives
+  validDauQty <- reactive({
+    shiny::validate(validateRelNums(input$numDau))
+  })
+  output$validDauQty <- renderText({ validDauQty() })
+  
+  validSonQty <- reactive({
+    shiny::validate(validateRelNums(input$numSon))
+  })
+  output$validSonQty <- renderText({ validSonQty() })
+  
+  validSisQty <- reactive({
+    shiny::validate(validateRelNums(input$numSis))
+  })
+  output$validSisQty <- renderText({ validSisQty() })
+  
+  validBroQty <- reactive({
+    shiny::validate(validateRelNums(input$numBro))
+  })
+  output$validBroQty <- renderText({ validBroQty() })
+  
+  validMAuntQty <- reactive({
+    shiny::validate(validateRelNums(input$numMAunt))
+  })
+  output$validMAuntQty <- renderText({ validMAuntQty() })
+  
+  validMUncQty <- reactive({
+    shiny::validate(validateRelNums(input$numMUnc))
+  })
+  output$validMUncQty <- renderText({ validMUncQty() })
+  
+  validPAuntQty <- reactive({
+    shiny::validate(validateRelNums(input$numPAunt))
+  })
+  output$validPAuntQty <- renderText({ validPAuntQty() })
+  
+  validPUncQty <- reactive({
+    shiny::validate(validateRelNums(input$numPUnc))
+  })
+  output$validPUncQty <- renderText({ validPUncQty() })
+  
+  # disable showPed button if any relative quantities are invalid
+  observe({
+    total.rel.qty.errors <- sum(
+      length(validateRelNums(input$numDau)),
+      length(validateRelNums(input$numSon)),
+      length(validateRelNums(input$numSis)),
+      length(validateRelNums(input$numBro)),
+      length(validateRelNums(input$numMAunt)),
+      length(validateRelNums(input$numMUnc)),
+      length(validateRelNums(input$numPAunt)),
+      length(validateRelNums(input$numPUnc))
+    )
+    if(total.rel.qty.errors > 0){
+      shinyjs::disable("showPed")
+    } else if(total.rel.qty.errors == 0){
+      shinyjs::enable("showPed")
+    }
+  })
+  
+  
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
-  visPed <- reactiveVal(FALSE)
-  output$visPed <- reactive({ visPed() })
-  outputOptions(output, 'visPed', suspendWhenHidden = FALSE)
-  observeEvent(input$visPed, {
+  showPed <- reactiveVal(FALSE)
+  output$showPed <- reactive({ showPed() })
+  outputOptions(output, 'showPed', suspendWhenHidden = FALSE)
+  observeEvent(input$showPedButton, {
     
     # update reactive value which triggers showing/hiding the visualized pedigree
-    visPed(TRUE)
+    showPed(TRUE)
     
     # only add family members if this is a new pedigree
     if(newOrLoadFlag() == "new"){
@@ -3166,19 +3605,20 @@ server <- function(input, output, session) {
                         choices = setNames(PED()$ID, PED()$name), 
                         selected = PED()$ID[which(PED()$isProband == 1)])
       
-      # hide initialize pedigree tab and reset inputs
-      for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
-        updateNumericInput(session, paste0("num", relation), value = 0)
-      }
-      hideTab("pedTabs", target = "Add Relatives", session = session)
-      
     } # end of if statement for confirming the pedigree is a new creation
+    
+    # hide initialize pedigree tab and reset inputs
+    for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
+      updateNumericInput(session, paste0("num", relation), value = 0)
+    }
+    hideTab("pedTabs", target = "Add Relatives", session = session)
+    
   }, ignoreInit = TRUE)
   
   ##### Visualize Pedigree ####
   # temporarily: draw pedigree in kinship2
   # replace with pedigreejs
-  output$drawPed <- renderPlot({
+  output$treePed <- renderPlot({
     
     # check pedigree is not NULL, if so issue warning
     shiny::validate(need(PED(), "The pedigree object PED() is NULL"))
@@ -3225,6 +3665,71 @@ server <- function(input, output, session) {
     plot(dped[paste0(input$pedID)])
   })
   
+  # display pedigree as a table
+  output$tablePed <- DT::renderDT({
+    t.ped <- 
+      PED() %>% 
+      select(-c("PedigreeID", 
+                "side", 
+                "relationship", 
+                "isProband",
+                "race", 
+                "Ancestry",
+                "cancersJSON",
+                "genesJSON"
+                )) %>%
+      relocate(name, .after = "ID") %>%
+      relocate(Sex, .after = "name") %>%
+      relocate(Twins, .after = "isDead") %>%
+      relocate(panelNames, .before = "ATM") %>%
+      rename(Name = name,
+             Dead = isDead,
+             Twin_Set = Twins,
+             Race = NPPrace,
+             HispEth = NPPeth,
+             AJ = NPPAJ,
+             Italian = NPPIt,
+             Mastectomy = riskmodMast,
+             Hysterecomy = riskmodHyst,
+             Oophorectomy = riskmodOoph,
+             AgeMast. = interAgeMast,
+             AgeHyst. = interAgeHyst,
+             AgeOoph. = interAgeOoph,
+             Panel_Names = panelNames) %>%
+      mutate(Sex = recode(Sex,
+                          "0" = "Female",
+                          "1" = "Male")) %>%
+      mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
+                    ~ ifelse(is.na(.), "Not Tested",
+                             ifelse(.==1, "P/LP", "Not P/LP")))) %>%
+      mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
+      mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                     PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
+                    ~ ifelse(is.na(.), "Not Tested",
+                             ifelse(.==1, "Pos", "Neg")))) %>%
+      mutate(across(.cols = c(Dead, AJ, Italian, 
+                              Mastectomy, Hysterecomy, Oophorectomy,
+                              AntiEstrogen, HRPreneoplasia),
+                    ~ ifelse(is.na(.), NA,
+                             ifelse(.==1, "Yes", "No")))) %>%
+      mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
+                    ~ ifelse(.==1, "Yes", "No")))
+    colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
+    colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
+    colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+    
+    DT::datatable(data = t.ped,
+                  rownames = FALSE,
+                  class = list("nowrap", "stripe", "compact", "cell-border"),
+                  extensions = "FixedColumns",
+                  options = list(
+                    pageLength = 20,
+                    scrollX = TRUE,
+                    fixedColumns = list(leftColumns = 2)
+                  )
+    )
+  }, server = F)
+  
   ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband
   lastRel <- reactiveVal(1)
@@ -3244,7 +3749,7 @@ server <- function(input, output, session) {
                            dupResultGene = dupResultGene(),
                            sx = PED()$Sex[which(PED()$ID == lastRel())])
           )
-      
+
       # save pedigree to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
@@ -3260,9 +3765,131 @@ server <- function(input, output, session) {
       # reset the selected tabs
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
-      
     }
   }, ignoreInit = TRUE)
+  
+  # change instructions and headers based on the selected relative
+  relOrProband <- reactive({
+    if(is.null(PED())){
+      return("Proband")
+    } else {
+      return(PED()$name[which(PED()$ID == input$relSelect)])
+    }
+  })
+  
+  output$rop1 <- renderText({ paste0(relOrProband(),"'s") })          # Demographics heading
+  output$rop2 <- renderText({ paste0(tolower(relOrProband()),"'s") }) # Demographics instructions
+  output$rop3 <- renderText({ paste0(relOrProband(),"'s") })          # Cancer Hx heading
+  output$rop4 <- renderText({                                         # Cancer Hx instructions
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })     
+  output$rop5 <- renderText({ paste0(relOrProband(),"'s") })          # CBC Risk heading
+  output$rop6 <- renderText({                                         # CBC Risk cannot display warning
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })    
+  output$rop7 <- renderText({ paste0(relOrProband(),"'s") })          # Tumor Marker heading
+  output$rop8 <- renderText({                                         # Tumor Marker cannot display warning
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  output$rop9 <- renderText({                                         # Tumor Marker instructions
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  output$rop10 <- renderText({ paste0(relOrProband(),"'s") })          # Surgical Hx heading
+  output$rop11 <- renderText({                                         # Surgical Hx instructions
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  
+  # Gene/Panel relative titles
+  output$rop12 <- renderText({ paste0(relOrProband(),"'s") })
+  output$rop13 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(paste0(tolower(relOrProband()), "."))
+    } else {
+      return(paste0("the ", tolower(relOrProband()), "."))
+    }
+  })
+  output$rop14 <- renderText({ paste0(relOrProband(),"'s") })
+  output$rop15 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(relOrProband())
+    } else {
+      return(paste0("The ", tolower(relOrProband())))
+    }
+  })
+  output$rop16 <- renderText({  paste0(relOrProband(),"'s") })
+  output$rop17 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(paste0(tolower(relOrProband()), "'s"))
+    } else {
+      return(paste0("the ", tolower(relOrProband()), "'s"))
+    }
+  })
+  output$rop18 <- renderText({  paste0(relOrProband(),"'s") })
+  output$rop19 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(relOrProband())
+    } else {
+      return(paste0("The ", tolower(relOrProband())))
+    }
+  })
+  output$rop20 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(paste0(tolower(relOrProband()), "."))
+    } else {
+      return(paste0("the ", tolower(relOrProband()), "."))
+    }
+  })
+  output$rop21 <- renderText({                                         
+    if(grepl(pattern = "[[:digit:]]$", relOrProband())){
+      return(tolower(relOrProband()))
+    } else {
+      return(paste0("the ", tolower(relOrProband())))
+    }
+  })
+  
+  # ## Change instructions when the proband is the selected relative
+  # observeEvent(list(PED(), input$relSelect), {
+  #   
+  #   # when there is no pedigree
+  #   if(is.null(PED())){
+  #     is.pb <- FALSE
+  #     
+  #     # when the selected relative is NOT the proband
+  #   } else if(as.numeric(input$relSelect) != PED()$ID[which(PED()$isProband == 1)]){
+  #     is.pb <- FALSE
+  #     
+  #     # when the selected relative is the proband
+  #   } else if(as.numeric(input$relSelect) == PED()$ID[which(PED()$isProband == 1)]){
+  #     is.pb <- TRUE
+  #   }
+  #   
+  #   # change the instructions
+  #   if(is.pb){
+  #     
+  #   } else {
+  #     
+  #   }
+  # }, ignoreNULL = T)
   
   #### Manage navbarTabs ####
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
@@ -3278,7 +3905,7 @@ server <- function(input, output, session) {
     } else {
       hideTab("navbarTabs", target = "Run PanelPRO", session = session)
     }
-  })
+  }, ignoreNULL = F)
   
   # Save data to pedigree when navbarTabs change
   observeEvent(input$navbarTabs, {
@@ -3290,6 +3917,13 @@ server <- function(input, output, session) {
                            dupResultGene = dupResultGene(),
                            sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
       )
+      
+      # if tab is switched prior to pedigree being visualized, when the parent's
+      # race/eth/anc cannot be individually set, assume those values from the proband
+      if(input$pedTabs == "Demographics" & !showPed() & newOrLoadFlag() == "new"){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
+      }
       
       # save pedigree to database
       savePedigreeToDB(conne = conn,
