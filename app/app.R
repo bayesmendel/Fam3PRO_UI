@@ -95,7 +95,7 @@ ui <- fixedPage(
             studies that have multiple providers enrolling patients into the same study. 
             Your manager(s) must have already created their own user account(s) with 'manager' 
             level permissions."),
-          selectizeInput("selManagers1", label = "Enter managers' usernames",
+          selectizeInput("selManagers1", label = "Enter managers' usernames:",
                          selected = "",
                          choices = "",
                          multiple = TRUE,
@@ -223,7 +223,9 @@ ui <- fixedPage(
           insurance information. When creating names for your pedigrees, do not use any of these identifiers 
           in whole or in part. The identifiers used to differentiate relatives in each pedigree created using PPI 
           will use generic labels like 'Proband' or 'Sister 1'."),
-        p("Website admins have access to all pedigrees saved to all user accounts."),
+        p("Website admins have access to all pedigrees saved to all user accounts and if you assigned other users 
+          as managers for your account, those accounts can also access all of your saved pedigrees. Admins nor managers 
+          have access to your password, however."),
         p("Users can delete any or all pedigrees saved to their account at any time by navigating to 
           the 'Manage Pedigrees' page and then navigating to the 'Delete' tab on that page. Users with manager 
           level permissions may also do this for any user account for which they manage."),
@@ -979,7 +981,7 @@ ui <- fixedPage(
                 # button to create visual pedigree
                 h4("To Continue"),
                 h5("Press the button below to create the proband's pedigree."),
-                actionButton("showPed", label = "Create Pedigree", icon = icon('play'),
+                actionButton("showPedButton", label = "Visualize Pedigree", icon = icon('tv'),
                              style = "color: white; background-color: #10699B; border-color: #10699B")
                 
               ) # end of number and type of rels tab
@@ -1609,7 +1611,6 @@ server <- function(input, output, session) {
   
   #### Manage User Pedigrees ####
   ##### Load/Create New Pedigree ####
-  
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
   observeEvent(list(input$existingPed, input$newOrLoad), {
@@ -1671,10 +1672,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsError(FALSE)
-          userPeds(unique(dbGetQuery(conn = conn,
-                                     statement = paste0("SELECT PedigreeID FROM ", 
+          userPeds(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
                                                         credentials()$info[["user"]], 
-                                                        ";"))$PedigreeID))
+                                                        ";"))$PedigreeID
+          )))
           
           # update the tables available for loading
           updateSelectInput(session, inputId = "existingPed",
@@ -1688,12 +1691,13 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUser, userPeds()), {
-    userPeds(
-      unique(dbGetQuery(conn = conn,
+    userPeds(sort(unique(
+      dbGetQuery(conn = conn,
                         statement = paste0("SELECT PedigreeID FROM ",
                                            ifelse(input$selectUser == "", credentials()$info[["user"]],
                                                   input$selectUser),
-                                           ";"))$PedigreeID))
+                                           ";"))$PedigreeID
+    )))
     updateSelectInput(session, inputId = "existingPed",
                       choices = userPeds())
   }, ignoreInit = T, ignoreNULL = T)
@@ -2010,7 +2014,7 @@ server <- function(input, output, session) {
 
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
-      shinyjs::click("showPed")
+      shinyjs::click("showPedButton")
       
       # reset the pedigree loading selector
       updateSelectInput(session, "existingPed", selected = "No pedigree selected")
@@ -2190,12 +2194,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsErrorCopy(FALSE)
-          userPedsForCopyFrom(
-            unique(dbGetQuery(conn = conn,
-                              statement = paste0("SELECT PedigreeID FROM ", 
-                                                 credentials()$info[["user"]], 
-                                                 ";"))$PedigreeID)
-          )
+          userPedsForCopyFrom(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
+                                          credentials()$info[["user"]], 
+                                          ";"))$PedigreeID
+          )))
           userPedsForCopyTo(userPedsForCopyFrom())
           
           # update the tables available for copy
@@ -2211,24 +2215,26 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available to copy from based on the user account selected
   observeEvent(list(input$selectUserForCopyFrom, userPedsForCopyFrom()), {
-    userPedsForCopyFrom(
-      unique(dbGetQuery(conn = conn,
-                        statement = paste0("SELECT PedigreeID FROM ",
-                                           ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
-                                                  input$selectUserForCopyFrom),
-                                           ";"))$PedigreeID))
+    userPedsForCopyFrom(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
+                                           input$selectUserForCopyFrom),
+                                    ";"))$PedigreeID
+    )))
     updateSelectInput(session, inputId = "selectCopyPed",
                       choices = c("No pedigree selected", userPedsForCopyFrom()))
   }, ignoreInit = T, ignoreNULL = T)
   
   # for admins and managers, update the pedigrees in the copy to account
   observeEvent(input$selectUserForCopyTo, {
-    userPedsForCopyTo(
-      unique(dbGetQuery(conn = conn,
-                        statement = paste0("SELECT PedigreeID FROM ",
-                                           ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
-                                                  input$selectUserForCopyTo),
-                                           ";"))$PedigreeID))
+    userPedsForCopyTo(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
+                                           input$selectUserForCopyTo),
+                                    ";"))$PedigreeID
+    )))
     
   }, ignoreInit = T, ignoreNULL = T)
   
@@ -2282,10 +2288,10 @@ server <- function(input, output, session) {
                      tmp_tbl = tmp.ped)
     
     # update the list of pedigrees that can be loaded, downloaded, and deleted
-    updated.peds <- unique(dbGetQuery(conn = conn,
-                                      statement = paste0("SELECT PedigreeID FROM ", 
-                                                         toAcct, 
-                                                         ";"))$PedigreeID)
+    updated.peds <- sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ", toAcct, ";"))$PedigreeID
+    ))
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
@@ -2342,12 +2348,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsErrorDownload(FALSE)
-          userPedsForDownload(
-            unique(dbGetQuery(conn = conn,
-                              statement = paste0("SELECT PedigreeID FROM ", 
-                                                 credentials()$info[["user"]], 
-                                                 ";"))$PedigreeID)
-          )
+          userPedsForDownload(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
+                                          credentials()$info[["user"]], 
+                                          ";"))$PedigreeID
+          )))
           
           # update the tables available for loading
           updateSelectInput(session, inputId = "selectDownloadPeds",
@@ -2361,12 +2367,13 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUserForDownload, userPedsForDownload()), {
-    userPedsForDownload(
-      unique(dbGetQuery(conn = conn,
-                        statement = paste0("SELECT PedigreeID FROM ",
-                                           ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
-                                                  input$selectUserForDownload),
-                                           ";"))$PedigreeID))
+    userPedsForDownload(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
+                                           input$selectUserForDownload),
+                                    ";"))$PedigreeID
+    )))
     updateSelectInput(session, inputId = "selectDownloadPeds",
                       choices = userPedsForDownload())
   }, ignoreInit = T, ignoreNULL = T)
@@ -2481,12 +2488,12 @@ server <- function(input, output, session) {
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
           showTblExistsErrorDelete(FALSE)
-          userPedsForDelete(
-            unique(dbGetQuery(conn = conn,
-                              statement = paste0("SELECT PedigreeID FROM ", 
-                                                 credentials()$info[["user"]], 
-                                                 ";"))$PedigreeID)
-          )
+          userPedsForDelete(sort(unique(
+            dbGetQuery(conn = conn,
+                       statement = paste0("SELECT PedigreeID FROM ", 
+                                          credentials()$info[["user"]], 
+                                          ";"))$PedigreeID
+          )))
           
           # update the tables available for deletion
           updateSelectInput(session, inputId = "selectDeletePeds",
@@ -2500,12 +2507,13 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUserForDelete, userPedsForDelete()), {
-    userPedsForDelete(
-      unique(dbGetQuery(conn = conn,
-                        statement = paste0("SELECT PedigreeID FROM ",
-                                           ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
-                                                  input$selectUserForDelete),
-                                           ";"))$PedigreeID))
+    userPedsForDelete(sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ",
+                                    ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
+                                           input$selectUserForDelete),
+                                    ";"))$PedigreeID
+    )))
     updateSelectInput(session, inputId = "selectDeletePeds",
                       choices = userPedsForDelete())
   }, ignoreInit = T, ignoreNULL = T)
@@ -2568,10 +2576,10 @@ server <- function(input, output, session) {
                                  "');"))
     
     # update the list of pedigrees that can be loaded, downloaded, and deleted
-    updated.peds <- unique(dbGetQuery(conn = conn,
-                                      statement = paste0("SELECT PedigreeID FROM ", 
-                                                         fromAcct, 
-                                                         ";"))$PedigreeID)
+    updated.peds <- sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ", fromAcct, ";"))$PedigreeID
+    ))
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
@@ -2682,7 +2690,7 @@ server <- function(input, output, session) {
       showTab("pedTabs", "Genes", select = FALSE, session)
       
       # only show add relatives tab if it is a pedigree being created, not loaded
-      if(newOrLoadFlag() == "new"){
+      if(newOrLoadFlag() == "new" & !showPed()){
         showTab("pedTabs", "Add Relatives", select = FALSE, session)
       } 
     } else {
@@ -2734,10 +2742,10 @@ server <- function(input, output, session) {
                      tmp_tbl = PED())
     
     # update the list of pedigrees that can be loaded, downloaded, and deleted
-    updated.peds <- unique(dbGetQuery(conn = conn,
-                                      statement = paste0("SELECT PedigreeID FROM ", 
-                                                         credentials()$info[["user"]], 
-                                                         ";"))$PedigreeID)
+    updated.peds <- sort(unique(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT PedigreeID FROM ", credentials()$info[["user"]], ";"))$PedigreeID
+    ))
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
@@ -3433,7 +3441,7 @@ server <- function(input, output, session) {
   showPed <- reactiveVal(FALSE)
   output$showPed <- reactive({ showPed() })
   outputOptions(output, 'showPed', suspendWhenHidden = FALSE)
-  observeEvent(input$showPed, {
+  observeEvent(input$showPedButton, {
     
     # update reactive value which triggers showing/hiding the visualized pedigree
     showPed(TRUE)
@@ -3585,13 +3593,14 @@ server <- function(input, output, session) {
                         choices = setNames(PED()$ID, PED()$name), 
                         selected = PED()$ID[which(PED()$isProband == 1)])
       
-      # hide initialize pedigree tab and reset inputs
-      for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
-        updateNumericInput(session, paste0("num", relation), value = 0)
-      }
-      hideTab("pedTabs", target = "Add Relatives", session = session)
-      
     } # end of if statement for confirming the pedigree is a new creation
+    
+    # hide initialize pedigree tab and reset inputs
+    for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
+      updateNumericInput(session, paste0("num", relation), value = 0)
+    }
+    hideTab("pedTabs", target = "Add Relatives", session = session)
+    
   }, ignoreInit = TRUE)
   
   ##### Visualize Pedigree ####
@@ -3651,6 +3660,7 @@ server <- function(input, output, session) {
       select(-c("PedigreeID", 
                 "side", 
                 "relationship", 
+                "isProband",
                 "race", 
                 "Ancestry",
                 "cancersJSON",
@@ -3659,19 +3669,40 @@ server <- function(input, output, session) {
       relocate(name, .after = "ID") %>%
       relocate(Sex, .after = "name") %>%
       relocate(Twins, .after = "isDead") %>%
+      relocate(panelNames, .before = "ATM") %>%
       rename(Name = name,
+             Dead = isDead,
+             Twin_Set = Twins,
              Race = NPPrace,
              HispEth = NPPeth,
-             isAJ = NPPAJ,
-             isIt = NPPIt,
+             AJ = NPPAJ,
+             Italian = NPPIt,
              Mastectomy = riskmodMast,
              Hysterecomy = riskmodHyst,
              Oophorectomy = riskmodOoph,
              AgeMast. = interAgeMast,
              AgeHyst. = interAgeHyst,
              AgeOoph. = interAgeOoph,
-             Panel_Names = panelNames)
-    colnames(t.ped) <- sub(pattern = "^isAff", replacement = "", colnames(t.ped))
+             Panel_Names = panelNames) %>%
+      mutate(Sex = recode(Sex,
+                          "0" = "Female",
+                          "1" = "Male")) %>%
+      mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
+                    ~ ifelse(is.na(.), "Not Tested",
+                             ifelse(.==1, "P/LP", "Not P/LP")))) %>%
+      mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
+      mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                     PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
+                    ~ ifelse(is.na(.), "Not Tested",
+                             ifelse(.==1, "Pos", "Neg")))) %>%
+      mutate(across(.cols = c(Dead, AJ, Italian, 
+                              Mastectomy, Hysterecomy, Oophorectomy,
+                              AntiEstrogen, HRPreneoplasia),
+                    ~ ifelse(is.na(.), NA,
+                             ifelse(.==1, "Yes", "No")))) %>%
+      mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
+                    ~ ifelse(.==1, "Yes", "No")))
+    colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
     colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
     colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
     
