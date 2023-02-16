@@ -476,7 +476,7 @@ ui <- fixedPage(
                      style = "color:red")
                 ),
                 
-                # sex and age
+                # sex, age
                 selectInput("Sex", label = h5("*Sex assigned at birth:"),
                             choices = sex.choices,
                             width = "150px"),
@@ -486,16 +486,23 @@ ui <- fixedPage(
                              width = "150px"),
                 textOutput("validAge"),
                 tags$head(tags$style("#validAge{color: red;}")),
+                br(),
                 
                 # is pedigree does not exist yet, show a create pedigree button
                 conditionalPanel("!output.pedExists",
                   actionButton("createPed", label = "Create Pedigree",
                                icon = icon('file'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+                               style = "color: white; background-color: #10699B; border-color: #10699B")
                 ),
                 
                 # once a pedigree exists, show other demographic options
                 conditionalPanel("output.pedExists",
+                                 
+                  # deceased
+                  h5("Check here if deceased:", style = "margin-top:-10px"),
+                  div(style = "margin-left:25px",
+                    checkboxInput("isDead", label = "Deceased")
+                  ),
                   
                   # race, ethnicity, and ancestry inputs
                   selectInput("race", label = h5("Race:"),
@@ -547,7 +554,7 @@ ui <- fixedPage(
                   selectInput("AntiEstrogen", label = NULL,
                               choices = antiest.hrpre.choices,
                               width = "125px"),
-                  h5("Does the relative have a history of high risk pre-neoplasia (ie atypical hyperplasia or LCIS?)"),
+                  h5("Is there a personal history of high risk pre-neoplasia (ie atypical hyperplasia or LCIS?)"),
                   selectInput("HRPreneoplasia", label = NULL,
                               choices = antiest.hrpre.choices,
                               width = "125px"),
@@ -871,7 +878,7 @@ ui <- fixedPage(
                            textOutput("rop21", inline = T), "which has multiple different result types recorded. 
                           This is possible but, it could be an error. Please check the table below for accuracy.
                           If one of these result types is P/LP, PanelPRO will treat this gene as P/LP.", 
-                          style = "color:red")
+                          style = "color:blue")
                       ),
                       
                       # data frame with panel summary information
@@ -980,8 +987,8 @@ ui <- fixedPage(
                 
                 # button to create visual pedigree
                 h4("To Continue"),
-                h5("Press the button below to create the proband's pedigree."),
-                actionButton("showPedButton", label = "Visualize Pedigree", icon = icon('tv'),
+                h5("Press the button below to display the proband's pedigree."),
+                actionButton("showPedButton", label = "Display Pedigree", icon = icon('tv'),
                              style = "color: white; background-color: #10699B; border-color: #10699B")
                 
               ) # end of number and type of rels tab
@@ -1737,19 +1744,19 @@ server <- function(input, output, session) {
       proband.info <- PED()[which(PED()$ID == proband.id),]
       updateRelInputs(rel.info = proband.info, ss = session)
       shinyjs::disable("Sex")
-
+      
       #### Reset cancer and gene reactives and UI modules and create data frames
       #### for cancer and gene data by
       master.can.df <- NULL
       master.gene.df <- NULL
       for(rl in PED()$ID){
-
+      
         ### 1: RESET
         # CANCERS, iterate through this relative's cancer hx dictionary, if there is at least one cancer
         if(any(names(canReactive$canNums) == as.character(rl))){
           if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
             for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
-
+              
               # update the cancer reactive object, remove the cancerUI module and delete it from memory
               canReactive$canNums <-
                 removeCancer(cr = canReactive$canNums,
@@ -1757,22 +1764,22 @@ server <- function(input, output, session) {
                              inp = input,
                              ss = session,
                              trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
-
+              
               # remove the module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
             }
           }
-
+          
           # else, create an empty cancer tracked for this relative
         } else {
           canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
-
+        
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
             for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
-
+              
               # update the geneReactive and also remove and delete all related UI modules for this panel
               out <-
                 removePanel(gr = geneReactive$GeneNums,
@@ -2031,7 +2038,7 @@ server <- function(input, output, session) {
       # demo
       shinyjs::enable("pedID")
       shinyjs::enable("Sex")
-      for(demo.var in c("pedID", "Sex", "Age", "race", "eth", "ancAJ", "ancIt")){
+      for(demo.var in c("pedID", "Sex", "Age", "isDead", "race", "eth", "ancAJ", "ancIt")){
         shinyjs::reset(demo.var)
       }
       
@@ -2679,8 +2686,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = T)
   
-  # hide/show tabs if on the demographics tab based on if minimum information to create
-  # a pedigree is present or not
+  # hide/show tabs if the minimum information to create a pedigree is present or not and the pedigree has been created
   observeEvent(list(pbMinInfo(), PED()), {
     if(pbMinInfo() & !is.null(PED())){
       showTab("pedTabs", "Cancer Hx", select = FALSE, session)
@@ -2761,7 +2767,8 @@ server <- function(input, output, session) {
     if(onDemoTab() & input$pedTabs != "Demographics" & !is.null(PED())){
       
       # populate proband's demographics data and PedigreeID
-      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, cur.age = input$Age, 
+      PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
+                        cur.age = input$Age, is.dead = input$isDead,
                         rc = input$race, et = input$eth, 
                         an.aj = input$ancAJ, an.it = input$ancIt))
       
@@ -3753,7 +3760,6 @@ server <- function(input, output, session) {
       # reset the selected tabs
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
-      
     }
   }, ignoreInit = TRUE)
   
