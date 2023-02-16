@@ -304,6 +304,7 @@ ui <- fixedPage(
               
               # table
               tabPanel(title = "Table",
+                br(),
                 DTOutput("tablePedViewer"),
                 br(),
                 p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, 
@@ -464,7 +465,9 @@ ui <- fixedPage(
                   fluidRow(
                     column(width = 12, 
                            style = "height:800px; width:100%",
+                           br(),
                            DTOutput("tablePedEditor"),
+                           br(),
                            p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
                              are shown in this table. To see the full table, download the pedigree.",
                              style = "color:blue")
@@ -2171,14 +2174,13 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
-      updateTabsetPanel(session, "pedVisualViewer", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
     }
     
     # take user to the pedigree editor if they chose the create new option
     if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
     }
-    
   }, ignoreInit = T)
   
   ##### Copy Pedigree ####
