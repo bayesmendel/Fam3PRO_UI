@@ -3,6 +3,10 @@
 # https://www.dana-farber.org/for-patients-and-families/care-and-treatment/cancer-types/
 non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 
+# set universal delay execution time in milliseconds
+delay_load_ms <- delay_copy_ms <- 4000
+delay_download_ms <- delay_delete_ms <- 2000
+
 #### Pedigree ####
 #pedigree column names
 cbcrisk.cols <- c("FirstBCType", "AntiEstrogen", "HRPreneoplasia", "BreastDensity", "FirstBCTumorSize")
@@ -48,6 +52,7 @@ expireCode <- 10000
 # age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
 max.age <- 89
 min.age <- 1
+min.parent.child.age.diff <- 10
 
 # sex choices
 sex.choices <- c(" "=" ","Female"="Female","Male"="Male")

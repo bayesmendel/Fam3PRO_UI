@@ -293,7 +293,7 @@ labelTwins <- function(tmp.ped, twins){
 #' @param is.proband logical, `TRUE` if the person is the proband, `FALSE` otherwise. 
 #' Default is `FALSE`.
 #' @param cur.age number, the person's current age, if alive, or age of death
-#' @param is.dead binary indicating if person is dead, 0 if alive, 1 if dead.
+#' @param is.dead logical indicating if person is dead, `FALSE` if alive, `TRUE` if dead.
 #' @param rc string, race, one of `rc.choices`.
 #' @param et string, ethnicity, one of `et.choices`.
 #' @param an.aj logical, Ashkenazi Jewish Ancestry.
@@ -363,7 +363,9 @@ popPersonData <- function(tmp.ped,
   
   # demographics
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
-  if(!is.null(is.dead)){ tmp.ped$isDead[which(tmp.ped$ID == id)] <- is.dead }
+  if(!is.null(is.dead)){ 
+    tmp.ped$isDead[which(tmp.ped$ID == id)] <- ifelse(is.dead, 1, 0) 
+  }
   if(!is.null(rc) & !is.null(et)){ 
     tmp.ped$race[which(tmp.ped$ID == id)] <- getPPRace(rc, et) 
     tmp.ped$NPPrace[which(tmp.ped$ID == id)] <- rc
@@ -733,9 +735,10 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
   
   # demographics
   if(inp$pedTabs == "Demographics"){
-    return(popPersonData(tmp.ped = tped, id = rel, cur.age = inp$Age, 
-                      rc = inp$race, et = inp$eth, 
-                      an.aj = inp$ancAJ, an.it = inp$ancIt)
+    return(popPersonData(tmp.ped = tped, id = rel, 
+                         cur.age = inp$Age, is.dead = inp$isDead,
+                         rc = inp$race, et = inp$eth, 
+                         an.aj = inp$ancAJ, an.it = inp$ancIt)
     )
     
     # cancer hx
@@ -796,6 +799,10 @@ updateRelInputs <- function(rel.info, ss){
   # age
   updateNumericInput(ss, "Age", value = rel.info$CurAge)
   
+  # isDead
+  death.val <- ifelse(rel.info$isDead == 1, TRUE, FALSE)
+  updateCheckboxInput(ss, "isDead", value = death.val)
+  
   # Non-PanelPRO races, ethnicity, and ancestries
   updateSelectInput(ss, "race", selected = rel.info$NPPrace)
   updateSelectInput(ss, "eth", selected = rel.info$NPPeth)
@@ -840,4 +847,19 @@ updateRelInputs <- function(rel.info, ss){
   }
 }
 
-
+#' Validate quantities of relatives to be added
+validateRelNums <- function(num.rels){
+  if(is.na(num.rels)){
+    notNA <- FALSE
+    need(notNA, "Quantity cannot be blank or NA, it must be greater than or equal to 0.")
+  } else {
+    isNum <- is.numeric(num.rels)
+    if(isNum){
+      inRange <- num.rels >= 0
+      isInt <- num.rels %% 1 == 0
+      need(all(isInt, inRange), "Quantity must be an integer greater than or equal to 0.")
+    } else {
+      need(isNum, "Quantity must be numeric.")
+    }
+  }
+}

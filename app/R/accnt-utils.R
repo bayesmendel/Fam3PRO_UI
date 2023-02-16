@@ -363,7 +363,7 @@ savePedigreeToDB <- function(conne, user, tmp_tbl){
     }
   }
   
-  # if this is a pedigree update, remove the old pedigree first
+  # add to table
   dbAppendTable(conn = conne,
                 name = user,
                 value = tmp_tbl)

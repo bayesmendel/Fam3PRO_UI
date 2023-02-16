@@ -64,7 +64,7 @@ PPI Testing
 
 18. Confirm newly created pedigrees can be downloaded and are accurate
 
-19. Confirm newly create pedigrees can be deleted
+19. Confirm newly created pedigrees can be deleted
 
 20. Log-out 
 
