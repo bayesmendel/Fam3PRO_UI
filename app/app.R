@@ -289,6 +289,29 @@ ui <- fixedPage(
                            icon = icon('play'),
                            style = "color: white; background-color: #10699B; border-color: #10699B")
             )
+          ), # end of tab for loading/creating new pedigree
+          
+          ###### UI: Preview Pedigree ####
+          tabPanel("Preview",
+            h4("Preview Current Pedigree"),
+            p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
+            tabsetPanel(id = "pedVisualsViewer",
+                        
+              # tree
+              tabPanel(title = "Tree",
+                plotOutput("treePedViewer")
+              ),
+              
+              # table
+              tabPanel(title = "Table",
+                DTOutput("tablePedViewer"),
+                br(),
+                p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, 
+                  non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
+                  are shown in this table. To see the full table, download the pedigree.",
+                  style = "color:blue")
+              )
+            )
           ),
           
           ###### UI: Copy Pedigree ####
@@ -429,11 +452,11 @@ ui <- fixedPage(
               ),
               
               # pedigree visualization (table and tree)
-              tabsetPanel(id = "pedVisuals",
+              tabsetPanel(id = "pedVisualsEditor",
                           
                 # tree
                 tabPanel(title = "Tree",
-                  plotOutput("treePed")
+                  plotOutput("treePedEditor")
                 ),
                 
                 # table
@@ -441,7 +464,7 @@ ui <- fixedPage(
                   fluidRow(
                     column(width = 12, 
                            style = "height:800px; width:100%",
-                           DTOutput("tablePed"),
+                           DTOutput("tablePedEditor"),
                            p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
                              are shown in this table. To see the full table, download the pedigree.",
                              style = "color:blue")
@@ -2147,9 +2170,15 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "pedTabs", selected = "Demographics")
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
-      updateTabsetPanel(session, "pedVisuals", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualViewer", selected = "Tree")
+    }
+    
+    # take user to the pedigree editor if they chose the create new option
+    if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
     }
+    
   }, ignoreInit = T)
   
   ##### Copy Pedigree ####
@@ -3627,118 +3656,169 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   ##### Visualize Pedigree ####
-  # temporarily: draw pedigree in kinship2
-  # replace with pedigreejs
-  output$treePed <- renderPlot({
-    
-    # check pedigree is not NULL, if so issue warning
-    shiny::validate(need(PED(), "The pedigree object PED() is NULL"))
-    
-    plot_fam <-
-      PED() %>%
-      mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
-      mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
-      mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
-      mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
-      mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
-      mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
-      mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
-      mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
-      mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
-      mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
-      mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
-      mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
-      mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
-      mutate(nameMother = "") %>%
-      mutate(nameFather = "") %>%
-      select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
-    
-    # replace mother and father ID numbers with names
-    for(uid in unique(plot_fam$MotherID)){
-      if(uid != 0){
-        pname <- plot_fam$name[which(plot_fam$ID == uid)]
-        plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+  
+  ## Family Tree
+  ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs
+  # prepare the data
+  treePed <- reactive({
+    if(!is.null(PED())){
+      plot_fam <-
+        PED() %>%
+        mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
+        mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
+        mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
+        mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
+        mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
+        mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
+        mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
+        mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
+        mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
+        mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
+        mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
+        mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
+        mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
+        mutate(nameMother = "") %>%
+        mutate(nameFather = "") %>%
+        select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+      
+      # replace mother and father ID numbers with names
+      for(uid in unique(plot_fam$MotherID)){
+        if(uid != 0){
+          pname <- plot_fam$name[which(plot_fam$ID == uid)]
+          plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+        }
       }
-    }
-    for(uid in unique(plot_fam$FatherID)){
-      if(uid != 0){
-        pname <- plot_fam$name[which(plot_fam$ID == uid)]
-        plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+      for(uid in unique(plot_fam$FatherID)){
+        if(uid != 0){
+          pname <- plot_fam$name[which(plot_fam$ID == uid)]
+          plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+        }
       }
+      
+      # create pedigree object
+      return(pedigree(id = plot_fam$name,
+                      momid = plot_fam$nameMother,
+                      dadid = plot_fam$nameFather,
+                      sex = plot_fam$Sex,
+                      famid = plot_fam$PedigreeID))
+    } else {
+      return(NULL)
     }
-    
-    # plot
-    dped <- pedigree(id = plot_fam$name,
-                     momid = plot_fam$nameMother,
-                     dadid = plot_fam$nameFather,
-                     sex = plot_fam$Sex,
-                     famid = plot_fam$PedigreeID)
-    plot(dped[paste0(input$pedID)])
   })
   
-  # display pedigree as a table
-  output$tablePed <- DT::renderDT({
-    t.ped <- 
-      PED() %>% 
-      select(-c("PedigreeID", 
-                "side", 
-                "relationship", 
-                "isProband",
-                "race", 
-                "Ancestry",
-                "cancersJSON",
-                "genesJSON"
-                )) %>%
-      relocate(name, .after = "ID") %>%
-      relocate(Sex, .after = "name") %>%
-      relocate(Twins, .after = "isDead") %>%
-      relocate(panelNames, .before = "ATM") %>%
-      rename(Name = name,
-             Dead = isDead,
-             Twin_Set = Twins,
-             Race = NPPrace,
-             HispEth = NPPeth,
-             AJ = NPPAJ,
-             Italian = NPPIt,
-             Mastectomy = riskmodMast,
-             Hysterecomy = riskmodHyst,
-             Oophorectomy = riskmodOoph,
-             AgeMast. = interAgeMast,
-             AgeHyst. = interAgeHyst,
-             AgeOoph. = interAgeOoph,
-             Panel_Names = panelNames) %>%
-      mutate(Sex = recode(Sex,
-                          "0" = "Female",
-                          "1" = "Male")) %>%
-      mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
-                    ~ ifelse(is.na(.), "Not Tested",
-                             ifelse(.==1, "P/LP", "Not P/LP")))) %>%
-      mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
-      mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-                                     PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
-                    ~ ifelse(is.na(.), "Not Tested",
-                             ifelse(.==1, "Pos", "Neg")))) %>%
-      mutate(across(.cols = c(Dead, AJ, Italian, 
-                              Mastectomy, Hysterecomy, Oophorectomy,
-                              AntiEstrogen, HRPreneoplasia),
-                    ~ ifelse(is.na(.), NA,
-                             ifelse(.==1, "Yes", "No")))) %>%
-      mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
-                    ~ ifelse(.==1, "Yes", "No")))
-    colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
-    colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
-    colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+  # display in the pedigree editor
+  output$treePedEditor <- renderPlot({
     
-    DT::datatable(data = t.ped,
-                  rownames = FALSE,
-                  class = list("nowrap", "stripe", "compact", "cell-border"),
-                  extensions = "FixedColumns",
-                  options = list(
-                    pageLength = 20,
-                    scrollX = TRUE,
-                    fixedColumns = list(leftColumns = 2)
-                  )
+    # check for requirements
+    shiny::validate(
+      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
+    
+    # plot
+    plot(treePed()[paste0(input$pedID)])
+  })
+  
+  # display in the pedigree viewer
+  output$treePedViewer <- renderPlot({
+    
+    # check for requirements
+    shiny::validate(
+      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    
+    # plot
+    plot(treePed()[paste0(input$pedID)])
+  })
+  
+  ## display pedigree as a table
+  # prepare the data frame
+  tablePed <- reactive({
+    
+    if(!is.null(PED())){
+      t.ped <- 
+        PED() %>% 
+        select(-c("PedigreeID", 
+                  "side", 
+                  "relationship", 
+                  "isProband",
+                  "race", 
+                  "Ancestry",
+                  "cancersJSON",
+                  "genesJSON"
+        )) %>%
+        relocate(name, .after = "ID") %>%
+        relocate(Sex, .after = "name") %>%
+        relocate(Twins, .after = "isDead") %>%
+        relocate(panelNames, .before = "ATM") %>%
+        rename(Name = name,
+               Dead = isDead,
+               Twin_Set = Twins,
+               Race = NPPrace,
+               HispEth = NPPeth,
+               AJ = NPPAJ,
+               Italian = NPPIt,
+               Mastectomy = riskmodMast,
+               Hysterecomy = riskmodHyst,
+               Oophorectomy = riskmodOoph,
+               AgeMast. = interAgeMast,
+               AgeHyst. = interAgeHyst,
+               AgeOoph. = interAgeOoph,
+               Panel_Names = panelNames) %>%
+        mutate(Sex = recode(Sex,
+                            "0" = "Female",
+                            "1" = "Male")) %>%
+        mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
+                      ~ ifelse(is.na(.), "Not Tested",
+                               ifelse(.==1, "P/LP", "Not P/LP")))) %>%
+        mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
+        mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                       PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
+                      ~ ifelse(is.na(.), "Not Tested",
+                               ifelse(.==1, "Pos", "Neg")))) %>%
+        mutate(across(.cols = c(Dead, AJ, Italian, 
+                                Mastectomy, Hysterecomy, Oophorectomy,
+                                AntiEstrogen, HRPreneoplasia),
+                      ~ ifelse(is.na(.), NA,
+                               ifelse(.==1, "Yes", "No")))) %>%
+        mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
+                      ~ ifelse(.==1, "Yes", "No")))
+      colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
+      colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
+      colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+      
+      return(DT::datatable(data = t.ped,
+                           rownames = FALSE,
+                           class = list("nowrap", "stripe", "compact", "cell-border"),
+                           extensions = "FixedColumns",
+                           options = list(pageLength = 20,
+                                          scrollX = TRUE,
+                                          fixedColumns = list(leftColumns = 2)))
+             )
+    } else {
+      return(NULL)
+    }
+  })
+  
+  # display in the pedigree editor
+  output$tablePedEditor <- DT::renderDT({
+    
+    # check for requirements
+    shiny::validate(
+      need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    
+    tablePed()
+  }, server = F)
+  
+  # display in the pedigree viewer
+  output$tablePedViewer <- DT::renderDT({
+    
+    # check for requirements
+    shiny::validate(
+      need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    
+    tablePed()
   }, server = F)
   
   ##### Switch Selected Relative ####
