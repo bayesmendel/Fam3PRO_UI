@@ -288,6 +288,48 @@ ui <- fixedPage(
                            style = "color: white; background-color: #10699B; border-color: #10699B")
             )
           ),
+          
+          ###### UI: Copy Pedigree ####
+          tabPanel("Copy",
+            h4("Copy A Pedigree"),
+            p("This screen allows you to take a pedigree saved to your user account and 
+              create a copy of it under a new name."),
+            
+            # for admins and managers, select the user account to copy from first
+            conditionalPanel("output.admin | output.manager",
+              selectInput(inputId = "selectUserForCopyFrom", label = "Select a user account to copy from:", 
+                          choices = c(""))
+            ),
+            
+            # if there are not pedigrees to copy from the selected user account, tell the user
+            conditionalPanel(condition = "output.showTblExistsErrorCopy",
+              p("You do not have any saved pedigrees.")
+            ),
+            
+            # if the user account does have saved pedigrees
+            conditionalPanel(condition = "!output.showTblExistsErrorCopy",
+              selectInput("selectCopyPed", label = "Select a pedigree to copy:",
+                          selected = "No pedigree selected", 
+                          choices = "No pedigree selected"),
+              conditionalPanel("input.selectCopyPed != 'No pedigree selected'",
+                               
+                # for admins and managers, select the user account to copy from first
+                conditionalPanel("output.admin | output.manager",
+                  selectInput(inputId = "selectUserForCopyTo", label = "Select a user account to copy to:", 
+                              choices = c(""))
+                ),
+                textInput("newPedName", label = "New pedigree name:"),
+                h5("Privacy note: the new pedigree name cannot contain identifying information.", 
+                   style = "color:blue"),
+                textOutput("validPedID"),
+                tags$head(tags$style("#validPedID{color: red;}")),
+                actionButton("copyPed", label = "Copy Pedigree",
+                             icon = icon('copy'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+              )
+              
+            ) # end of conditionalPanel to check if there are tables to download
+          ),
         
           ###### UI: Download Pedigrees ####
           tabPanel("Download",
@@ -333,6 +375,7 @@ ui <- fixedPage(
           ###### UI: Delete Pedigrees ####
           tabPanel("Delete",
             h4("Delete Pedigrees"),
+            p("Note: once a pedigree is deleted, you cannot undo it."),
             
             # for admins and managers, select the user account to delete from first
             conditionalPanel("output.admin | output.manager",
@@ -383,9 +426,26 @@ ui <- fixedPage(
                 )
               ),
               
-              # pedigree visualization    
-              fluidRow(
-                plotOutput("drawPed")
+              # pedigree visualization (table and tree)
+              tabsetPanel(id = "pedVisuals",
+                          
+                # tree
+                tabPanel(title = "Tree",
+                  plotOutput("treePed")
+                ),
+                
+                # table
+                tabPanel(title = "Table",
+                  fluidRow(
+                    column(width = 12, 
+                           style = "height:800px; width:100%",
+                           DTOutput("tablePed"),
+                           p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
+                             are shown in this table. To see the full table, download the pedigree.",
+                             style = "color:blue")
+                    )
+                  )
+                )
               )
             )
           ),
@@ -428,7 +488,7 @@ ui <- fixedPage(
                 # is pedigree does not exist yet, show a create pedigree button
                 conditionalPanel("!output.pedExists",
                   actionButton("createPed", label = "Create Pedigree",
-                               icon = icon('play'),
+                               icon = icon('file'),
                                style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
                 ),
                 
@@ -686,16 +746,19 @@ ui <- fixedPage(
                       
                       # create new panel
                       conditionalPanel("input.existingPanels == 'Create new'",
-                        p("Enter the genes in your panel below. 
-                          When you start typing, the dropdown will filter to genes for you to select. 
-                          You can also add genes that are not in the dropdown. When done, give it a name and select the 
-                          'Create and Add Panel' button."),
-                        textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
-                        selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
-                                       choices = all.genes, multiple = TRUE,
-                                       width = "500px"),
-                        actionButton("createPanel", label = "Create and Add Panel",
-                                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                                       
+                        p("Sorry, this feature is not currently available but we are working on it."),
+                                       
+                        # p("Enter the genes in your panel below. 
+                        #   When you start typing, the dropdown will filter to genes for you to select. 
+                        #   You can also add genes that are not in the dropdown. When done, give it a name and select the 
+                        #   'Create and Add Panel' button."),
+                        # textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
+                        # selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
+                        #                choices = all.genes, multiple = TRUE,
+                        #                width = "500px"),
+                        # actionButton("createPanel", label = "Create and Add Panel",
+                        #              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
                       )
                     ))
                   ),
@@ -927,12 +990,17 @@ ui <- fixedPage(
       
       ##### UI: Run PanelPRO ####
       tabPanel("Run PanelPRO",
-        h3("Run PanelPRO")
+        h3("Run PanelPRO"),
+        p("Sorry, this feature is not currently available but we are working on it.")
       ), # end of PanelPRO tab
       
       ##### UI: My Account ####
       tabPanel("My Account",
         h3("Account Management"),
+        
+        h4("Username"),
+        textOutput("userIs"),
+        br(),
         
         h4("Password Reset"),
         p("To reset your password, log-out then select the 'Forgot Username or Password' button 
@@ -1470,7 +1538,10 @@ server <- function(input, output, session) {
   # email address than the one previously entered
   observeEvent(input$diffEmail, { shinyjs::refresh() })
   
-  ##### Add Managers from My Account Tab ####
+  ##### My Account ####
+  output$userIs <- renderText(credentials()$info[["user"]])
+  
+  ###### Add Managers from My Account Tab ####
   # enable/disable add managers button if usernames are in the add managers input or not
   observeEvent(input$selManagers2, {
     if(is.null(input$selManagers2)){
@@ -1523,7 +1594,7 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "selManagers2", selected = "", choices = "")
   }, ignoreInit = TRUE)
   
-  ##### Show Managed Accounts ####
+  ###### Show Managed Accounts ####
   output$managedAccts <- renderText({
     if(manager()){
       maccnts <- dbGetQuery(conn = conn,
@@ -1545,7 +1616,7 @@ server <- function(input, output, session) {
     if(input$newOrLoad == "Load existing" & input$existingPed == "No pedigree selected"){
       shinyjs::disable("goNewOrLoad")
     } else {
-      delay(delay_load_ms, shinyjs::enable("goNewOrLoad"))
+      shinyjs::delay(delay_load_ms, shinyjs::enable("goNewOrLoad"))
     }
   }, ignoreInit = T)
   
@@ -1593,15 +1664,6 @@ server <- function(input, output, session) {
                             selected = credentials()$info[["user"]])
         }
         
-        # update pedigrees available for loading
-        userPeds(unique(dbGetQuery(conn = conn,
-                                   statement = paste0("SELECT PedigreeID FROM ", 
-                                                      ifelse(input$selectUser == "", credentials()$info[["user"]], 
-                                                             input$selectUser), 
-                                                      ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "existingPed",
-                          choices = c("No pedigree selected", userPeds()))
-        
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
         
@@ -1623,6 +1685,18 @@ server <- function(input, output, session) {
       }
     }
   })
+  
+  # for admins and managers, update the pedigrees available based on the user account selected
+  observeEvent(list(input$selectUser, userPeds()), {
+    userPeds(
+      unique(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT PedigreeID FROM ",
+                                           ifelse(input$selectUser == "", credentials()$info[["user"]],
+                                                  input$selectUser),
+                                           ";"))$PedigreeID))
+    updateSelectInput(session, inputId = "existingPed",
+                      choices = userPeds())
+  }, ignoreInit = T, ignoreNULL = T)
   
   newOrLoadFlag <- reactiveVal("new")
   observeEvent(input$goNewOrLoad, {
@@ -2056,12 +2130,172 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "pedTabs", selected = "Demographics")
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
+      updateTabsetPanel(session, "pedVisuals", selected = "Tree")
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
     }
   }, ignoreInit = T)
   
+  ##### Copy Pedigree ####
+  # keep dropdowns of user tables and pedigrees available for copy updated at all times
+  userPedsForCopyFrom <- reactiveVal(NULL)
+  userPedsForCopyTo <- reactiveVal(NULL)
+  showTblExistsErrorCopy <- reactiveVal(FALSE)
+  output$showTblExistsErrorCopy <- reactive({ showTblExistsErrorCopy() })
+  outputOptions(output, 'showTblExistsErrorCopy', suspendWhenHidden = FALSE)
+  observe({
+    if(loggedIn()){
+      
+      # for admin, make all user tables available
+      if(admin() | manager()){
+        showTblExistsErrorCopy(FALSE)
+        
+        # for admin, start with all usernames
+        if(admin()){
+          users <- getUserbase(conn)$user
+          
+          # for a manager, start with all usernames assigned to that manager
+        } else if(manager()){
+          users <- c(credentials()$info[["user"]],
+                     getUsersUnderManager(manager = credentials()$info[["user"]], 
+                                          my_conn = conn))
+        }
+        
+        users.with.tbls <- users
+        for(usr in users){
+          if(!dbExistsTable(conn = conn, name = usr)){
+            users.with.tbls <- users.with.tbls[users.with.tbls != usr]
+          }
+        }
+        
+        if(length(users.with.tbls) > 0){
+          updateSelectInput(session, inputId = "selectUserForCopyFrom",
+                            choices = users.with.tbls, 
+                            selected = credentials()$info[["user"]])
+          updateSelectInput(session, inputId = "selectUserForCopyTo",
+                            choices = users.with.tbls, 
+                            selected = credentials()$info[["user"]])
+        } else {
+          updateSelectInput(session, inputId = "selectUserForCopyFrom",
+                            choices = credentials()$info[["user"]], 
+                            selected = credentials()$info[["user"]])
+          updateSelectInput(session, inputId = "selectUserForCopyTo",
+                            choices = credentials()$info[["user"]], 
+                            selected = credentials()$info[["user"]])
+        }
+        
+        # for non-admins and non-managers, only show sub-tables in their master table
+      } else {
+        
+        # check if the user has a master table
+        hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
+        if(hasTbl){
+          showTblExistsErrorCopy(FALSE)
+          userPedsForCopyFrom(
+            unique(dbGetQuery(conn = conn,
+                              statement = paste0("SELECT PedigreeID FROM ", 
+                                                 credentials()$info[["user"]], 
+                                                 ";"))$PedigreeID)
+          )
+          userPedsForCopyTo(userPedsForCopyFrom())
+          
+          # update the tables available for copy
+          updateSelectInput(session, inputId = "selectCopyPed",
+                            selected = "No pedigree selected",
+                            choices = c("No pedigree selected", userPedsForCopyFrom()))
+        } else {
+          showTblExistsErrorCopy(TRUE)
+        }
+      }
+    }
+  })
+  
+  # for admins and managers, update the pedigrees available to copy from based on the user account selected
+  observeEvent(list(input$selectUserForCopyFrom, userPedsForCopyFrom()), {
+    userPedsForCopyFrom(
+      unique(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT PedigreeID FROM ",
+                                           ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
+                                                  input$selectUserForCopyFrom),
+                                           ";"))$PedigreeID))
+    updateSelectInput(session, inputId = "selectCopyPed",
+                      choices = c("No pedigree selected", userPedsForCopyFrom()))
+  }, ignoreInit = T, ignoreNULL = T)
+  
+  # for admins and managers, update the pedigrees in the copy to account
+  observeEvent(input$selectUserForCopyTo, {
+    userPedsForCopyTo(
+      unique(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT PedigreeID FROM ",
+                                           ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
+                                                  input$selectUserForCopyTo),
+                                           ";"))$PedigreeID))
+    
+  }, ignoreInit = T, ignoreNULL = T)
+  
+  # validate the new pedigree name
+  validPedID <- reactive({
+    paste(
+      need(all(userPedsForCopyTo() != input$newPedName),
+           "Your account already has a pedigree with this ID number, choose another name."),
+      need(input$newPedName != "example_pedigree",
+           "'example_pedigree' is a reserved pedigree name, pick another name."),
+      need(input$newPedName != input$selectCopyPed,
+           "The copy's name cannot be the same as the original.")
+    )
+  })
+  output$validPedID <- renderText({ shiny::validate(validPedID()) })
+  
+  # check that copy is possible based on if at least one pedigree is selected
+  # and enable/disable copy button accordingly
+  observeEvent(list(input$selectCopyPed, input$newPedName, 
+                    userPedsForCopyTo(), userPedsForCopyFrom(),
+                    input$selectUserForCopyTo, input$selectUserForCopyFrom), {
+    if(input$selectCopyPed != "No pedigree selected" & length(validPedID()) == 0){
+      shinyjs::delay(delay_copy_ms, shinyjs::enable("copyPed"))
+    } else {
+      shinyjs::disable("copyPed")
+    }
+  }, ignoreInit = F, ignoreNULL = T)
+  
+  # copy the selected pedigrees
+  observeEvent(input$copyPed, {
+    if(admin() | manager()){
+      fromAcct <- ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
+                         input$selectUserForCopyFrom)
+      toAcct <- ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
+                       input$selectUserForCopyTo)
+    } else {
+      fromAcct <- credentials()$info[["user"]]
+      toAcct <- credentials()$info[["user"]]
+    }
+    
+    # retrieve and rename the pedigree
+    tmp.ped <- 
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT * FROM ", fromAcct, 
+                                    " WHERE PedigreeID='", input$selectCopyPed, "';"))
+    tmp.ped$PedigreeID <- input$newPedName
+    
+    # save to new pedigree to database
+    savePedigreeToDB(conne = conn,
+                     user = toAcct,
+                     tmp_tbl = tmp.ped)
+    
+    # update the list of pedigrees that can be loaded, downloaded, and deleted
+    updated.peds <- unique(dbGetQuery(conn = conn,
+                                      statement = paste0("SELECT PedigreeID FROM ", 
+                                                         toAcct, 
+                                                         ";"))$PedigreeID)
+    userPeds(updated.peds)
+    userPedsForDownload(updated.peds)
+    userPedsForDelete(updated.peds)
+    userPedsForCopyFrom(updated.peds)
+    userPedsForCopyTo(updated.peds)
+    
+  }, ignoreInit = T)
+  
   ##### Download Pedigrees ####
-  # keep dropdowns of user tables and pedigrees available for downloading updated at all times
+  # keep drop-downs of user tables and pedigrees available for downloading updated at all times
   userPedsForDownload <- reactiveVal(NULL)
   showTblExistsErrorDownload <- reactiveVal(FALSE)
   output$showTblExistsErrorDownload <- reactive({ showTblExistsErrorDownload() })
@@ -2093,23 +2327,13 @@ server <- function(input, output, session) {
         # update users with pedigrees that can be downloaded
         if(length(users.with.tbls) > 0){
           updateSelectInput(session, inputId = "selectUserForDownload",
-                            choices = users.with.tbls, 
+                            choices = users.with.tbls,
                             selected = credentials()$info[["user"]])
         } else {
           updateSelectInput(session, inputId = "selectUserForDownload",
-                            choices = credentials()$info[["user"]], 
+                            choices = credentials()$info[["user"]],
                             selected = credentials()$info[["user"]])
         }
-        
-        # update pedigrees available for download
-        userPedsForDownload(
-          unique(dbGetQuery(conn = conn,
-                            statement = paste0("SELECT PedigreeID FROM ",
-                                               ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
-                                                      input$selectUserForDownload),
-                                               ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "selectDownloadPeds",
-                          choices = userPedsForDownload())
         
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
@@ -2135,8 +2359,20 @@ server <- function(input, output, session) {
     }
   })
   
+  # for admins and managers, update the pedigrees available based on the user account selected
+  observeEvent(list(input$selectUserForDownload, userPedsForDownload()), {
+    userPedsForDownload(
+      unique(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT PedigreeID FROM ",
+                                           ifelse(input$selectUserForDownload == "", credentials()$info[["user"]],
+                                                  input$selectUserForDownload),
+                                           ";"))$PedigreeID))
+    updateSelectInput(session, inputId = "selectDownloadPeds",
+                      choices = userPedsForDownload())
+  }, ignoreInit = T, ignoreNULL = T)
+  
   # select or de-select all pedigrees in a user account for downloading
-  observeEvent(list(userPedsForDownload(), input$selectAllPeds), {
+  observeEvent(input$selectAllPeds, {
     if(input$selectAllPeds){
       updateSelectInput(session, "selectDownloadPeds",
                         selected = userPedsForDownload(),
@@ -2151,8 +2387,8 @@ server <- function(input, output, session) {
   # and enable/disable download buttons accordingly
   observeEvent(input$selectDownloadPeds, {
     if(!is.null(input$selectDownloadPeds)){
-      delay(delay_download_ms, shinyjs::enable("downloadPedsCSV"))
-      delay(delay_download_ms, shinyjs::enable("downloadPedsRDS"))
+      shinyjs::delay(delay_download_ms, shinyjs::enable("downloadPedsCSV"))
+      shinyjs::delay(delay_download_ms, shinyjs::enable("downloadPedsRDS"))
     } else {
       shinyjs::disable("downloadPedsCSV")
       shinyjs::disable("downloadPedsRDS")
@@ -2238,16 +2474,6 @@ server <- function(input, output, session) {
                             selected = credentials()$info[["user"]])
         }
         
-        # update pedigrees available for deletion
-        userPedsForDelete(
-          unique(dbGetQuery(conn = conn,
-                            statement = paste0("SELECT PedigreeID FROM ",
-                                               ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
-                                                      input$selectUserForDelete),
-                                               ";"))$PedigreeID))
-        updateSelectInput(session, inputId = "selectDeletePeds",
-                          choices = userPedsForDelete())
-        
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
         
@@ -2271,6 +2497,18 @@ server <- function(input, output, session) {
       }
     }
   })
+  
+  # for admins and managers, update the pedigrees available based on the user account selected
+  observeEvent(list(input$selectUserForDelete, userPedsForDelete()), {
+    userPedsForDelete(
+      unique(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT PedigreeID FROM ",
+                                           ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
+                                                  input$selectUserForDelete),
+                                           ";"))$PedigreeID))
+    updateSelectInput(session, inputId = "selectDeletePeds",
+                      choices = userPedsForDelete())
+  }, ignoreInit = T, ignoreNULL = T)
 
   # select or de-select all pedigrees in a user account for deletion
   observeEvent(list(userPedsForDelete(), input$selectAllPedsDelete), {
@@ -2288,7 +2526,7 @@ server <- function(input, output, session) {
   # and enable/disable deletePeds button accordingly
   observeEvent(input$selectDeletePeds, {
     if(!is.null(input$selectDeletePeds)){
-      delay(delay_delete_ms, shinyjs::enable("deletePeds"))
+      shinyjs::delay(delay_delete_ms, shinyjs::enable("deletePeds"))
     } else {
       shinyjs::disable("deletePeds")
     }
@@ -2337,6 +2575,8 @@ server <- function(input, output, session) {
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
+    userPedsForCopyFrom(updated.peds)
+    userPedsForCopyTo(updated.peds)
     
     # remove the confirmation pop-up window
     removeModal()
@@ -2501,6 +2741,8 @@ server <- function(input, output, session) {
     userPeds(updated.peds)
     userPedsForDownload(updated.peds)
     userPedsForDelete(updated.peds)
+    userPedsForCopyFrom(updated.peds)
+    userPedsForCopyTo(updated.peds)
   })
   
   # populate the age, race, ethnicity, and ancestry values in the pedigree whenever the user leaves the demographics tab
@@ -3355,7 +3597,7 @@ server <- function(input, output, session) {
   ##### Visualize Pedigree ####
   # temporarily: draw pedigree in kinship2
   # replace with pedigreejs
-  output$drawPed <- renderPlot({
+  output$treePed <- renderPlot({
     
     # check pedigree is not NULL, if so issue warning
     shiny::validate(need(PED(), "The pedigree object PED() is NULL"))
@@ -3401,6 +3643,49 @@ server <- function(input, output, session) {
                      famid = plot_fam$PedigreeID)
     plot(dped[paste0(input$pedID)])
   })
+  
+  # display pedigree as a table
+  output$tablePed <- DT::renderDT({
+    t.ped <- 
+      PED() %>% 
+      select(-c("PedigreeID", 
+                "side", 
+                "relationship", 
+                "race", 
+                "Ancestry",
+                "cancersJSON",
+                "genesJSON"
+                )) %>%
+      relocate(name, .after = "ID") %>%
+      relocate(Sex, .after = "name") %>%
+      relocate(Twins, .after = "isDead") %>%
+      rename(Name = name,
+             Race = NPPrace,
+             HispEth = NPPeth,
+             isAJ = NPPAJ,
+             isIt = NPPIt,
+             Mastectomy = riskmodMast,
+             Hysterecomy = riskmodHyst,
+             Oophorectomy = riskmodOoph,
+             AgeMast. = interAgeMast,
+             AgeHyst. = interAgeHyst,
+             AgeOoph. = interAgeOoph,
+             Panel_Names = panelNames)
+    colnames(t.ped) <- sub(pattern = "^isAff", replacement = "", colnames(t.ped))
+    colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
+    colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+    
+    DT::datatable(data = t.ped,
+                  rownames = FALSE,
+                  class = list("nowrap", "stripe", "compact", "cell-border"),
+                  extensions = "FixedColumns",
+                  options = list(
+                    pageLength = 20,
+                    scrollX = TRUE,
+                    fixedColumns = list(leftColumns = 2)
+                  )
+    )
+  }, server = F)
   
   ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband

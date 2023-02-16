@@ -4,7 +4,7 @@
 non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 
 # set universal delay execution time in milliseconds
-delay_load_ms <- 4000
+delay_load_ms <- delay_copy_ms <- 4000
 delay_download_ms <- delay_delete_ms <- 2000
 
 #### Pedigree ####
