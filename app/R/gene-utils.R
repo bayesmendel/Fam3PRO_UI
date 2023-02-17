@@ -46,13 +46,13 @@ makeGeneDF <- function(rel, gr = geneReactive$GeneNums,
             if(inp[[paste0(geneMod.id,"-Gene")]] != ""){
               tmp.r[nrow(tmp.r)+1,] <- c(inp[[paste0(geneMod.id,"-Gene")]],                         # Gene
                                          ifelse(rtype == "PLP", "P/LP", 
-                                                ifelse(rtype == "BLB", "B/LB", rtype)),               # Result
+                                                ifelse(rtype == "BLB", "B/LB", rtype)),             # Result
                                          ifelse(is.null(inp[[paste0(geneMod.id,"-NucInfo")]]), "",
                                                 inp[[paste0(geneMod.id,"-NucInfo")]]),              # Nucleotide 
                                          ifelse(is.null(inp[[paste0(geneMod.id,"-ProtInfo")]]), "",
                                                 inp[[paste0(geneMod.id,"-ProtInfo")]]),             # Protein
                                          inp[[paste0(geneMod.id,"-ZygInfo")]],                      # Zygosity
-                                         p.name)                                                      # Panel Name
+                                         p.name)                                                    # Panel Name
             }
           }
         }
@@ -119,12 +119,13 @@ makeGeneDF <- function(rel, gr = geneReactive$GeneNums,
 #' @param inp the shiny input object
 #' @param ss shiny session
 #' @param pan.name name of the panel to add
+#' @param conn a database connection
 #' @returns a list:
 #' - gr: updated copy of geneReactive$GeneNums
 #' - panel.module.id.num: the unique number associated with the panelUI module
 #' - panMod.id: the full panelUI module id
 addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
-                     pan.name){
+                     pan.name, conn){
   
   if(is.numeric(rel)){
     rel <- as.character(rel)
@@ -151,7 +152,12 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
   
   # update panel specific information
   add.gr$panels[[new.pan]]$name <- pan.name
-  add.gr$panels[[new.pan]]$genes <- all.panels[[pan.name]]
+  add.gr$panels[[new.pan]]$genes <- 
+    strsplit(
+      dbGetQuery(conn = conn,
+                 statement = paste0("SELECT genes FROM panels WHERE panel_name='", pan.name,"';"))$genes,
+      split = ","
+    )[[1]]
   add.gr$panels[[new.pan]]$results <- geneResultsTemplate
   
   ## insert UI
@@ -424,3 +430,5 @@ removeGene <- function(gr = geneReactive$GeneNums,
   gr[[rel]] <- rm.gr
   return(gr)
 }
+
+

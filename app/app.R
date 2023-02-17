@@ -782,26 +782,28 @@ ui <- fixedPage(
                       p("Note, do not add or create a new panel until you have received the panel results back from the lab.", 
                         style = "color:blue"),
                       selectInput("existingPanels", label = NULL,
-                                  choices = all.panel.names, selected = "No panel selected",
+                                  selected = "No panel selected", 
+                                  choices = c("No panel selected", "Create new"),
                                   width = "300px"),
                       actionButton("addPanel", label = "Add Panel",
                                    style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px"),
                       
                       # create new panel
                       conditionalPanel("input.existingPanels == 'Create new'",
-                                       
-                        p("Sorry, this feature is not currently available but we are working on it."),
-                                       
-                        # p("Enter the genes in your panel below. 
-                        #   When you start typing, the dropdown will filter to genes for you to select. 
-                        #   You can also add genes that are not in the dropdown. When done, give it a name and select the 
-                        #   'Create and Add Panel' button."),
-                        # textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
-                        # selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
-                        #                choices = all.genes, multiple = TRUE,
-                        #                width = "500px"),
-                        # actionButton("createPanel", label = "Create and Add Panel",
-                        #              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                        p("Enter the genes in your panel below.
+                          When you start typing, the dropdown will filter to genes for you to select.
+                          You can also add genes that are not in the dropdown. When done, give it a name and select the
+                          'Create Panel' button. You will still need to add the panel above after its created."),
+                        textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
+                        textOutput("validPanelName"),
+                        tags$head(tags$style("#validPanelName{color: red;}")),
+                        selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
+                                       choices = all.genes, 
+                                       multiple = TRUE, 
+                                       options = list(create = TRUE),
+                                       width = "500px"),
+                        actionButton("createPanel", label = "Create Panel",
+                                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
                       )
                     ))
                   ),
@@ -2016,7 +2018,8 @@ server <- function(input, output, session) {
                             rel = master.gene.df$rel[x],
                             inp = input,
                             ss = session,
-                            pan.name = master.gene.df$panel[x])
+                            pan.name = master.gene.df$panel[x],
+                            conn = conn)
             geneReactive$GeneNums <- out$gr
             panel.module.id.num <- out$panel.module.id.num
             panMod.id <- out$panMod.id
@@ -3260,6 +3263,62 @@ server <- function(input, output, session) {
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
   ###### Panels ####
+  
+  # get panel name choices from the database
+  observe({
+    all.pans <- 
+      sort(dbGetQuery(conn = conn,
+                      statement = "SELECT panel_name FROM panels")$panel_name)
+    
+    # update the panel selector
+    updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
+  })
+  
+  # create new panel
+  observeEvent(input$createPanel, {
+    pan.genes <- paste0(input$newPanelGenes, collapse = ",")
+    dbExecute(conn = conn,
+              statement = paste0("INSERT INTO panels (panel_name,genes) VALUES ('", 
+                                 input$newPanelName,"','", pan.genes,"');"))
+    
+    # reset/update inputs
+    shinyjs::reset("newPanelName")
+    shinyjs::reset("newPanelGenes")
+    all.pans <- 
+      sort(dbGetQuery(conn = conn,
+                      statement = "SELECT panel_name FROM panels")$panel_name)
+    updateSelectInput(session, "existingPanels", 
+                      selected = "No panel selected",
+                      choices = c("No panel selected", "Create new", all.pans))
+  }, ignoreInit = T)
+
+  # hide Create Panel button if conditions are not met
+  observeEvent(list(input$newPanelName, input$newPanelGenes), {
+    all.pans <- 
+      dbGetQuery(conn = conn,
+                 statement = "SELECT panel_name FROM panels")$panel_name
+  
+    if(input$newPanelName == "" |
+       input$newPanelName %in% all.pans |
+       is.null(input$newPanelGenes)){
+      shinyjs::disable("createPanel")
+      if(input$newPanelName %in% all.pans){
+        panelNameUnique(FALSE)
+      } else {
+        panelNameUnique(TRUE)
+      }
+    } else {
+      panelNameUnique(TRUE)
+      shinyjs::delay(delay_insert_ms, shinyjs::enable("createPanel"))
+    }
+  }, ignoreNULL = F, ignoreInit = F)
+  
+  # warning message to user about duplicate panel name
+  panelNameUnique <- reactiveVal(TRUE)
+  output$validPanelName <- renderText({
+    shiny::validate(need(panelNameUnique(), "This panel name is already taken, please choose another."))
+  })
+  
   ### check if the current relative has a least one panel
   atLeastOnePanel <- reactiveVal(FALSE)
   output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
@@ -3281,7 +3340,7 @@ server <- function(input, output, session) {
 
   ### add an existing panel
   observeEvent(input$addPanel, {
-
+    
     # check that the selected panel is an actual panel
     if(!input$existingPanels %in% c("No panel selected", "Create new")){
       rel <- input$relSelect
@@ -3290,11 +3349,12 @@ server <- function(input, output, session) {
                       rel = rel,
                       inp = input,
                       ss = session,
-                      pan.name = pan.name)
+                      pan.name = pan.name,
+                      conn = conn)
       geneReactive$GeneNums <- out$gr
       panel.module.id.num <- out$panel.module.id.num
       panMod.id <- out$panMod.id
-
+      
       ## panelUI Remove Observer
       # create a remove module button observer for each panelUI module created
       observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
@@ -3305,22 +3365,18 @@ server <- function(input, output, session) {
                               inp = input,
                               ss = session)
         geneReactive$GeneNums <- out.rm$gr
-
+        
         # remove each geneUI module associated with this panel from memory
         for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
           remove_shiny_inputs(tmp.geneMod.id, input)
         }
-
+        
         # remove the panel module's inputs from memory
         remove_shiny_inputs(panMod.id, input)
-
+        
       }) # end of removePanel observeEvent
     } # end of if statement to check if the request to create the new panel had a valid panel name
   }) # end of observeEvent for creating a new panelUI module
-
-
-  ### create new panel (PLACEHOLDER)
-
 
   ###### PLP Genes ####
   # add a PLP geneUI module on button click and advance the module counter
