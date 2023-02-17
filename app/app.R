@@ -2688,37 +2688,52 @@ server <- function(input, output, session) {
   
   # validate current age
   validAge <- reactive({
-    if(is.null(PED())){
+    if(is.null(PED()) | input$isDead){
       return(shiny::validate(validateAge(input$Age)))
     } else {
       
       # check for parents and get parent's ages
       mom.age <- PED()$CurAge[which(PED()$ID == PED()$MotherID[which(PED()$ID == as.numeric(input$relSelect))])]
       dad.age <- PED()$CurAge[which(PED()$ID == PED()$FatherID[which(PED()$ID == as.numeric(input$relSelect))])]
-      if(length(mom.age) == 0 & length(dad.age) == 0){
-        p.ages <- NA
-      } else if(length(mom.age) == 0){
-        p.ages <- dad.age
-      } else if(length(dad.age) == 0){
-        p.ages <- mom.age
-      } else {
-        p.ages <- c(mom.age, dad.age)
+      
+      # check for deceased status and eliminate those from error checking
+      mom.dead <- PED()$isDead[which(PED()$ID == PED()$MotherID[which(PED()$ID == as.numeric(input$relSelect))])] == 1
+      dad.dead <- PED()$isDead[which(PED()$ID == PED()$FatherID[which(PED()$ID == as.numeric(input$relSelect))])] == 1
+      
+      # determine age that should be used for each parent
+      if(length(mom.age) == 0){
+        mom.age <- NA
+      } else if(mom.dead){
+        mom.age <- NA
       }
-      if(all(is.na(p.ages))){
+      if(length(dad.age) == 0){
+        dad.age <- NA
+      } else if(dad.dead){
+        dad.age <- NA
+      }
+      
+      # determine youngest parent
+      if(all(is.na(c(mom.age, dad.age)))){
         youngest.parent.age <- NA
       } else {
-        youngest.parent.age <- min(p.ages, na.rm = T)
+        youngest.parent.age <- min(c(mom.age, dad.age), na.rm = T)
       }
       
       # check for children and get their ages
       children.ids <- c(PED()$ID[which(PED()$MotherID == as.numeric(input$relSelect))],
                         PED()$ID[which(PED()$FatherID == as.numeric(input$relSelect))])
       if(length(children.ids) > 0){
-        child.ages <- PED()$CurAge[which(PED()$ID %in% children.ids)]
-        if(all(is.na(child.ages))){
-          oldest.child.age <- NA
+        
+        # get ages of living children only 
+        child.ages <- PED()$CurAge[which(PED()$ID %in% children.ids & PED()$isDead == 0)]
+        if(length(child.ages) > 0){
+          if(all(is.na(child.ages))){
+            oldest.child.age <- NA
+          } else {
+            oldest.child.age <- max(child.ages, na.rm = T)
+          }
         } else {
-          oldest.child.age <- max(child.ages, na.rm = T)
+          oldest.child.age <- NA
         }
       } else {
         oldest.child.age <- NA
