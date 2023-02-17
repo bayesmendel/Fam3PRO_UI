@@ -3577,7 +3577,7 @@ server <- function(input, output, session) {
       
       # add sisters iteratively
       if(input$numSis > 0){
-        for(i in 1:input$numDau){
+        for(i in 1:input$numSis){
           PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
           
           # add unique number to name field
