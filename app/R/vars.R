@@ -226,15 +226,7 @@ all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMP
                'SDHAF2', 'SDHB', 'SDHC', 'SDHD', 'SMAD4', 'SMARCA4', 'SMARCB1', 
                'SMARCE1', 'STK11', 'SUFU', 'TERC', 'TERT', 'TMEM127', 'TP53', 'TSC1', 
                'TSC2', 'VHL', 'WRN', 'WT1')
-hboc.genes <- c("ATM","BRCA1","BRCA2","CDH1","CHEK2","PALB2","PTEN")
-lynch.genes <- c("MLH1","MSH2","MSH6","PMS2","EPCAM")
 non.pp.genes <- setdiff(all.genes, PanelPRO:::GENE_TYPES)
-
-# master panel list
-all.panels <- list("HBOC" = sort(hboc.genes),
-                   "Lynch" = sort(lynch.genes),
-                   "GB Rossi Pancreatic Cancer Study" = sort(all.genes))
-all.panel.names <- c("No panel selected", "Create new", sort(names(all.panels)))
 
 # genes with specific nucleotides
 nucCHEK2plp <- "1100delC"

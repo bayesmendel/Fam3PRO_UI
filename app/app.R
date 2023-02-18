@@ -1805,7 +1805,7 @@ server <- function(input, output, session) {
                         choices = setNames(as.character(PED()$ID), PED()$name),
                         selected = as.character(proband.id))
       proband.info <- PED()[which(PED()$ID == proband.id),]
-      updateRelInputs(rel.info = proband.info, ss = session)
+      updateRelInputs(rel.info = proband.info, ss = session, conn = conn)
       shinyjs::disable("Sex")
       
       #### Reset cancer and gene reactives and UI modules and create data frames
@@ -1850,7 +1850,8 @@ server <- function(input, output, session) {
                             pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
                             panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
                             inp = input,
-                            ss = session)
+                            ss = session,
+                            conn = conn)
               geneReactive$GeneNums <- out$gr
 
               # remove each geneUI module associated with this panel from memory
@@ -2031,7 +2032,8 @@ server <- function(input, output, session) {
                                     pan.name = master.gene.df$panel[x],
                                     panel.module.id.num = panel.module.id.num,
                                     inp = input,
-                                    ss = session)
+                                    ss = session,
+                                    conn = conn)
               geneReactive$GeneNums <- out.rm$gr
   
               # remove each geneUI module associated with this panel from memory
@@ -2164,7 +2166,8 @@ server <- function(input, output, session) {
                           pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
                           panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
                           inp = input,
-                          ss = session)
+                          ss = session,
+                          conn = conn)
             geneReactive$GeneNums <- out$gr
             
             # remove each geneUI module associated with this panel from memory
@@ -3393,7 +3396,8 @@ server <- function(input, output, session) {
                               pan.name = pan.name,
                               panel.module.id.num = panel.module.id.num,
                               inp = input,
-                              ss = session)
+                              ss = session,
+                              conn = conn)
         geneReactive$GeneNums <- out.rm$gr
         
         # remove each geneUI module associated with this panel from memory
@@ -3987,7 +3991,7 @@ server <- function(input, output, session) {
       
       # Re-populate data for new person
       rel.info <- PED()[which(PED()$ID == as.numeric(input$relSelect)),]
-      updateRelInputs(rel.info = rel.info, ss = session)
+      updateRelInputs(rel.info = rel.info, ss = session, conn = conn)
       
       # reset the selected tabs
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
