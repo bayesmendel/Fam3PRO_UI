@@ -787,8 +787,9 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
 #' 
 #' @param rel.info a one row data frame containing the pedigree information for the relative.
 #' @param ss shiny session
+#' @param conn a database connection
 #' @return nothing
-updateRelInputs <- function(rel.info, ss){
+updateRelInputs <- function(rel.info, ss, conn){
   
   ## Demographics 
   # sex
@@ -834,15 +835,17 @@ updateRelInputs <- function(rel.info, ss){
   
   ## Genes
   # update the panel data for the new person
+  all.pans <- 
+    sort(dbGetQuery(conn = conn,
+                    statement = "SELECT panel_name FROM panels")$panel_name)
   if(rel.info$panelNames != "none"){
     updateSelectInput(ss, "existingPanels", 
-                      choices = all.panel.names[which(!all.panel.names %in% 
-                                                        strsplit(rel.info$panelNames, 
-                                                                 split = ", ")[[1]])],
+                      choices = c("No panel selected", "Create new",
+                                  all.pans[which(!all.pans %in% strsplit(rel.info$panelNames, split = ", ")[[1]])]),
                       selected = "No panel selected")
   } else {
     updateSelectInput(ss, "existingPanels", 
-                      choices = all.panel.names,
+                      choices = c("No panel selected", "Create new", all.pans),
                       selected = "No panel selected")
   }
 }
