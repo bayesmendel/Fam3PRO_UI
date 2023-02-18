@@ -250,6 +250,9 @@ ui <- fixedPage(
           ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
+            p(strong("The currently loaded pedigree name/ID is: "), 
+              textOutput("currentPed1", inline = T), 
+              style = "font-size:17px"),
             p("To get started, you will either need to create a new pedigree using our 
               pedigree builder or load an existing pedigree from your user account."),
             radioButtons("newOrLoad", "Select a start-up option:",
@@ -273,7 +276,7 @@ ui <- fixedPage(
               # if there are pedigrees to load, provide a dropdown
               conditionalPanel(condition = "!output.showTblExistsError",
                 selectInput("existingPed", "Select a pedigree to load:",
-                            choices = "")
+                            choices = "No pedigree selected")
               )
             ),
             
@@ -288,6 +291,33 @@ ui <- fixedPage(
               actionButton("goNewOrLoad", label = "Get Started",
                            icon = icon('play'),
                            style = "color: white; background-color: #10699B; border-color: #10699B")
+            )
+          ), # end of tab for loading/creating new pedigree
+          
+          ###### UI: Preview Pedigree ####
+          tabPanel("Preview",
+            h4("Preview Current Pedigree"),
+            p(strong("The currently loaded pedigree name/ID is: "), 
+              textOutput("currentPed2", inline = T), 
+              style = "font-size:17px"),
+            p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
+            tabsetPanel(id = "pedVisualsViewer",
+                        
+              # tree
+              tabPanel(title = "Tree",
+                plotOutput("treePedViewer")
+              ),
+              
+              # table
+              tabPanel(title = "Table",
+                br(),
+                DTOutput("tablePedViewer"),
+                br(),
+                p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, 
+                  non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
+                  are shown in this table. To see the full table, download the pedigree.",
+                  style = "color:blue")
+              )
             )
           ),
           
@@ -429,11 +459,11 @@ ui <- fixedPage(
               ),
               
               # pedigree visualization (table and tree)
-              tabsetPanel(id = "pedVisuals",
+              tabsetPanel(id = "pedVisualsEditor",
                           
                 # tree
                 tabPanel(title = "Tree",
-                  plotOutput("treePed")
+                  plotOutput("treePedEditor")
                 ),
                 
                 # table
@@ -441,7 +471,9 @@ ui <- fixedPage(
                   fluidRow(
                     column(width = 12, 
                            style = "height:800px; width:100%",
-                           DTOutput("tablePed"),
+                           br(),
+                           DTOutput("tablePedEditor"),
+                           br(),
                            p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
                              are shown in this table. To see the full table, download the pedigree.",
                              style = "color:blue")
@@ -718,7 +750,7 @@ ui <- fixedPage(
               tabPanel("Genes",
                 h3(textOutput("rop12", inline = T), "Gene Testing Results"),
                 tabsetPanel(id = "geneTabs",
-                            
+                  
                   tabPanel(title = "Instructions",
                     h4("How to Enter/Edit Germline Genetic Test Results"),
                     p("Use this screen to enter or modify germline genetic test results. 
@@ -732,7 +764,7 @@ ui <- fixedPage(
                               genetic tests by gene, result, nucleotide, protein, and zygosity.")
                     )
                   ),
-                            
+                  
                   tabPanel(title = "Manage Panels",
                     fluidRow(column(width = 12, 
                       h4(textOutput("rop14", inline = T), "Current Panel Tests"),
@@ -750,26 +782,28 @@ ui <- fixedPage(
                       p("Note, do not add or create a new panel until you have received the panel results back from the lab.", 
                         style = "color:blue"),
                       selectInput("existingPanels", label = NULL,
-                                  choices = all.panel.names, selected = "No panel selected",
+                                  selected = "No panel selected", 
+                                  choices = c("No panel selected", "Create new"),
                                   width = "300px"),
                       actionButton("addPanel", label = "Add Panel",
                                    style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px"),
                       
                       # create new panel
                       conditionalPanel("input.existingPanels == 'Create new'",
-                                       
-                        p("Sorry, this feature is not currently available but we are working on it."),
-                                       
-                        # p("Enter the genes in your panel below. 
-                        #   When you start typing, the dropdown will filter to genes for you to select. 
-                        #   You can also add genes that are not in the dropdown. When done, give it a name and select the 
-                        #   'Create and Add Panel' button."),
-                        # textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
-                        # selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
-                        #                choices = all.genes, multiple = TRUE,
-                        #                width = "500px"),
-                        # actionButton("createPanel", label = "Create and Add Panel",
-                        #              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                        p("Enter the genes in your panel below.
+                          When you start typing, the dropdown will filter to genes for you to select.
+                          You can also add genes that are not in the dropdown. When done, give it a name and select the
+                          'Create Panel' button. You will still need to add the panel above after its created."),
+                        textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
+                        textOutput("validPanelName"),
+                        tags$head(tags$style("#validPanelName{color: red;}")),
+                        selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
+                                       choices = all.genes, 
+                                       multiple = TRUE, 
+                                       options = list(create = TRUE),
+                                       width = "500px"),
+                        actionButton("createPanel", label = "Create Panel",
+                                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
                       )
                     ))
                   ),
@@ -777,12 +811,12 @@ ui <- fixedPage(
                   tabPanel(title = "Edit Panel Results",
                     fluidRow(column(width = 12, 
                       h4("Edit ", textOutput("rop16", inline = T)," Panel Results"),
-                                    
+                      
                       # cannot enter results if no panels exist
                       conditionalPanel("!output.atLeastOnePanel",
                         p("To edit panel results, please add at least one panel on the 'Manage Panels' tab.")
                       ),
-                         
+                      
                       # enter results by type
                       conditionalPanel("output.atLeastOnePanel",
                         p("Select one of ", textOutput("rop17", inline = T), 
@@ -1619,6 +1653,33 @@ server <- function(input, output, session) {
   })
   
   #### Manage User Pedigrees ####
+  ## currently loaded pedigree name
+  currentPed <- reactive({
+    if(!is.null(PED())){
+      return(PED()$PedigreeID[1])
+    } else {
+      return(NULL)
+    }
+  })
+  
+  # text for new/load screen
+  output$currentPed1 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet.")
+    }
+  })
+  
+  # text for preview screen
+  output$currentPed2 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+    }
+  })
+  
   ##### Load/Create New Pedigree ####
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
@@ -1708,7 +1769,7 @@ server <- function(input, output, session) {
                                            ";"))$PedigreeID
     )))
     updateSelectInput(session, inputId = "existingPed",
-                      choices = userPeds())
+                      choices = c("No pedigree selected", userPeds()))
   }, ignoreInit = T, ignoreNULL = T)
   
   newOrLoadFlag <- reactiveVal("new")
@@ -1744,7 +1805,7 @@ server <- function(input, output, session) {
                         choices = setNames(as.character(PED()$ID), PED()$name),
                         selected = as.character(proband.id))
       proband.info <- PED()[which(PED()$ID == proband.id),]
-      updateRelInputs(rel.info = proband.info, ss = session)
+      updateRelInputs(rel.info = proband.info, ss = session, conn = conn)
       shinyjs::disable("Sex")
       
       #### Reset cancer and gene reactives and UI modules and create data frames
@@ -1789,7 +1850,8 @@ server <- function(input, output, session) {
                             pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
                             panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
                             inp = input,
-                            ss = session)
+                            ss = session,
+                            conn = conn)
               geneReactive$GeneNums <- out$gr
 
               # remove each geneUI module associated with this panel from memory
@@ -1957,7 +2019,8 @@ server <- function(input, output, session) {
                             rel = master.gene.df$rel[x],
                             inp = input,
                             ss = session,
-                            pan.name = master.gene.df$panel[x])
+                            pan.name = master.gene.df$panel[x],
+                            conn = conn)
             geneReactive$GeneNums <- out$gr
             panel.module.id.num <- out$panel.module.id.num
             panMod.id <- out$panMod.id
@@ -1969,7 +2032,8 @@ server <- function(input, output, session) {
                                     pan.name = master.gene.df$panel[x],
                                     panel.module.id.num = panel.module.id.num,
                                     inp = input,
-                                    ss = session)
+                                    ss = session,
+                                    conn = conn)
               geneReactive$GeneNums <- out.rm$gr
   
               # remove each geneUI module associated with this panel from memory
@@ -2026,7 +2090,7 @@ server <- function(input, output, session) {
       shinyjs::click("showPedButton")
       
       # reset the pedigree loading selector
-      updateSelectInput(session, "existingPed", selected = "No pedigree selected")
+      shinyjs::reset("existingPed")
       
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
@@ -2102,7 +2166,8 @@ server <- function(input, output, session) {
                           pan.name = geneReactive$GeneNums[[as.character(rl)]]$panels[[paste0("panel", pMod)]]$name,
                           panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
                           inp = input,
-                          ss = session)
+                          ss = session,
+                          conn = conn)
             geneReactive$GeneNums <- out$gr
             
             # remove each geneUI module associated with this panel from memory
@@ -2147,7 +2212,12 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "pedTabs", selected = "Demographics")
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
-      updateTabsetPanel(session, "pedVisuals", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+    }
+    
+    # take user to the pedigree editor if they chose the create new option
+    if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
     }
   }, ignoreInit = T)
@@ -2606,55 +2676,85 @@ server <- function(input, output, session) {
   
   #### Edit Pedigree ####
   ##### Demographics / Create Pedigree ####
-  # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
-  nonUniqPedID <- reactiveVal(FALSE)
-  output$nonUniqPedID <- reactive({ nonUniqPedID() })
-  outputOptions(output, 'nonUniqPedID', suspendWhenHidden = FALSE)
-  observeEvent(list(userPeds(), input$pedID, PED()), {
-    if(!is.null(userPeds()) & newOrLoadFlag() != "load" & is.null(PED())){
-      if(any(userPeds() == input$pedID) | input$pedID == "example_pedigree"){
-        nonUniqPedID(TRUE)
-      } else {
-        nonUniqPedID(FALSE)
+  # user confirms proband is deceased
+  observeEvent(list(input$isDead, PED()), {
+    popup <- FALSE
+    if(!is.null(PED())){
+      if(PED()$isProband[which(PED()$ID == as.numeric(input$relSelect))] ==  1 & 
+         PED()$isDead[which(PED()$ID == as.numeric(input$relSelect))] == 0 & 
+         input$isDead){
+        popup <- TRUE
       }
-    } else {
-      nonUniqPedID(FALSE)
+    } else if(is.null(PED()) & input$isDead){
+      popup <- TRUE
+    }
+    
+    if(popup){
+      showModal(modalDialog(
+        tagList(p("Are you sure that the proband is deceased?")),
+        title = "Deceased Proband Confirmation",
+        footer = tagList(
+          actionButton("notDead", "Not Deceased"),
+          modalButton("Deceased")
+        )
+      ))
     }
   }, ignoreNULL = F, ignoreInit = T)
   
+  # undo deceased status based on user input to popup
+  observeEvent(input$notDead, {
+    updateCheckboxInput(session, "isDead", value = FALSE)
+    removeModal()
+  }, ignoreInit = T)
+  
   # validate current age
   validAge <- reactive({
-    if(is.null(PED())){
+    if(is.null(PED()) | input$isDead){
       return(shiny::validate(validateAge(input$Age)))
     } else {
       
       # check for parents and get parent's ages
       mom.age <- PED()$CurAge[which(PED()$ID == PED()$MotherID[which(PED()$ID == as.numeric(input$relSelect))])]
       dad.age <- PED()$CurAge[which(PED()$ID == PED()$FatherID[which(PED()$ID == as.numeric(input$relSelect))])]
-      if(length(mom.age) == 0 & length(dad.age) == 0){
-        p.ages <- NA
-      } else if(length(mom.age) == 0){
-        p.ages <- dad.age
-      } else if(length(dad.age) == 0){
-        p.ages <- mom.age
-      } else {
-        p.ages <- c(mom.age, dad.age)
+      
+      # check for deceased status and eliminate those from error checking
+      mom.dead <- PED()$isDead[which(PED()$ID == PED()$MotherID[which(PED()$ID == as.numeric(input$relSelect))])] == 1
+      dad.dead <- PED()$isDead[which(PED()$ID == PED()$FatherID[which(PED()$ID == as.numeric(input$relSelect))])] == 1
+      
+      # determine age that should be used for each parent
+      if(length(mom.age) == 0){
+        mom.age <- NA
+      } else if(mom.dead){
+        mom.age <- NA
       }
-      if(all(is.na(p.ages))){
+      if(length(dad.age) == 0){
+        dad.age <- NA
+      } else if(dad.dead){
+        dad.age <- NA
+      }
+      
+      # determine youngest parent
+      if(all(is.na(c(mom.age, dad.age)))){
         youngest.parent.age <- NA
       } else {
-        youngest.parent.age <- min(p.ages, na.rm = T)
+        youngest.parent.age <- min(c(mom.age, dad.age), na.rm = T)
       }
       
       # check for children and get their ages
       children.ids <- c(PED()$ID[which(PED()$MotherID == as.numeric(input$relSelect))],
                         PED()$ID[which(PED()$FatherID == as.numeric(input$relSelect))])
       if(length(children.ids) > 0){
-        child.ages <- PED()$CurAge[which(PED()$ID %in% children.ids)]
-        if(all(is.na(child.ages))){
-          oldest.child.age <- NA
+        
+        # get ages of living children only 
+        child.ages <- PED()$CurAge[which(PED()$ID %in% children.ids & PED()$isDead == 0)]
+        if(length(child.ages) > 0){
+          if(all(is.na(child.ages))){
+            oldest.child.age <- NA
+          } else {
+            oldest.child.age <- max(child.ages, na.rm = T)
+          }
         } else {
-          oldest.child.age <- max(child.ages, na.rm = T)
+          oldest.child.age <- NA
         }
       } else {
         oldest.child.age <- NA
@@ -2694,6 +2794,22 @@ server <- function(input, output, session) {
       shinyjs::disable("createPed")
     }
   }, ignoreInit = F)
+  
+  # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
+  nonUniqPedID <- reactiveVal(FALSE)
+  output$nonUniqPedID <- reactive({ nonUniqPedID() })
+  outputOptions(output, 'nonUniqPedID', suspendWhenHidden = FALSE)
+  observeEvent(list(userPeds(), input$pedID, PED()), {
+    if(!is.null(userPeds()) & newOrLoadFlag() != "load" & is.null(PED())){
+      if(any(userPeds() == input$pedID) | input$pedID == "example_pedigree"){
+        nonUniqPedID(TRUE)
+      } else {
+        nonUniqPedID(FALSE)
+      }
+    } else {
+      nonUniqPedID(FALSE)
+    }
+  }, ignoreNULL = F, ignoreInit = T)
   
   # hide/show tabs if the minimum information to create a pedigree is present or not and the pedigree has been created
   observeEvent(list(pbMinInfo(), PED()), {
@@ -3181,6 +3297,60 @@ server <- function(input, output, session) {
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
   ###### Panels ####
+  # get panel name choices from the database
+  observe({
+    all.pans <- 
+      sort(dbGetQuery(conn = conn,
+                      statement = "SELECT panel_name FROM panels")$panel_name)
+    
+    # update the panel selector
+    updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
+  })
+  
+  # create new panel
+  observeEvent(input$createPanel, {
+    pan.genes <- paste0(input$newPanelGenes, collapse = ",")
+    dbExecute(conn = conn,
+              statement = paste0("INSERT INTO panels (panel_name,genes) VALUES ('", 
+                                 input$newPanelName,"','", pan.genes,"');"))
+    
+    # reset/update inputs
+    shinyjs::reset("newPanelName")
+    shinyjs::reset("newPanelGenes")
+    all.pans <- 
+      sort(dbGetQuery(conn = conn,
+                      statement = "SELECT panel_name FROM panels")$panel_name)
+    updateSelectInput(session, "existingPanels", 
+                      choices = c("No panel selected", "Create new", all.pans))
+  }, ignoreInit = T)
+
+  # hide Create Panel button if conditions are not met
+  observeEvent(list(input$newPanelName, input$newPanelGenes), {
+    all.pans <- 
+      dbGetQuery(conn = conn,
+                 statement = "SELECT panel_name FROM panels")$panel_name
+  
+    if(input$newPanelName == "" |
+       input$newPanelName %in% all.pans |
+       is.null(input$newPanelGenes)){
+      shinyjs::disable("createPanel")
+      if(input$newPanelName %in% all.pans){
+        panelNameUnique(FALSE)
+      } else {
+        panelNameUnique(TRUE)
+      }
+    } else {
+      panelNameUnique(TRUE)
+      shinyjs::delay(delay_insert_ms, shinyjs::enable("createPanel"))
+    }
+  }, ignoreNULL = F, ignoreInit = F)
+  
+  # warning message to user about duplicate panel name
+  panelNameUnique <- reactiveVal(TRUE)
+  output$validPanelName <- renderText({
+    shiny::validate(need(panelNameUnique(), "This panel name is already taken, please choose another."))
+  })
+  
   ### check if the current relative has a least one panel
   atLeastOnePanel <- reactiveVal(FALSE)
   output$atLeastOnePanel <- reactive({ atLeastOnePanel() })
@@ -3202,7 +3372,7 @@ server <- function(input, output, session) {
 
   ### add an existing panel
   observeEvent(input$addPanel, {
-
+    
     # check that the selected panel is an actual panel
     if(!input$existingPanels %in% c("No panel selected", "Create new")){
       rel <- input$relSelect
@@ -3211,11 +3381,12 @@ server <- function(input, output, session) {
                       rel = rel,
                       inp = input,
                       ss = session,
-                      pan.name = pan.name)
+                      pan.name = pan.name,
+                      conn = conn)
       geneReactive$GeneNums <- out$gr
       panel.module.id.num <- out$panel.module.id.num
       panMod.id <- out$panMod.id
-
+      
       ## panelUI Remove Observer
       # create a remove module button observer for each panelUI module created
       observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
@@ -3224,24 +3395,21 @@ server <- function(input, output, session) {
                               pan.name = pan.name,
                               panel.module.id.num = panel.module.id.num,
                               inp = input,
-                              ss = session)
+                              ss = session,
+                              conn = conn)
         geneReactive$GeneNums <- out.rm$gr
-
+        
         # remove each geneUI module associated with this panel from memory
         for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
           remove_shiny_inputs(tmp.geneMod.id, input)
         }
-
+        
         # remove the panel module's inputs from memory
         remove_shiny_inputs(panMod.id, input)
-
+        
       }) # end of removePanel observeEvent
     } # end of if statement to check if the request to create the new panel had a valid panel name
   }) # end of observeEvent for creating a new panelUI module
-
-
-  ### create new panel (PLACEHOLDER)
-
 
   ###### PLP Genes ####
   # add a PLP geneUI module on button click and advance the module counter
@@ -3513,7 +3681,7 @@ server <- function(input, output, session) {
       
       # add sisters iteratively
       if(input$numSis > 0){
-        for(i in 1:input$numDau){
+        for(i in 1:input$numSis){
           PED(formatNewPerson(relation = "sister", tmp.ped = PED()))
           
           # add unique number to name field
@@ -3627,118 +3795,169 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   ##### Visualize Pedigree ####
-  # temporarily: draw pedigree in kinship2
-  # replace with pedigreejs
-  output$treePed <- renderPlot({
-    
-    # check pedigree is not NULL, if so issue warning
-    shiny::validate(need(PED(), "The pedigree object PED() is NULL"))
-    
-    plot_fam <-
-      PED() %>%
-      mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
-      mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
-      mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
-      mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
-      mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
-      mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
-      mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
-      mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
-      mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
-      mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
-      mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
-      mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
-      mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
-      mutate(nameMother = "") %>%
-      mutate(nameFather = "") %>%
-      select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
-    
-    # replace mother and father ID numbers with names
-    for(uid in unique(plot_fam$MotherID)){
-      if(uid != 0){
-        pname <- plot_fam$name[which(plot_fam$ID == uid)]
-        plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+  
+  ## Family Tree
+  ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs
+  # prepare the data
+  treePed <- reactive({
+    if(!is.null(PED())){
+      plot_fam <-
+        PED() %>%
+        mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
+        mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
+        mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
+        mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
+        mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
+        mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
+        mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
+        mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
+        mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
+        mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
+        mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
+        mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
+        mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
+        mutate(nameMother = "") %>%
+        mutate(nameFather = "") %>%
+        select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+      
+      # replace mother and father ID numbers with names
+      for(uid in unique(plot_fam$MotherID)){
+        if(uid != 0){
+          pname <- plot_fam$name[which(plot_fam$ID == uid)]
+          plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+        }
       }
-    }
-    for(uid in unique(plot_fam$FatherID)){
-      if(uid != 0){
-        pname <- plot_fam$name[which(plot_fam$ID == uid)]
-        plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+      for(uid in unique(plot_fam$FatherID)){
+        if(uid != 0){
+          pname <- plot_fam$name[which(plot_fam$ID == uid)]
+          plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+        }
       }
+      
+      # create pedigree object
+      return(pedigree(id = plot_fam$name,
+                      momid = plot_fam$nameMother,
+                      dadid = plot_fam$nameFather,
+                      sex = plot_fam$Sex,
+                      famid = plot_fam$PedigreeID))
+    } else {
+      return(NULL)
     }
-    
-    # plot
-    dped <- pedigree(id = plot_fam$name,
-                     momid = plot_fam$nameMother,
-                     dadid = plot_fam$nameFather,
-                     sex = plot_fam$Sex,
-                     famid = plot_fam$PedigreeID)
-    plot(dped[paste0(input$pedID)])
   })
   
-  # display pedigree as a table
-  output$tablePed <- DT::renderDT({
-    t.ped <- 
-      PED() %>% 
-      select(-c("PedigreeID", 
-                "side", 
-                "relationship", 
-                "isProband",
-                "race", 
-                "Ancestry",
-                "cancersJSON",
-                "genesJSON"
-                )) %>%
-      relocate(name, .after = "ID") %>%
-      relocate(Sex, .after = "name") %>%
-      relocate(Twins, .after = "isDead") %>%
-      relocate(panelNames, .before = "ATM") %>%
-      rename(Name = name,
-             Dead = isDead,
-             Twin_Set = Twins,
-             Race = NPPrace,
-             HispEth = NPPeth,
-             AJ = NPPAJ,
-             Italian = NPPIt,
-             Mastectomy = riskmodMast,
-             Hysterecomy = riskmodHyst,
-             Oophorectomy = riskmodOoph,
-             AgeMast. = interAgeMast,
-             AgeHyst. = interAgeHyst,
-             AgeOoph. = interAgeOoph,
-             Panel_Names = panelNames) %>%
-      mutate(Sex = recode(Sex,
-                          "0" = "Female",
-                          "1" = "Male")) %>%
-      mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
-                    ~ ifelse(is.na(.), "Not Tested",
-                             ifelse(.==1, "P/LP", "Not P/LP")))) %>%
-      mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
-      mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-                                     PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
-                    ~ ifelse(is.na(.), "Not Tested",
-                             ifelse(.==1, "Pos", "Neg")))) %>%
-      mutate(across(.cols = c(Dead, AJ, Italian, 
-                              Mastectomy, Hysterecomy, Oophorectomy,
-                              AntiEstrogen, HRPreneoplasia),
-                    ~ ifelse(is.na(.), NA,
-                             ifelse(.==1, "Yes", "No")))) %>%
-      mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
-                    ~ ifelse(.==1, "Yes", "No")))
-    colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
-    colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
-    colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+  # display in the pedigree editor
+  output$treePedEditor <- renderPlot({
     
-    DT::datatable(data = t.ped,
-                  rownames = FALSE,
-                  class = list("nowrap", "stripe", "compact", "cell-border"),
-                  extensions = "FixedColumns",
-                  options = list(
-                    pageLength = 20,
-                    scrollX = TRUE,
-                    fixedColumns = list(leftColumns = 2)
-                  )
+    # check for requirements
+    shiny::validate(
+      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
+    
+    # plot
+    plot(treePed()[paste0(input$pedID)])
+  })
+  
+  # display in the pedigree viewer
+  output$treePedViewer <- renderPlot({
+    
+    # check for requirements
+    shiny::validate(
+      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    
+    # plot
+    plot(treePed()[paste0(input$pedID)])
+  })
+  
+  ## display pedigree as a table
+  # prepare the data frame
+  tablePed <- reactive({
+    
+    if(!is.null(PED())){
+      t.ped <- 
+        PED() %>% 
+        select(-c("PedigreeID", 
+                  "side", 
+                  "relationship", 
+                  "isProband",
+                  "race", 
+                  "Ancestry",
+                  "cancersJSON",
+                  "genesJSON"
+        )) %>%
+        relocate(name, .after = "ID") %>%
+        relocate(Sex, .after = "name") %>%
+        relocate(Twins, .after = "isDead") %>%
+        relocate(panelNames, .before = "ATM") %>%
+        rename(Name = name,
+               Dead = isDead,
+               Twin_Set = Twins,
+               Race = NPPrace,
+               HispEth = NPPeth,
+               AJ = NPPAJ,
+               Italian = NPPIt,
+               Mastectomy = riskmodMast,
+               Hysterecomy = riskmodHyst,
+               Oophorectomy = riskmodOoph,
+               AgeMast. = interAgeMast,
+               AgeHyst. = interAgeHyst,
+               AgeOoph. = interAgeOoph,
+               Panel_Names = panelNames) %>%
+        mutate(Sex = recode(Sex,
+                            "0" = "Female",
+                            "1" = "Male")) %>%
+        mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
+                      ~ ifelse(is.na(.), "Not Tested",
+                               ifelse(.==1, "P/LP", "Not P/LP")))) %>%
+        mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
+        mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                       PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
+                      ~ ifelse(is.na(.), "Not Tested",
+                               ifelse(.==1, "Pos", "Neg")))) %>%
+        mutate(across(.cols = c(Dead, AJ, Italian, 
+                                Mastectomy, Hysterecomy, Oophorectomy,
+                                AntiEstrogen, HRPreneoplasia),
+                      ~ ifelse(is.na(.), NA,
+                               ifelse(.==1, "Yes", "No")))) %>%
+        mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
+                      ~ ifelse(.==1, "Yes", "No")))
+      colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
+      colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
+      colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+      
+      return(DT::datatable(data = t.ped,
+                           rownames = FALSE,
+                           class = list("nowrap", "stripe", "compact", "cell-border"),
+                           extensions = "FixedColumns",
+                           options = list(pageLength = 20,
+                                          scrollX = TRUE,
+                                          fixedColumns = list(leftColumns = 2)))
+             )
+    } else {
+      return(NULL)
+    }
+  })
+  
+  # display in the pedigree editor
+  output$tablePedEditor <- DT::renderDT({
+    
+    # check for requirements
+    shiny::validate(
+      need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    
+    tablePed()
+  }, server = F)
+  
+  # display in the pedigree viewer
+  output$tablePedViewer <- DT::renderDT({
+    
+    # check for requirements
+    shiny::validate(
+      need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    
+    tablePed()
   }, server = F)
   
   ##### Switch Selected Relative ####
@@ -3771,7 +3990,7 @@ server <- function(input, output, session) {
       
       # Re-populate data for new person
       rel.info <- PED()[which(PED()$ID == as.numeric(input$relSelect)),]
-      updateRelInputs(rel.info = rel.info, ss = session)
+      updateRelInputs(rel.info = rel.info, ss = session, conn = conn)
       
       # reset the selected tabs
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
