@@ -183,7 +183,7 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
     sort(dbGetQuery(conn = conn,
                     statement = "SELECT panel_name FROM panels")$panel_name)
   updateSelectInput(ss, "existingPanels",
-                    choices = all.pans[which(!all.pans %in% cur.panels)],
+                    choices = c("No panel selected", "Create new", all.pans[which(!all.pans %in% cur.panels)]),
                     selected = "No panel selected")
   
   # add panel name to dropdown choices for editing an active panel
@@ -306,7 +306,7 @@ removePanel <- function(gr = geneReactive$GeneNums,
     sort(dbGetQuery(conn = conn,
                     statement = "SELECT panel_name FROM panels")$panel_name)
   updateSelectInput(ss, "existingPanels",
-                    choices = all.pans[which(!all.pans %in% rm.cur.panels)],
+                    choices = c("No panel selected", "Create new", all.pans[which(!all.pans %in% rm.cur.panels)]),
                     selected = "No panel selected")
   
   # remove panel name from dropdown choices for editing an active panel

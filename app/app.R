@@ -276,7 +276,7 @@ ui <- fixedPage(
               # if there are pedigrees to load, provide a dropdown
               conditionalPanel(condition = "!output.showTblExistsError",
                 selectInput("existingPed", "Select a pedigree to load:",
-                            choices = "")
+                            choices = "No pedigree selected")
               )
             ),
             
@@ -750,7 +750,7 @@ ui <- fixedPage(
               tabPanel("Genes",
                 h3(textOutput("rop12", inline = T), "Gene Testing Results"),
                 tabsetPanel(id = "geneTabs",
-                            
+                  
                   tabPanel(title = "Instructions",
                     h4("How to Enter/Edit Germline Genetic Test Results"),
                     p("Use this screen to enter or modify germline genetic test results. 
@@ -764,7 +764,7 @@ ui <- fixedPage(
                               genetic tests by gene, result, nucleotide, protein, and zygosity.")
                     )
                   ),
-                            
+                  
                   tabPanel(title = "Manage Panels",
                     fluidRow(column(width = 12, 
                       h4(textOutput("rop14", inline = T), "Current Panel Tests"),
@@ -811,12 +811,12 @@ ui <- fixedPage(
                   tabPanel(title = "Edit Panel Results",
                     fluidRow(column(width = 12, 
                       h4("Edit ", textOutput("rop16", inline = T)," Panel Results"),
-                                    
+                      
                       # cannot enter results if no panels exist
                       conditionalPanel("!output.atLeastOnePanel",
                         p("To edit panel results, please add at least one panel on the 'Manage Panels' tab.")
                       ),
-                         
+                      
                       # enter results by type
                       conditionalPanel("output.atLeastOnePanel",
                         p("Select one of ", textOutput("rop17", inline = T), 
@@ -1769,7 +1769,7 @@ server <- function(input, output, session) {
                                            ";"))$PedigreeID
     )))
     updateSelectInput(session, inputId = "existingPed",
-                      choices = userPeds())
+                      choices = c("No pedigree selected", userPeds()))
   }, ignoreInit = T, ignoreNULL = T)
   
   newOrLoadFlag <- reactiveVal("new")
@@ -2090,7 +2090,7 @@ server <- function(input, output, session) {
       shinyjs::click("showPedButton")
       
       # reset the pedigree loading selector
-      updateSelectInput(session, "existingPed", selected = "No pedigree selected")
+      shinyjs::reset("existingPed")
       
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
@@ -3321,7 +3321,6 @@ server <- function(input, output, session) {
       sort(dbGetQuery(conn = conn,
                       statement = "SELECT panel_name FROM panels")$panel_name)
     updateSelectInput(session, "existingPanels", 
-                      selected = "No panel selected",
                       choices = c("No panel selected", "Create new", all.pans))
   }, ignoreInit = T)
 

@@ -840,13 +840,12 @@ updateRelInputs <- function(rel.info, ss, conn){
                     statement = "SELECT panel_name FROM panels")$panel_name)
   if(rel.info$panelNames != "none"){
     updateSelectInput(ss, "existingPanels", 
-                      choices = all.pans[which(!all.pans %in% 
-                                                        strsplit(rel.info$panelNames, 
-                                                                 split = ", ")[[1]])],
+                      choices = c("No panel selected", "Create new",
+                                  all.pans[which(!all.pans %in% strsplit(rel.info$panelNames, split = ", ")[[1]])]),
                       selected = "No panel selected")
   } else {
     updateSelectInput(ss, "existingPanels", 
-                      choices = all.pans,
+                      choices = c("No panel selected", "Create new", all.pans),
                       selected = "No panel selected")
   }
 }
