@@ -2673,21 +2673,36 @@ server <- function(input, output, session) {
   
   #### Edit Pedigree ####
   ##### Demographics / Create Pedigree ####
-  # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
-  nonUniqPedID <- reactiveVal(FALSE)
-  output$nonUniqPedID <- reactive({ nonUniqPedID() })
-  outputOptions(output, 'nonUniqPedID', suspendWhenHidden = FALSE)
-  observeEvent(list(userPeds(), input$pedID, PED()), {
-    if(!is.null(userPeds()) & newOrLoadFlag() != "load" & is.null(PED())){
-      if(any(userPeds() == input$pedID) | input$pedID == "example_pedigree"){
-        nonUniqPedID(TRUE)
-      } else {
-        nonUniqPedID(FALSE)
+  # user confirms proband is deceased
+  observeEvent(list(input$isDead, PED()), {
+    popup <- FALSE
+    if(!is.null(PED())){
+      if(PED()$isProband[which(PED()$ID == as.numeric(input$relSelect))] ==  1 & 
+         PED()$isDead[which(PED()$ID == as.numeric(input$relSelect))] == 0 & 
+         input$isDead){
+        popup <- TRUE
       }
-    } else {
-      nonUniqPedID(FALSE)
+    } else if(is.null(PED()) & input$isDead){
+      popup <- TRUE
+    }
+    
+    if(popup){
+      showModal(modalDialog(
+        tagList(p("Are you sure that the proband is deceased?")),
+        title = "Deceased Proband Confirmation",
+        footer = tagList(
+          actionButton("notDead", "Not Deceased"),
+          modalButton("Deceased")
+        )
+      ))
     }
   }, ignoreNULL = F, ignoreInit = T)
+  
+  # undo deceased status based on user input to popup
+  observeEvent(input$notDead, {
+    updateCheckboxInput(session, "isDead", value = FALSE)
+    removeModal()
+  }, ignoreInit = T)
   
   # validate current age
   validAge <- reactive({
@@ -2776,6 +2791,22 @@ server <- function(input, output, session) {
       shinyjs::disable("createPed")
     }
   }, ignoreInit = F)
+  
+  # warn user if the pedigreeID they are trying to use is already a pedigree in the user's table
+  nonUniqPedID <- reactiveVal(FALSE)
+  output$nonUniqPedID <- reactive({ nonUniqPedID() })
+  outputOptions(output, 'nonUniqPedID', suspendWhenHidden = FALSE)
+  observeEvent(list(userPeds(), input$pedID, PED()), {
+    if(!is.null(userPeds()) & newOrLoadFlag() != "load" & is.null(PED())){
+      if(any(userPeds() == input$pedID) | input$pedID == "example_pedigree"){
+        nonUniqPedID(TRUE)
+      } else {
+        nonUniqPedID(FALSE)
+      }
+    } else {
+      nonUniqPedID(FALSE)
+    }
+  }, ignoreNULL = F, ignoreInit = T)
   
   # hide/show tabs if the minimum information to create a pedigree is present or not and the pedigree has been created
   observeEvent(list(pbMinInfo(), PED()), {
@@ -3263,7 +3294,6 @@ server <- function(input, output, session) {
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
   
   ###### Panels ####
-  
   # get panel name choices from the database
   observe({
     all.pans <- 
