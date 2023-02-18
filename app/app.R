@@ -288,6 +288,8 @@ ui <- fixedPage(
               conditionalPanel("input.newOrLoad == 'Load existing'",
                 p("Clicking the button below will load your selected pedigree and will take you to the create/edit pedigree screen to view and/or edit your pedigree."),
               ),
+              textOutput("waitLoad"),
+              tags$head(tags$style("#waitLoad{color: blue;}")),
               actionButton("goNewOrLoad", label = "Get Started",
                            icon = icon('play'),
                            style = "color: white; background-color: #10699B; border-color: #10699B")
@@ -355,11 +357,12 @@ ui <- fixedPage(
                    style = "color:blue"),
                 textOutput("validPedID"),
                 tags$head(tags$style("#validPedID{color: red;}")),
+                textOutput("waitCopy"),
+                tags$head(tags$style("#waitCopy{color: blue;}")),
                 actionButton("copyPed", label = "Copy Pedigree",
                              icon = icon('copy'),
                              style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
               )
-              
             ) # end of conditionalPanel to check if there are tables to download
           ),
         
@@ -387,6 +390,8 @@ ui <- fixedPage(
               radioButtons("downloadAs1", label = "Select a file format for download:",
                            choices = c(".csv", ".rds"),
                            selected = ".csv"),
+              textOutput("waitDownload"),
+              tags$head(tags$style("#waitDownload{color: blue;}")),
                                
               # CSV download button
               conditionalPanel("input.downloadAs1 == '.csv'",
@@ -428,6 +433,8 @@ ui <- fixedPage(
               div(style = "margin-left:25px;margin-top:-10px",
                   checkboxInput("selectAllPedsDelete", label = "Select all pedigrees"), 
               ),
+              textOutput("waitDelete"),
+              tags$head(tags$style("#waitDelete{color: blue;}")),
               actionButton("deletePeds", label = "Delete Pedigrees",
                            icon = icon('trash'),
                            style = "color: white; background-color: #10699B; border-color: #10699B")
@@ -802,6 +809,8 @@ ui <- fixedPage(
                                        multiple = TRUE, 
                                        options = list(create = TRUE),
                                        width = "500px"),
+                        textOutput("waitNewPanel"),
+                        tags$head(tags$style("#waitNewPanel{color: blue;}")),
                         actionButton("createPanel", label = "Create Panel",
                                      style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
                       )
@@ -1685,11 +1694,22 @@ server <- function(input, output, session) {
   # and enable/disable download buttons accordingly
   observeEvent(list(input$existingPed, input$newOrLoad), {
     if(input$newOrLoad == "Load existing" & input$existingPed == "No pedigree selected"){
+      waitLoad(FALSE)
       shinyjs::disable("goNewOrLoad")
-    } else {
-      shinyjs::delay(delay_load_ms, shinyjs::enable("goNewOrLoad"))
+    } else if(input$newOrLoad == "Load existing"){
+      waitLoad(TRUE)
+      shinyjs::delay(delay_load_ms, {
+        shinyjs::enable("goNewOrLoad")
+        waitLoad(FALSE)
+      })
+    } else if(input$newOrLoad == "Create new"){
+      waitLoad(FALSE)
+      shinyjs::enable("goNewOrLoad")
     }
   }, ignoreInit = T)
+  waitLoad <- reactiveVal(FALSE)
+  output$waitLoad <- renderText({ need(!waitLoad(), "Please wait...") })
+  observeEvent(input$newOrLoad, { shinyjs::reset("existingPed") })
   
   # user's pedigrees that are available for loading
   userPeds <- reactiveVal(NULL)
@@ -2329,58 +2349,69 @@ server <- function(input, output, session) {
       need(input$newPedName != "example_pedigree",
            "'example_pedigree' is a reserved pedigree name, pick another name."),
       need(input$newPedName != input$selectCopyPed,
-           "The copy's name cannot be the same as the original.")
+           "The copy's name cannot be the same as the original."),
+      need(input$newPedName != "",
+           "Provide a name for the new pedigree.")
     )
   })
   output$validPedID <- renderText({ shiny::validate(validPedID()) })
   
   # check that copy is possible based on if at least one pedigree is selected
   # and enable/disable copy button accordingly
-  observeEvent(list(input$selectCopyPed, input$newPedName, 
-                    userPedsForCopyTo(), userPedsForCopyFrom(),
-                    input$selectUserForCopyTo, input$selectUserForCopyFrom), {
+  observeEvent(list(input$selectCopyPed, validPedID()), {
     if(input$selectCopyPed != "No pedigree selected" & length(validPedID()) == 0){
-      shinyjs::delay(delay_copy_ms, shinyjs::enable("copyPed"))
+      waitCopy(TRUE)
+      shinyjs::delay(delay_copy_ms, {
+        shinyjs::enable("copyPed")
+        waitCopy(FALSE)
+      })
     } else {
+      waitCopy(FALSE)
       shinyjs::disable("copyPed")
     }
   }, ignoreInit = F, ignoreNULL = T)
+  waitCopy <- reactiveVal(FALSE)
+  output$waitCopy <- renderText({ need(!waitCopy(), "Please wait...") })
   
   # copy the selected pedigrees
   observeEvent(input$copyPed, {
-    if(admin() | manager()){
-      fromAcct <- ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
-                         input$selectUserForCopyFrom)
-      toAcct <- ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
-                       input$selectUserForCopyTo)
-    } else {
-      fromAcct <- credentials()$info[["user"]]
-      toAcct <- credentials()$info[["user"]]
+    if(length(validPedID()) == 0){
+      if(admin() | manager()){
+        fromAcct <- ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
+                           input$selectUserForCopyFrom)
+        toAcct <- ifelse(input$selectUserForCopyTo == "", credentials()$info[["user"]],
+                         input$selectUserForCopyTo)
+      } else {
+        fromAcct <- credentials()$info[["user"]]
+        toAcct <- credentials()$info[["user"]]
+      }
+      
+      # retrieve and rename the pedigree
+      tmp.ped <- 
+        dbGetQuery(conn = conn,
+                   statement = paste0("SELECT * FROM ", fromAcct, 
+                                      " WHERE PedigreeID='", input$selectCopyPed, "';"))
+      tmp.ped$PedigreeID <- input$newPedName
+      
+      # save to new pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = toAcct,
+                       tmp_tbl = tmp.ped)
+      
+      # update the list of pedigrees that can be loaded, downloaded, and deleted
+      updated.peds <- sort(unique(
+        dbGetQuery(conn = conn,
+                   statement = paste0("SELECT PedigreeID FROM ", toAcct, ";"))$PedigreeID
+      ))
+      userPeds(updated.peds)
+      userPedsForDownload(updated.peds)
+      userPedsForDelete(updated.peds)
+      userPedsForCopyFrom(updated.peds)
+      userPedsForCopyTo(updated.peds)
+      
+      # reset pedigree name input
+      updateTextInput(session, "newPedName", value = "")
     }
-    
-    # retrieve and rename the pedigree
-    tmp.ped <- 
-      dbGetQuery(conn = conn,
-                 statement = paste0("SELECT * FROM ", fromAcct, 
-                                    " WHERE PedigreeID='", input$selectCopyPed, "';"))
-    tmp.ped$PedigreeID <- input$newPedName
-    
-    # save to new pedigree to database
-    savePedigreeToDB(conne = conn,
-                     user = toAcct,
-                     tmp_tbl = tmp.ped)
-    
-    # update the list of pedigrees that can be loaded, downloaded, and deleted
-    updated.peds <- sort(unique(
-      dbGetQuery(conn = conn,
-                 statement = paste0("SELECT PedigreeID FROM ", toAcct, ";"))$PedigreeID
-    ))
-    userPeds(updated.peds)
-    userPedsForDownload(updated.peds)
-    userPedsForDelete(updated.peds)
-    userPedsForCopyFrom(updated.peds)
-    userPedsForCopyTo(updated.peds)
-    
   }, ignoreInit = T)
   
   ##### Download Pedigrees ####
@@ -2477,13 +2508,20 @@ server <- function(input, output, session) {
   # and enable/disable download buttons accordingly
   observeEvent(input$selectDownloadPeds, {
     if(!is.null(input$selectDownloadPeds)){
-      shinyjs::delay(delay_download_ms, shinyjs::enable("downloadPedsCSV"))
-      shinyjs::delay(delay_download_ms, shinyjs::enable("downloadPedsRDS"))
+      waitDownload(TRUE)
+      shinyjs::delay(delay_download_ms, {
+        shinyjs::enable("downloadPedsCSV")
+        shinyjs::enable("downloadPedsRDS")
+        waitDownload(FALSE)
+      })
     } else {
+      waitDownload(FALSE)
       shinyjs::disable("downloadPedsCSV")
       shinyjs::disable("downloadPedsRDS")
     }
   }, ignoreNULL = F)
+  waitDownload <- reactiveVal(FALSE)
+  output$waitDownload <- renderText({ need(!waitDownload(), "Please wait...") })
   
   # prepare the table of pedigrees to be downloaded from the "Manage Pedigrees" tab
   downloadPedsTable <- reactive({
@@ -2617,11 +2655,18 @@ server <- function(input, output, session) {
   # and enable/disable deletePeds button accordingly
   observeEvent(input$selectDeletePeds, {
     if(!is.null(input$selectDeletePeds)){
-      shinyjs::delay(delay_delete_ms, shinyjs::enable("deletePeds"))
+      waitDelete(TRUE)
+      shinyjs::delay(delay_delete_ms, {
+        shinyjs::enable("deletePeds")
+        waitDelete(FALSE)
+      })
     } else {
+      waitDelete(FALSE)
       shinyjs::disable("deletePeds")
     }
   }, ignoreNULL = F)
+  waitDelete <- reactiveVal(FALSE)
+  output$waitDelete <- renderText({ need(!waitDelete(), "Please wait...") })
   
   # user confirms deletion
   observeEvent(input$deletePeds, {
@@ -3309,22 +3354,32 @@ server <- function(input, output, session) {
   
   # create new panel
   observeEvent(input$createPanel, {
-    pan.genes <- paste0(input$newPanelGenes, collapse = ",")
-    dbExecute(conn = conn,
-              statement = paste0("INSERT INTO panels (panel_name,genes) VALUES ('", 
-                                 input$newPanelName,"','", pan.genes,"');"))
-    
-    # reset/update inputs
-    shinyjs::reset("newPanelName")
-    shinyjs::reset("newPanelGenes")
     all.pans <- 
-      sort(dbGetQuery(conn = conn,
-                      statement = "SELECT panel_name FROM panels")$panel_name)
-    updateSelectInput(session, "existingPanels", 
-                      choices = c("No panel selected", "Create new", all.pans))
+      dbGetQuery(conn = conn,
+                 statement = "SELECT panel_name FROM panels")$panel_name
+    
+    if(input$newPanelName != "" &
+       !input$newPanelName %in% all.pans &
+       !is.null(input$newPanelGenes)){
+      pan.genes <- paste0(input$newPanelGenes, collapse = ",")
+      dbExecute(conn = conn,
+                statement = paste0("INSERT INTO panels (panel_name,genes) VALUES ('", 
+                                   input$newPanelName,"','", pan.genes,"');"))
+      
+      # reset/update inputs
+      shinyjs::reset("newPanelName")
+      shinyjs::reset("newPanelGenes")
+      all.pans <- 
+        sort(dbGetQuery(conn = conn,
+                        statement = "SELECT panel_name FROM panels")$panel_name)
+      updateSelectInput(session, "existingPanels", 
+                        choices = c("No panel selected", "Create new", all.pans))
+      updateTextInput(session, "newPanelName", value = "")
+      updateSelectizeInput(session, "newPanelGenes", selected = NULL)
+    }
   }, ignoreInit = T)
 
-  # hide Create Panel button if conditions are not met
+  # disable Create Panel button if conditions are not met
   observeEvent(list(input$newPanelName, input$newPanelGenes), {
     all.pans <- 
       dbGetQuery(conn = conn,
@@ -3333,6 +3388,7 @@ server <- function(input, output, session) {
     if(input$newPanelName == "" |
        input$newPanelName %in% all.pans |
        is.null(input$newPanelGenes)){
+      waitNewPanel(FALSE)
       shinyjs::disable("createPanel")
       if(input$newPanelName %in% all.pans){
         panelNameUnique(FALSE)
@@ -3341,9 +3397,15 @@ server <- function(input, output, session) {
       }
     } else {
       panelNameUnique(TRUE)
-      shinyjs::delay(delay_insert_ms, shinyjs::enable("createPanel"))
+      waitNewPanel(TRUE)
+      shinyjs::delay(delay_insert_ms, {
+        shinyjs::enable("createPanel")
+        waitNewPanel(FALSE)
+      })
     }
   }, ignoreNULL = F, ignoreInit = F)
+  waitNewPanel <- reactiveVal(FALSE)
+  output$waitNewPanel <- renderText({ need(!waitNewPanel(), "Please wait...") })
   
   # warning message to user about duplicate panel name
   panelNameUnique <- reactiveVal(TRUE)
