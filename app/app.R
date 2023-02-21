@@ -334,6 +334,7 @@ ui <- fixedPage(
             
             # data dictionary available for download
             conditionalPanel("input.pedVisualsViewer != 'Tree'",
+              br(),
               p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
               downloadButton("downloadDD1", label = "Download Data Dictionary",
                              icon = icon('download'),
@@ -4202,16 +4203,18 @@ server <- function(input, output, session) {
   ## cancer details, convert JSONs into a data frame of cancer hx indexed by ID
   cancersTbl <- reactive({
     can.df <- NULL
-    for(row in 1:nrow(PED())){
-      if(!is.na(PED()$cancersJSON[row])){
-        mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
-        rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
-        rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df))), 
-                            rel.can.df)
-        if(is.null(can.df)){
-          can.df <- rel.can.df
-        } else {
-          can.df <- rbind(can.df, rel.can.df)
+    if(!is.null(PED())){
+      for(row in 1:nrow(PED())){
+        if(!is.na(PED()$cancersJSON[row])){
+          mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
+          rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+          rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df))), 
+                              rel.can.df)
+          if(is.null(can.df)){
+            can.df <- rel.can.df
+          } else {
+            can.df <- rbind(can.df, rel.can.df)
+          }
         }
       }
     }
@@ -4245,16 +4248,18 @@ server <- function(input, output, session) {
   ## panel details, convert JSONs into a data frame of panel and gene data indexed by ID
   genesTbl <- reactive({
     gene.df <- NULL
-    for(row in 1:nrow(PED())){
-      if(!is.na(PED()$genesJSON[row])){
-        mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
-        rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
-        rel.gene.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
-                            rel.gene.df)
-        if(is.null(gene.df)){
-          gene.df <- rel.gene.df
-        } else {
-          gene.df <- rbind(gene.df, rel.gene.df)
+    if(!is.null(PED())){
+      for(row in 1:nrow(PED())){
+        if(!is.na(PED()$genesJSON[row])){
+          mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
+          rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+          rel.gene.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
+                              rel.gene.df)
+          if(is.null(gene.df)){
+            gene.df <- rel.gene.df
+          } else {
+            gene.df <- rbind(gene.df, rel.gene.df)
+          }
         }
       }
     }
