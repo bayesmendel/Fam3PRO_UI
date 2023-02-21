@@ -50,8 +50,14 @@ ui <- fixedPage(
   titlePanel(
     title = 
       tagList(
-        span("PPI: PanelPRO Interface",
-             div(class = "pull-right", shinyauthr::logoutUI(id = "logout")))
+        span(
+          "PPI: PanelPRO Interface",
+          div(class = "pull-right", 
+            img(src="dana-farber-logo-small-2.PNG", height = "50px"),
+            shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), style = "padding:5px")
+          ),
+          
+        )
       ),
     windowTitle = "PPI: PanelPRO Interface"
   ),
@@ -179,16 +185,19 @@ ui <- fixedPage(
         h3("Home"),
         
         h4("What are PanelPRO and PPI?"),
-        p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute, 
-          is a multi-cancer/multi-gene risk prediction model which utilizes family history 
-          to estimate the probability that a patient has a pathogenic or likely 
-          pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and, 
-          estimates a patient's future risk of cancer for up to 18 different cancer types. 
-          PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users 
+        p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute,
+          is a multi-cancer/multi-gene risk prediction model which utilizes family history
+          to estimate the probability that a patient has a pathogenic or likely
+          pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and,
+          estimates a patient's future risk of cancer for up to 18 different cancer types.
+          PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users
           have the ability to create customized models focused on specific cancers and genes.
-          The PanelPRO software package was written in the statistical 
+          The PanelPRO software package was written in the statistical
           programming language R. You can learn more about PanelPRO at the ",
-          a("BayesMendel lab's website", href = "https://projects.iq.harvard.edu/bayesmendel/about"), "."),
+          a("BayesMendel lab's website.", href = "https://projects.iq.harvard.edu/bayesmendel/about")),
+        tags$a(tags$img(src = "bm-lab-logo.PNG", height = "150px"), 
+               href = "https://projects.iq.harvard.edu/bayesmendel/about"),
+        br(),br(),
         p("This website is named the PanelPRO Interface (PPI) because it allows clinicians and researchers to 
           utilize PanelPRO without having to use R or know how write code in R. 
           PPI allows users to create pedigrees formatted for PanelPRO and then run 
@@ -1181,7 +1190,6 @@ ui <- fixedPage(
 
 
 server <- function(input, output, session) {
-  
   #### Connect/Disconnect Database ####
   conn <- dbConnect(drv = RMariaDB::MariaDB(),
                     username = Sys.getenv('maria.un'),
