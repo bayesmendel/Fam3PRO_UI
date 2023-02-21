@@ -31,6 +31,9 @@ library(htmltools)  # formatting text
 # tables
 library(DT)
 
+# download
+library(zip)
+
 #### UI 
 ui <- fixedPage(
   
@@ -313,13 +316,28 @@ ui <- fixedPage(
               # table
               tabPanel(title = "Table",
                 br(),
-                DTOutput("tablePedViewer"),
+                DTOutput("tablePedViewer")
+              ),
+              
+              # cancer hx
+              tabPanel(title = "Cancers",
                 br(),
-                p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, 
-                  non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
-                  are shown in this table. To see the full table, download the pedigree.",
-                  style = "color:blue")
+                DTOutput("cancersTblViewer")
+              ),
+              
+              # genes
+              tabPanel(title = "Genes",
+                br(),
+                DTOutput("genesTblViewer")
               )
+            ), # end of tabsetPanel 
+            
+            # data dictionary available for download
+            conditionalPanel("input.pedVisualsViewer != 'Tree'",
+              p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
+              downloadButton("downloadDD1", label = "Download Data Dictionary",
+                             icon = icon('download'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B")
             )
           ),
           
@@ -369,6 +387,13 @@ ui <- fixedPage(
           ###### UI: Download Pedigrees ####
           tabPanel("Download",
             h4("Download Pedigrees"),
+            p("You can download one or more pedigrees in a single .zip file by selecting them below. 
+              The .zip file will include two directories (or folders): 'download-data' and 'data-dictionary'. 
+              'download-data' will include three files: 1) the selected pedigrees, 
+              2) detailed cancer history (extracted from the cancerJSON column in the pedigrees file)
+              and 3) detailed panel and gene results (extracted from the genesJSON column in the pedigree file). 
+              'data-dictionary' will include 3 more files: 1) a description of the each pedigree column, 
+              2) PanelPRO cancer abbreviations and 3) a list of PanelPRO genes."),
             
             # for admins and managers, select the user account to load from first
             conditionalPanel("output.admin | output.manager",
@@ -449,6 +474,7 @@ ui <- fixedPage(
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
           
+          ###### UI: Visualize Pedgiree ####
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
           conditionalPanel("output.showPed",
             column(width = 6,
@@ -476,20 +502,43 @@ ui <- fixedPage(
                 # table
                 tabPanel(title = "Table",
                   fluidRow(
-                    column(width = 12, 
-                           style = "height:800px; width:100%",
-                           br(),
-                           DTOutput("tablePedEditor"),
-                           br(),
-                           p("Due to display limitations, not all columns (Pedigree name, non-PanelPRO cancers, non-PanelPRO genes, detailed gene results, and PanelPRO specific race and ancestry categories) 
-                             are shown in this table. To see the full table, download the pedigree.",
-                             style = "color:blue")
+                    column(width = 12, style = "height:800px; width:100%",
+                      br(),
+                      DTOutput("tablePedEditor")
+                    )
+                  )
+                ),
+                
+                # cancer hx
+                tabPanel(title = "Cancers",
+                  fluidRow(
+                    column(width = 8, style = "height:800px; width:100%",
+                      br(),
+                      DTOutput("cancersTblEditor")
+                    )
+                  )
+                ),
+                
+                # genes
+                tabPanel(title = "Genes",
+                  fluidRow(
+                    column(width = 10, style = "height:800px; width:100%",
+                      br(),
+                      DTOutput("genesTblEditor")
                     )
                   )
                 )
+              ), # end of tabsetPanel for choosing visualization
+              
+              # download data dictionary
+              conditionalPanel("input.pedVisualsEditor != 'Tree'",
+                p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
+                downloadButton("downloadDD2", label = "Download Data Dictionary",
+                               icon = icon('download'),
+                               style = "color: white; background-color: #10699B; border-color: #10699B")
               )
-            )
-          ),
+            ) # end of column for pedigree visualization
+          ), # end of conditionalPanel to display pedigree visualization or not
           
           # column for pedigree data entry
           column(width = 6,
@@ -2539,26 +2588,183 @@ server <- function(input, output, session) {
     )
   })
   
+  # prepare the table of detailed cancer hx (includes non-PanelPRO cancers)
+  downloadCanDetails <- reactive({
+    
+    # get the cancers JSONs for all pedigrees selected for download
+    if(admin() | manager()){
+      fromAcct <- ifelse(input$selectUserForDownload == "", credentials()$info[["user"]], 
+                         input$selectUserForDownload)
+    } else {
+      fromAcct <- credentials()$info[["user"]]
+    }
+    peds <- 
+      dbGetQuery(conn = conn, 
+                 statement = paste0("SELECT PedigreeID, ID, cancersJSON FROM ", fromAcct, " ",
+                                    "WHERE PedigreeID IN ('", 
+                                    paste0(input$selectDownloadPeds, collapse = "','"), 
+                                    "');"))
+    
+    # convert JSONs into a data frame of cancer hx indexed by PedigreeID and ID
+    can.df <- NULL
+    for(pi in unique(peds$PedigreeID)){
+      this.ped <- peds[which(peds$PedigreeID == pi),]
+      for(row in 1:nrow(this.ped)){
+        if(!is.na(this.ped$cancersJSON[row])){
+          mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", this.ped$cancersJSON[row])
+          rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+          rel.can.df <- cbind(data.frame(PedigreeID = rep(pi, nrow(rel.can.df)), 
+                                         ID = rep(this.ped$ID[row], nrow(rel.can.df))), 
+                              rel.can.df)
+          if(is.null(can.df)){
+            can.df <- rel.can.df
+          } else {
+            can.df <- rbind(can.df, rel.can.df)
+          }
+        }
+      }
+    }
+    
+    # if there was no cancer hx in any of the selected pedigrees return a 0 row data frame
+    if(is.null(can.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(colnames(cancer.inputs.store)))), 
+                      c("PedigreeID", "ID", colnames(cancer.inputs.store))))
+    } else {
+      return(can.df)
+    }
+  })
+  
+  # prepare the table of detailed panel (includes non-PanelPRO genes, all result types, nuc/prot/zyg information)
+  downloadPanelDetails <- reactive({
+    
+    # get the cancers JSONs for all pedigrees selected for download
+    if(admin() | manager()){
+      fromAcct <- ifelse(input$selectUserForDownload == "", credentials()$info[["user"]], 
+                         input$selectUserForDownload)
+    } else {
+      fromAcct <- credentials()$info[["user"]]
+    }
+    peds <- 
+      dbGetQuery(conn = conn, 
+                 statement = paste0("SELECT PedigreeID, ID, genesJSON FROM ", fromAcct, " ",
+                                    "WHERE PedigreeID IN ('", 
+                                    paste0(input$selectDownloadPeds, collapse = "','"), 
+                                    "');"))
+    
+    # convert JSONs into a data frame of gene results indexed by PedigreeID and ID
+    gene.df <- NULL
+    for(pi in unique(peds$PedigreeID)){
+      this.ped <- peds[which(peds$PedigreeID == pi),]
+      for(row in 1:nrow(this.ped)){
+        if(!is.na(this.ped$genesJSON[row])){
+          mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", this.ped$genesJSON[row])
+          rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+          rel.gene.df <- cbind(data.frame(PedigreeID = rep(pi, nrow(rel.gene.df)), 
+                                          ID = rep(this.ped$ID[row], nrow(rel.gene.df))), 
+                               rel.gene.df)
+          if(is.null(gene.df)){
+            gene.df <- rel.gene.df
+          } else {
+            gene.df <- rbind(gene.df, rel.gene.df)
+          }
+        }
+      }
+    }
+    
+    # if there was no gene results in any of the selected pedigrees return a 0 row data frame
+    if(is.null(gene.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(gene.df.colnames))), 
+                      c("PedigreeID", "ID", gene.df.colnames)))
+    } else {
+      return(gene.df)
+    }
+  })
+  
+  # table of PanelPRO cancers dictionary to link abbreviations to cancer names
+  ppCancersDict <- reactive({
+    as.data.frame(PanelPRO:::CANCER_NAME_MAP)
+  })
+  
+  # table of PanelPRO gene names
+  ppGenes <- reactive({
+    data.frame(PanelPRO_genes = PanelPRO:::GENE_TYPES)
+  })
+  
   # download one or more pedigrees from the user account from the "Manage Pedigrees" tab
-  # as a .csv
+  # as a zip file of CSV files
   output$downloadPedsCSV <- shiny::downloadHandler(
     filename = function(){
-      paste0("PanelPRO-pedigrees-", Sys.Date(), input$downloadAs1)
+      paste0("PanelPRO-pedigrees-", Sys.Date(), ".zip")
     },
     content = function(file){
-      write.csv(downloadPedsTable(), file, row.names = F)
-    }
+      
+      # create .csv files and zip them together
+      write.csv(downloadPedsTable(), file = "download-data/pedigrees.csv", row.names = F)
+      write.csv(downloadCanDetails(), file = "download-data/cancer-details.csv", row.names = F)
+      write.csv(downloadPanelDetails(), file = "download-data/panel-details.csv", row.names = F)
+      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("download-data/pedigrees.csv",
+                           "download-data/cancer-details.csv",
+                           "download-data/panel-details.csv",
+                           "data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/panelpro-cancer-abbreviations.csv",
+                           "data-dictionary/panelpro-gene-list.csv"))
+      
+      # remove the created files
+      file.remove(c(
+        "download-data/pedigrees.csv",
+        "download-data/cancer-details.csv",
+        "download-data/panel-details.csv",
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      ))
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
   )
   
   # download one or more pedigrees from the user account from the "Manage Pedigrees" tab
   # as a .rds
   output$downloadPedsRDS <- downloadHandler(
     filename = function(){
-      paste0("PanelPRO-pedigrees-", Sys.Date(), input$downloadAs1)
+      paste0("PanelPRO-pedigrees-", Sys.Date(), ".zip")
     },
     content = function(file){
-      saveRDS(downloadPedsTable(), file)
-    }
+      
+      # create .rds files and zip them together
+      saveRDS(downloadPedsTable(), file = "download-data/pedigrees.rds")
+      saveRDS(downloadCanDetails(), file = "download-data/cancer-details.rds")
+      saveRDS(downloadPanelDetails(), file = "download-data/panel-details.rds")
+      saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
+              file = "data-dictionary/columns-and-codings-dictionary.rds")
+      saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
+      saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("download-data/pedigrees.rds",
+                           "download-data/cancer-details.rds",
+                           "download-data/panel-details.rds",
+                           "data-dictionary/columns-and-codings-dictionary.rds",
+                           "data-dictionary/panelpro-cancer-abbreviations.rds",
+                           "data-dictionary/panelpro-gene-list.rds"))
+      
+      # remove the created files
+      file.remove(c(
+        "download-data/pedigrees.rds",
+        "download-data/cancer-details.rds",
+        "download-data/panel-details.rds",
+        "data-dictionary/columns-and-codings-dictionary.rds",
+        "data-dictionary/panelpro-cancer-abbreviations.rds",
+        "data-dictionary/panelpro-gene-list.rds"
+      ))
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
   )
   
   ##### Delete Pedigrees ####
@@ -3858,7 +4064,7 @@ server <- function(input, output, session) {
   
   ##### Visualize Pedigree ####
   
-  ## Family Tree
+  ###### Family Tree ####
   ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs
   # prepare the data
   treePed <- reactive({
@@ -3909,29 +4115,21 @@ server <- function(input, output, session) {
   
   # display in the pedigree editor
   output$treePedEditor <- renderPlot({
-    
-    # check for requirements
     shiny::validate(
       need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    
-    # plot
     plot(treePed()[paste0(input$pedID)])
   })
   
   # display in the pedigree viewer
   output$treePedViewer <- renderPlot({
-    
-    # check for requirements
     shiny::validate(
       need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    
-    # plot
     plot(treePed()[paste0(input$pedID)])
   })
   
-  ## display pedigree as a table
+  ###### Pedigree Table ####
   # prepare the data frame
   tablePed <- reactive({
     
@@ -3942,50 +4140,35 @@ server <- function(input, output, session) {
                   "side", 
                   "relationship", 
                   "isProband",
-                  "race", 
-                  "Ancestry",
+                  starts_with("isAff"),
+                  starts_with("Age"),
                   "cancersJSON",
-                  "genesJSON"
-        )) %>%
+                  "panelNames",
+                  "genesJSON")) %>%
+        select(-any_of(PanelPRO:::GENE_TYPES)) %>%
         relocate(name, .after = "ID") %>%
         relocate(Sex, .after = "name") %>%
-        relocate(Twins, .after = "isDead") %>%
-        relocate(panelNames, .before = "ATM") %>%
-        rename(Name = name,
-               Dead = isDead,
-               Twin_Set = Twins,
-               Race = NPPrace,
-               HispEth = NPPeth,
-               AJ = NPPAJ,
-               Italian = NPPIt,
-               Mastectomy = riskmodMast,
-               Hysterecomy = riskmodHyst,
-               Oophorectomy = riskmodOoph,
-               AgeMast. = interAgeMast,
-               AgeHyst. = interAgeHyst,
-               AgeOoph. = interAgeOoph,
-               Panel_Names = panelNames) %>%
-        mutate(Sex = recode(Sex,
-                            "0" = "Female",
-                            "1" = "Male")) %>%
-        mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
-                      ~ ifelse(is.na(.), "Not Tested",
-                               ifelse(.==1, "P/LP", "Not P/LP")))) %>%
-        mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
-        mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-                                       PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
-                      ~ ifelse(is.na(.), "Not Tested",
-                               ifelse(.==1, "Pos", "Neg")))) %>%
-        mutate(across(.cols = c(Dead, AJ, Italian, 
-                                Mastectomy, Hysterecomy, Oophorectomy,
-                                AntiEstrogen, HRPreneoplasia),
-                      ~ ifelse(is.na(.), NA,
-                               ifelse(.==1, "Yes", "No")))) %>%
-        mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
-                      ~ ifelse(.==1, "Yes", "No")))
-      colnames(t.ped) <- sub(pattern = "^isAff", replacement = "Cn_", colnames(t.ped))
-      colnames(t.ped) <- sub(pattern = "^Age", replacement = "Age_", colnames(t.ped))
-      colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age"
+        relocate(Twins, .after = "isDead")
+      # %>%
+      #   mutate(Sex = recode(Sex,
+      #                       "0" = "Female",
+      #                       "1" = "Male")) %>%
+      #   mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
+      #                 ~ ifelse(is.na(.), "Not Tested",
+      #                          ifelse(.==1, "P/LP", "Not P/LP")))) %>%
+      #   mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
+      #   mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+      #                                  PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
+      #                 ~ ifelse(is.na(.), "Not Tested",
+      #                          ifelse(.==1, "Pos", "Neg")))) %>%
+      #   mutate(across(.cols = c(Dead, AJ, Italian, 
+      #                           Mastectomy, Hysterecomy, Oophorectomy,
+      #                           AntiEstrogen, HRPreneoplasia),
+      #                 ~ ifelse(is.na(.), NA,
+      #                          ifelse(.==1, "Yes", "No")))) %>%
+      #   mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
+      #                 ~ ifelse(.==1, "Yes", "No")))
+      # colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age_or_Death_Age"
       
       return(DT::datatable(data = t.ped,
                            rownames = FALSE,
@@ -3993,8 +4176,7 @@ server <- function(input, output, session) {
                            extensions = "FixedColumns",
                            options = list(pageLength = 20,
                                           scrollX = TRUE,
-                                          fixedColumns = list(leftColumns = 2)))
-             )
+                                          fixedColumns = list(leftColumns = 2))))
     } else {
       return(NULL)
     }
@@ -4002,25 +4184,161 @@ server <- function(input, output, session) {
   
   # display in the pedigree editor
   output$tablePedEditor <- DT::renderDT({
-    
-    # check for requirements
     shiny::validate(
       need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    
     tablePed()
   }, server = F)
   
   # display in the pedigree viewer
   output$tablePedViewer <- DT::renderDT({
-    
-    # check for requirements
     shiny::validate(
       need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    
     tablePed()
   }, server = F)
+  
+  ###### Cancer Details ####
+  ## cancer details, convert JSONs into a data frame of cancer hx indexed by ID
+  cancersTbl <- reactive({
+    can.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$cancersJSON[row])){
+        mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
+        rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+        rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df))), 
+                            rel.can.df)
+        if(is.null(can.df)){
+          can.df <- rel.can.df
+        } else {
+          can.df <- rbind(can.df, rel.can.df)
+        }
+      }
+    }
+    
+    # if there was no cancer hx for any relatives return a 0 row data frame
+    if(is.null(can.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 1 + length(colnames(cancer.inputs.store)))), 
+                      c("ID", colnames(cancer.inputs.store))))
+    } else {
+      return(can.df)
+    }
+  })
+  
+  # display in the pedigree editor
+  output$cancersTblEditor <- DT::renderDT({
+    shiny::validate(
+      need(!is.null(cancersTbl()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    cancersTbl()
+  }, server = F)
+  
+  # display in the pedigree viewer
+  output$cancersTblViewer <- DT::renderDT({
+    shiny::validate(
+      need(!is.null(cancersTbl()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    cancersTbl()
+  }, server = F)
+  
+  ###### Panel Details ####
+  ## panel details, convert JSONs into a data frame of panel and gene data indexed by ID
+  genesTbl <- reactive({
+    gene.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$genesJSON[row])){
+        mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
+        rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+        rel.gene.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
+                            rel.gene.df)
+        if(is.null(gene.df)){
+          gene.df <- rel.gene.df
+        } else {
+          gene.df <- rbind(gene.df, rel.gene.df)
+        }
+      }
+    }
+    
+    # if there was no gene info for any relatives return a 0 row data frame
+    if(is.null(gene.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 1 + length(gene.df.colnames))), 
+                      c("ID", gene.df.colnames)))
+    } else {
+      return(gene.df)
+    }
+  })
+  
+  # display in the pedigree editor
+  output$genesTblEditor <- DT::renderDT({
+    shiny::validate(
+      need(!is.null(genesTbl()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    genesTbl()
+  }, server = F)
+  
+  # display in the pedigree viewer
+  output$genesTblViewer <- DT::renderDT({
+    shiny::validate(
+      need(!is.null(genesTbl()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+    )
+    genesTbl()
+  }, server = F)
+  
+  ###### Download Data Dictionary ####
+  ## download just the data dictionary zip file
+  # pedigree previewer
+  output$downloadDD1 <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-data-dictionary-", Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # create .csv files and zip them together
+      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/panelpro-cancer-abbreviations.csv",
+                           "data-dictionary/panelpro-gene-list.csv"))
+      
+      # remove the created files
+      file.remove(c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      ))
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
+  
+  # pedigree editor viewer
+  output$downloadDD2 <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-data-dictionary-", Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # create .csv files and zip them together
+      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/panelpro-cancer-abbreviations.csv",
+                           "data-dictionary/panelpro-gene-list.csv"))
+      
+      # remove the created files
+      file.remove(c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      ))
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
   
   ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband
@@ -4196,6 +4514,11 @@ server <- function(input, output, session) {
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
+      
+      # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
     }
   }, ignoreInit = TRUE)
   

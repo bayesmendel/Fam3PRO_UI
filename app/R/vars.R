@@ -10,18 +10,39 @@ delay_download_ms <- delay_delete_ms <- delay_insert_ms <- 2000
 #### Pedigree ####
 #pedigree column names
 cbcrisk.cols <- c("FirstBCType", "AntiEstrogen", "HRPreneoplasia", "BreastDensity", "FirstBCTumorSize")
-ped.cols <- c("PedigreeID", "ID", "name", "side", "relationship", "Twins", "Sex", 
-              "MotherID", "FatherID", "isProband", "CurAge", "isDead", 
-              "race", "Ancestry", "NPPrace", "NPPeth", "NPPAJ", "NPPIt",
+ped.cols <- c("PedigreeID", 
+              "ID", 
+              "name", 
+              "side", 
+              "relationship", 
+              "Twins", 
+              "Sex", 
+              "MotherID", 
+              "FatherID", 
+              "isProband", 
+              "CurAge", 
+              "isDead", 
+              "race", 
+              "Ancestry", 
+              "NPPrace", 
+              "NPPeth", 
+              "NPPAJ", 
+              "NPPIt",
               paste0("riskmod", c("Mast","Hyst","Ooph")),
               paste0("interAge", c("Mast","Hyst","Ooph")),
-              "ER", "PR", "CK14", "CK5.6", "HER2", "MSI",
+              "ER", 
+              "PR", 
+              "CK14", 
+              "CK5.6", 
+              "HER2", 
+              "MSI",
               paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
               paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
               "cancersJSON",
               cbcrisk.cols,
-              PanelPRO:::GENE_TYPES,"panelNames","genesJSON"
-              )
+              PanelPRO:::GENE_TYPES,
+              "panelNames",
+              "genesJSON")
 
 ped.col.dtypes <- c(
   "TEXT", # PedigreeID 
