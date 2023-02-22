@@ -23,16 +23,16 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
-library(stringi)    # stri_trans_totitle
+library(stringi)    # conver to title case function: stri_trans_totitle()
 
 # html
 library(htmltools)  # formatting text
 
 # tables
-library(DT)
+library(DT)         # displays data tables
 
 # download
-library(zip)
+library(zip)        # create .zip files for download
 
 #### UI 
 ui <- fixedPage(
@@ -262,7 +262,7 @@ ui <- fixedPage(
           ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
-            p(strong("The currently loaded pedigree name/ID is: "), 
+            p(strong("Currently loaded pedigree ID: "), 
               textOutput("currentPed1", inline = T), 
               style = "font-size:17px"),
             p("To get started, you will either need to create a new pedigree using our 
@@ -311,7 +311,7 @@ ui <- fixedPage(
           ###### UI: Preview Pedigree ####
           tabPanel("Preview",
             h4("Preview Current Pedigree"),
-            p(strong("The currently loaded pedigree name/ID is: "), 
+            p(strong("Currently loaded pedigree ID: "), 
               textOutput("currentPed2", inline = T), 
               style = "font-size:17px"),
             p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
@@ -1104,8 +1104,119 @@ ui <- fixedPage(
       ##### UI: Run PanelPRO ####
       tabPanel("Run PanelPRO",
         h3("Run PanelPRO"),
-        p("Sorry, this feature is not currently available but we are working on it.")
-      ), # end of PanelPRO tab
+        
+        # show the current pedigree
+        p(strong("Currently loaded pedigree ID: "), 
+          textOutput("currentPed3", inline = T), 
+          style = "font-size:17px"),
+        
+        # split into settings and results tabs
+        tabsetPanel(id = "panelproTabs",
+          
+          # settings tab
+          tabPanel(title = "Run PanelPRO",
+        
+            # basic settings
+            h4("Settings"),
+            selectInput("modelSpec", label = h5("Model Specification:"), 
+                        selected = "PanPRO22",
+                        choices = c("Custom", names(PanelPRO:::MODELPARAMS)),
+                        width = "150px"),
+            conditionalPanel("input.modelSpec == 'Custom'",
+              div(style = "margin-left:25px",
+                selectInput("genes", label = h5("Custom Gene List:"),
+                            choices = PanelPRO:::GENE_TYPES,
+                            multiple = T,
+                            width = "400px"),
+                div(style = "margin-left:25px;margin-top:-10px",
+                  checkboxInput("allGenes", label = "Select all genes",
+                                value = F)
+                ),
+                selectInput("cancers", label = h5("Custom Cancer List:"),
+                            choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                            multiple = T,
+                            width = "400px"),
+                div(style = "margin-left:25px;margin-top:-10px",
+                  checkboxInput("allCancers", label = "Select all cancers",
+                                value = F)
+                ),
+              ),
+            ),
+            h5("Maximum simultaneous mutations allowed:"),
+            selectInput("maxMut", label = NULL,
+                        choices = c("1","2"),
+                        selected = "2",
+                        width = "150px"),
+            h5("Year increment for future cancer risk:"),
+            numericInput("ageBy", label = NULL,
+                         min = 1, max = 10, step = 1, value = 5,
+                         width = "150px"),
+            textOutput("validYearIncrements"),
+            tags$head(tags$style("#validYearIncrements{color: red;}")),
+            br(),
+            
+            # RUN MODEL
+            actionButton("runPP", label = "Run PanelPRO",
+                         icon = icon('play'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+            br(),br(),
+            
+            # advanced settings
+            h4("Advanced Settings"),
+            p("Coming soon..."),
+            # proband
+            # database
+            # unknown.race
+            # unknown.ancestry
+            # impute.missing.ages
+            # allow.intervention
+            # ignore.proband.germ
+            # remove.miss.cancers
+            # iterations
+            # max.iter.tries
+            # parallel
+            # debug
+            # net
+            # random.seed
+            # plusBCRAT
+            # bcrat.vars
+            # rr.bcrat
+            # rr.pop
+            
+          ), # end of "Settings" tab for PanelPRO
+          
+          # carrier probabilities
+          tabPanel(title = "Results",
+            
+            tabsetPanel(id = "ppResultTabs",
+              
+              ## Carrier Probs
+              # plot
+              tabPanel(title = "Carrier Prob. Plot",
+                h4("Posterior Carrier Probabilities"),
+              ),
+              
+              # table
+              tabPanel(title = "Carrier Prob. Table",
+                h4("Posterior Carrier Probabilities"),
+                DTOutput("ppPPTbl", width = "500px")
+              ),
+              
+              ## Cancer Risk
+              # plot
+              tabPanel(title = "Cancer Risk Plots",
+                h4("Future Cancer Risk"),
+              ),
+              
+              # table
+              tabPanel(title = "Cancer Risk Table",
+                h4("Future Cancer Risk"),
+                DTOutput("ppFRTbl", width = "450px")
+              )
+            ) # end of ppResultTabs tabsetPanel
+          ) # end of Results Tab in panelproTabs tabsetPanel
+        ) # end of panelproTabs tabsetPanel
+      ), # end of PanelPRO tab in navbarTabs
       
       ##### UI: My Account ####
       tabPanel("My Account",
@@ -1740,6 +1851,15 @@ server <- function(input, output, session) {
   
   # text for preview screen
   output$currentPed2 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+    }
+  })
+  
+  # text for panelpro screen
+  output$currentPed3 <- renderText({ 
     if(!is.null(currentPed())){
       return(currentPed())
     } else {
@@ -4535,10 +4655,170 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### PanelPRO PLACEHOLDER ####
+  #### PanelPRO ####
+  # clear genes and cancers when the model specification is not custom
+  observeEvent(input$modelSpec, {
+    if(input$modelSpec != "Custom"){
+      shinyjs::reset("genes")
+      shinyjs::reset("cancers")
+      shinyjs::reset("allGenes")
+      shinyjs::reset("allCancers")
+    }
+  }, ignoreInit = T)
+  
+  # select all genes
+  observeEvent(input$allGenes, {
+    if(input$allGenes){
+      updateSelectInput(session, "genes", 
+                        selected = PanelPRO:::GENE_TYPES, 
+                        choices = PanelPRO:::GENE_TYPES)
+    } else {
+      updateSelectInput(session, "genes", 
+                        choices = PanelPRO:::GENE_TYPES)
+    }
+  })
+  
+  # select all cancers
+  observeEvent(input$allCancers, {
+    if(input$allCancers){
+      updateSelectInput(session, "cancers", 
+                        selected = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+    } else {
+      updateSelectInput(session, "cancers", 
+                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+    }
+  })
+  
+  # validate year increments for future cancer risk
+  output$validYearIncrements <- renderText({ 
+    shiny::validate(
+      need(input$ageBy %% 1 == 0, "Year increment must be an integer."),
+      need(input$ageBy >= 1, "Year increment must be greater than or equal to 1."),
+      need(input$ageBy <= 10, "Year increment must be less than or equal to 10.")
+    )
+  })
+  
+  # PanelPRO result
+  ppReactive <- reactiveValues(ppTbl = NULL, frTbl = NULL, ppPlot = NULL, frPlot = NULL)
+  observeEvent(input$runPP, {
+    if(!is.null(PED())){
+      
+      # validate settings
+      if(is.na(input$ageBy)){
+        ageBy <- 5
+      } else {
+        ageBy <- input$ageBy
+      }
+      
+      # run using either a model spec or custom genes and cancers
+      if(input$modelSpec != "Custom"){
+        out <- PanelPRO(pedigree = PED(),
+                        model_spec = input$modelSpec,
+                        max.mut = input$maxMut,
+                        age.by = input$ageBy)
+      } else {
+        out <- PanelPRO(pedigree = PED(),
+                        genes = input$genes,
+                        cancers = input$cancers,
+                        max.mut = input$maxMut,
+                        age.by = input$ageBy)
+      }
+      
+      # get the proband 
+      pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
+      
+      # table of posterior probabilities
+      ppTbl <- 
+        out$posterior.prob[[pb]] %>%
+        mutate(NumMuts = ifelse(grepl(pattern = "\\.", genes), 2, 1), .after = "genes") %>%
+        mutate(genes = ifelse(NumMuts == 1, sub(pattern = "_.*", replacement = "", genes),
+                              ifelse(NumMuts == 2, sub(pattern = "_.*\\.", replacement = ".", genes), 
+                                     genes))) %>%
+        mutate(genes = ifelse(NumMuts == 2, 
+                              sub(pattern = "_.*", replacement = "", genes), 
+                              genes)) %>%
+        mutate(genes = ifelse(grepl(pattern = "\\.", genes), 
+                              sub(pattern = "\\.", replacement = " & ", genes), 
+                              genes)) %>%
+        mutate(genes = ifelse(genes == "noncarrier", "Non-carrier", genes)) %>%
+        arrange(desc(estimate)) %>%
+        mutate(across(.cols = c(estimate, lower, upper), ~ round(., digits = 6))) %>%
+        mutate(across(.cols = c(estimate, lower, upper), ~ ifelse(is.na(.), NA, 
+                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
+        rename("Num. Muts." = "NumMuts",
+               "Genes" = "genes",
+               "Estimate" = "estimate",
+               "Lower CI" = "lower",
+               "Upper CI" = "upper") %>%
+        DT::datatable(rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact"),
+                      options = list(pageLength = 20)) %>%
+        DT::formatStyle(columns = c("Estimate", "Lower CI", "Upper CI"),
+                        textAlign = "right")
+      ppReactive$ppTbl <- ppTbl
+      
+      # table of cancer risks
+      frByCancer <- out$future.risk[[pb]]
+      frTbl <- NULL
+      for(cn in names(frByCancer)){
+        can.df <- 
+          frByCancer[[cn]] %>%
+          mutate(Cancer = cn, .before = "ByAge")
+        if(is.null(frTbl)){
+          frTbl <- can.df
+        } else {
+          frTbl <- rbind(frTbl, can.df)
+        }
+      }
+      frTbl <- 
+        frTbl %>%
+        mutate(across(.cols = c(estimate, lower, upper), ~ round(., digits = 6))) %>%
+        mutate(across(.cols = c(estimate, lower, upper), ~ ifelse(is.na(.), NA, 
+                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
+        rename("By Age" = "ByAge",
+               "Estimate" = "estimate",
+               "Lower CI" = "lower",
+               "Upper CI" = "upper") %>%
+        DT::datatable(rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact"),
+                      options = list(pageLength = 20)) %>%
+        DT::formatStyle(columns = c("Estimate", "Lower CI", "Upper CI"),
+                        textAlign = "right")
+      ppReactive$frTbl <- frTbl
+      
+      # take user to results
+      updateTabsetPanel(session, "panelproTabs", selected = "Results")
+      
+      # pedigree was NULL so make all results NULL
+    } else {
+      ppReactive$ppTbl <- NULL
+      ppReactive$frPlot <- NULL
+      ppReactive$ppTbl <- NULL
+      ppReactive$frPlot <- NULL
+    }
+  }, ignoreNULL = F, ignoreInit = T)
+  
+  # carrier probabilities table
+  output$ppPPTbl <- renderDT({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$ppTbl), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$ppTbl)
+  }, server = F)
+  
+  # cancer risk table
+  output$ppFRTbl <- renderDT({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frTbl), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$frTbl)
+  }, server = F)
 
   
-}
+} # end of server
 
 # Run the application 
 shinyApp(ui = ui, server = server)
