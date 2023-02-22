@@ -1,6 +1,6 @@
 #' Mutation probability and future cancer risk plots for the PanelPRO Interface (PPI)
 #'
-#' Visualises the carrier probabilities and future risk estimates returned by 
+#' Visualizes the carrier probabilities and future risk estimates returned by 
 #' the PanelPRO function for the probands. A modified version of PanelPRO::visRisk().
 #' 
 #' @param pp_output A list of results returned by PanelPRO. 
@@ -162,7 +162,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     
     # Reduce full gene names
     probs_to_show$genes <- 
-      as.factor(formatGeneNames(as.character(probs_to_show$genes)))
+      as.factor(PanelPRO:::formatGeneNames(as.character(probs_to_show$genes)))
     
     # Now plot the single gene carrier probability plots
     p2 <- ggplot2::ggplot(probs_to_show, 
@@ -211,22 +211,17 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                            y = 1,
                                            showarrow = FALSE               
     ) %>% plotly::add_annotations(text = 
-                                    "     Variability in estimates may arise from
-     an imputation process for missing ages. 
-     The range of estimates is indicated by
-     error bars or (lower, upper) estimates. 
-     
-     If the hetero/homogeneity
-     or variant of the gene has not
-     been specified, it is assumed
-     to be heterogeneous
-     and of any pathogenic variant.",
+      "      Variability in estimates may arise from an imputation process for missing ages. 
+      The range of estimates is indicated by error bars or (lower, upper) estimates. 
+      
+      If the hetero/homogeneity or variant of the gene has not been specified, 
+      it is assumed to be heterogeneous and of any pathogenic variant.",
      xref = "paper",
      yref = "paper",
      yanchor = "bottom",
      xanchor = "center",
      align = "left",
-     x = 0.05,
+     x = 0.2,
      y = 1.1,
      font = list(size = 9),
      showarrow = FALSE
@@ -242,9 +237,15 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                   y = 1.0,
                                   font = list(size = 10),
                                   showarrow = FALSE
-    )
+    ) %>% plotly::config(modeBarButtonsToRemove = c("lasso2d","select2d","pan2d",
+                                                    "autoScale2d",
+                                                    "zoomIn2d","zoomOut2d",
+                                                    "hoverClosestCartesian",
+                                                    "hoverCompareCartesian",
+                                                    "toggleSpikelines"),
+                         displaylogo = FALSE)
     
-    # Add in the confience intervals if needed
+    # Add in the confidence intervals if needed
     if (!pedigree_full) {
       pp2 <- pp2 %>% plotly::add_annotations(text = 
                                                paste0("(", round(current_pp[nc_position, ]$lower, digits = 3), ", ",
@@ -282,7 +283,11 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
   }
   
   if (return_obj == TRUE) {
-    return(figs)
+    return(list(
+      both = figs,
+      pp = pp2,
+      fr = pp1
+    ))
   }
   
   if (!is.null(markdown) & isTRUE(markdown)) {
