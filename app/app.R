@@ -221,7 +221,7 @@ ui <- fixedPage(
           download one or more pedigrees in .csv or .rds format."),
         p("To run PanelPRO, you will first either need to create a new pedigree or load an 
           existing one which you previously saved to your account. Once you do either of these 
-          actions you will have access to the 'Create/Modify Pedigree' and the 'Run PanelPRO' pages."),
+          actions you will have access to the 'Create/Modify Pedigree' and the 'PanelPRO' pages."),
         p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
         p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
           to your user account and you can come back at any time to modify your saved pedigrees 
@@ -1101,9 +1101,12 @@ ui <- fixedPage(
         ) # end of fluidRow for create/modify pedigree tab
       ), # end of tab for create/modify pedigree
       
-      ##### UI: Run PanelPRO ####
-      tabPanel("Run PanelPRO",
-        h3("Run PanelPRO"),
+      ##### UI: PanelPRO ####
+      tabPanel("PanelPRO",
+        h3("Run PanelPRO", style = "margin-bottom:0px"),
+        
+        # PanelPRO version
+        textOutput("ppVersion"),
         
         # show the current pedigree
         p(strong("Currently loaded pedigree ID: "), 
@@ -1115,7 +1118,7 @@ ui <- fixedPage(
           
           # settings tab
           tabPanel(title = "Run PanelPRO",
-        
+            
             # basic settings
             h4("Settings"),
             selectInput("modelSpec", label = h5("Model Specification:"), 
@@ -1183,10 +1186,10 @@ ui <- fixedPage(
             # rr.bcrat
             # rr.pop
             
-          ), # end of "Settings" tab for PanelPRO
+          ), # end of "Run" tab for PanelPRO
           
-          # carrier probabilities
-          tabPanel(title = "Results",
+          # results tab
+          tabPanel(title = "PanelPRO Results",
             
             tabsetPanel(id = "ppResultTabs",
               
@@ -1214,7 +1217,7 @@ ui <- fixedPage(
                 DTOutput("ppFRTbl", width = "450px")
               )
             ) # end of ppResultTabs tabsetPanel
-          ) # end of Results Tab in panelproTabs tabsetPanel
+          ) # end of PanelPRO Results Tab in panelproTabs tabsetPanel
         ) # end of panelproTabs tabsetPanel
       ), # end of PanelPRO tab in navbarTabs
       
@@ -2412,6 +2415,8 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "panelproTabs", selected = "Run PanelPRO")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
     
     # take user to the pedigree editor if they chose the create new option
@@ -4613,15 +4618,15 @@ server <- function(input, output, session) {
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
   observe({
     hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+    hideTab("navbarTabs", target = "PanelPRO", session = session)
   })
   
-  # only show Run PanelPRO tab when a pedigree has been created or loaded
+  # only show PanelPRO tab when a pedigree has been created or loaded
   observeEvent(PED(), {
     if(!is.null(PED())){
-      showTab("navbarTabs", target = "Run PanelPRO", session = session)
+      showTab("navbarTabs", target = "PanelPRO", session = session)
     } else {
-      hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+      hideTab("navbarTabs", target = "PanelPRO", session = session)
     }
   }, ignoreNULL = F)
   
@@ -4697,6 +4702,11 @@ server <- function(input, output, session) {
       need(input$ageBy >= 1, "Year increment must be greater than or equal to 1."),
       need(input$ageBy <= 10, "Year increment must be less than or equal to 10.")
     )
+  })
+  
+  # panelpro version number
+  output$ppVersion <- renderText({
+    paste0("version: ", packageVersion("PanelPRO"))
   })
   
   # PanelPRO result
@@ -4788,7 +4798,7 @@ server <- function(input, output, session) {
       ppReactive$frTbl <- frTbl
       
       # take user to results
-      updateTabsetPanel(session, "panelproTabs", selected = "Results")
+      updateTabsetPanel(session, "panelproTabs", selected = "PanelPRO Results")
       
       # pedigree was NULL so make all results NULL
     } else {
