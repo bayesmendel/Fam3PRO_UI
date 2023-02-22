@@ -1564,7 +1564,11 @@ server <- function(input, output, session) {
                         user = input$newUsername,
                         tmp_tbl = example_pedigree)
       
-      shinyjs::refresh()
+      # notify user of successful account creation
+      shinybusy::notify_success("Account Created!", position = "center-bottom")
+      
+      # refresh app and take them to log-in screen
+      shinyjs::delay(ms = 3000, shinyjs::refresh())
       
       # problem with proposed credentials
     } else {
@@ -2467,7 +2471,11 @@ server <- function(input, output, session) {
     # take user to the pedigree editor if they chose the create new option
     if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
-      shinybusy::notify_success("Load Successful!")
+    }
+    
+    # notify user of load success
+    if(input$newOrLoad == "Load existing"){
+      shinybusy::notify_success("Load Successful!", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -2640,6 +2648,9 @@ server <- function(input, output, session) {
       
       # reset pedigree name input
       updateTextInput(session, "newPedName", value = "")
+      
+      # notify user of copy success
+      shinybusy::notify_success("Copy Successful!", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -3102,6 +3113,9 @@ server <- function(input, output, session) {
     
     # remove the confirmation pop-up window
     removeModal()
+    
+    # notify user of delete success
+    shinybusy::notify_success("Deletion Successful!", position = "center-bottom")
     
   }, ignoreInit = T)
   
