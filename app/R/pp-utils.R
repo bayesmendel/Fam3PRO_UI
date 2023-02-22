@@ -109,13 +109,14 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     # Future risk title information
     upper_plot_title <- list(
       text = "Future cancer risks",
+      font = list(size = 20),
       xref = "paper",
       yref = "paper",
       yanchor = "bottom",
       xanchor = "center",
       align = "center",
       x = 0.5,
-      y = 1.1,
+      y = 1.0,
       showarrow = FALSE
     )
     
@@ -131,16 +132,37 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     pp1 <- plotly::layout(gg1,
                           yaxis = list(
                             title = "Cumulative cancer risk",
-                            titlefont = list(size = 12)
+                            titlefont = list(size = 16)
                           ),
                           xaxis = list(
                             title = "Age",
-                            titlefont = list(size = 12)
+                            titlefont = list(size = 16)
                           ),
                           showlegend = TRUE,
                           margin = 1,
                           annotations = upper_plot_title
     )
+    
+    # for stand-alone cancer risk plot, add same annotations as the other plot
+    pp1a <- pp1 %>% plotly::add_annotations(text = 
+      "      Variability in estimates may arise from an imputation process for missing ages. 
+      The range of estimates is indicated by error bars or (lower, upper) estimates. 
+      
+      If the hetero/homogeneity or variant of the gene has not been specified, 
+      it is assumed to be heterogeneous and of any pathogenic variant.",
+      xref = "paper",
+      yref = "paper",
+      yanchor = "bottom",
+      xanchor = "center",
+      align = "left",
+      x = 0.2,
+      y = 1.05,
+      font = list(size = 9),
+      showarrow = FALSE
+    ) %>% plotly::config(modeBarButtonsToRemove = c("lasso2d","select2d","pan2d",
+                                                    "autoScale2d",
+                                                    "zoomIn2d","zoomOut2d"),
+                         displaylogo = FALSE)
     
     # Re-order such that non-carrier, 1 at a time ... appears
     current_pp <- pp_output$posterior.prob[[i]]
@@ -285,8 +307,8 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
   if (return_obj == TRUE) {
     return(list(
       both = figs,
-      pp = pp2,
-      fr = pp1
+      cp = pp2,
+      fr = pp1a
     ))
   }
   

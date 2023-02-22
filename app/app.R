@@ -1127,7 +1127,7 @@ ui <- fixedPage(
         # show the current pedigree
         p(strong("Currently loaded pedigree ID: "), 
           textOutput("currentPed3", inline = T), 
-          style = "font-size:17px;margin-top:10px"),
+          style = "font-size:17px;margin-top:5px"),
         
         # split into settings and results tabs
         tabsetPanel(id = "panelproTabs",
@@ -1243,6 +1243,7 @@ ui <- fixedPage(
               # plot
               tabPanel(title = "Cancer Risk Plots",
                 h4("Future Cancer Risk"),
+                plotly::plotlyOutput("ppFRPlot", width = "1000px", height = "750px")
               ),
               
               # table
@@ -4803,7 +4804,7 @@ server <- function(input, output, session) {
   
   ##### Results ####
   ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, 
-                               cpPlot = NULL, frPlot = NULL,
+                               cpPlot = NULL, frPlot = NULL, cpAndfrPlots = NULL,
                                settingsTbl = NULL)
   
   observeEvent(input$runPP, {
@@ -4969,13 +4970,20 @@ server <- function(input, output, session) {
                         textAlign = "right")
       ppReactive$frTbl <- frTbl
       
+      ### plots
+      vr.plots <- visRiskPPI(pp_output = out, 
+                             markdown = NULL, 
+                             return_obj = TRUE, 
+                             prob_threshold = 0.01, 
+                             show_fr_ci = FALSE)
       ## carrier prob plot
-      cpPlot <- visRiskPPI(pp_output = out, 
-                           markdown = NULL, 
-                           return_obj = TRUE, 
-                           prob_threshold = 0.01, 
-                           show_fr_ci = FALSE)$pp
-      ppReactive$cpPlot <- cpPlot
+      ppReactive$cpPlot <- vr.plots$cp
+      
+      ## cancer risk plot
+      ppReactive$frPlot <- vr.plots$fr
+      
+      ## combined prob and cancer risk plot
+      ppReactive$cpAndfrPlots <- vr.plots$both
       
       ## take user to results
       updateTabsetPanel(session, "panelproTabs", selected = "PanelPRO Results")
@@ -4987,6 +4995,7 @@ server <- function(input, output, session) {
       ppReactive$cpPlot <- NULL
       ppReactive$frPlot <- NULL
       ppReactive$settingsTbl <- NULL
+      ppReactive$cpAndfrPlots <- NULL
     }
   }, ignoreNULL = F, ignoreInit = T)
   
@@ -5015,6 +5024,15 @@ server <- function(input, output, session) {
       need(!is.null(ppReactive$cpPlot), "Run PanelPRO to see the results.")
     )
     return(ppReactive$cpPlot)
+  })
+  
+  # carrier prob. plot
+  output$ppFRPlot <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frPlot), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$frPlot)
   })
   
   # run settings table
