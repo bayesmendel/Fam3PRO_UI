@@ -388,9 +388,9 @@ popPersonData <- function(tmp.ped,
     
     # remove any cancers that do not match the sex
     if(sx == "Male"){
-      cancers.and.ages <- filter(cancers.and.ages, !Cancer %in% FEMALE.CANCERS)
+      cancers.and.ages <- dplyr::filter(cancers.and.ages, !Cancer %in% FEMALE.CANCERS)
     } else if(sx == "Female"){
-      cancers.and.ages <- filter(cancers.and.ages, !Cancer %in% MALE.CANCERS)
+      cancers.and.ages <- dplyr::filter(cancers.and.ages, !Cancer %in% MALE.CANCERS)
     }
     
     # iterate through PanelPRO cancers and populate the PanelPRO cancer columns
@@ -517,19 +517,19 @@ popPersonData <- function(tmp.ped,
       rtypes <- c("PLP","VUS","BLB","Neg")
       pnames <- unique(gene.results$Panel)
       for(pname in pnames){
-        pan.df <- filter(gene.results, Panel == pname)
+        pan.df <- dplyr::filter(gene.results, Panel == pname)
         
         # iterate through unique genes
         u.genes <- unique(pan.df$Gene)
         for(gcnt in 1:length(u.genes)){
           
           # subset the data frame for all rows matching the gene
-          gene.df <- filter(pan.df, Gene == u.genes[gcnt])
+          gene.df <- dplyr::filter(pan.df, Gene == u.genes[gcnt])
           rtypes.gene <- rtypes[which(rtypes %in% unique(gene.df$Result))]
           for(rtype in rtypes.gene){
             
             # subset the data frame again for all rows matching the gene AND the result type
-            rtype.df <- filter(gene.df, Result == rtype)
+            rtype.df <- dplyr::filter(gene.df, Result == rtype)
             
             # iterate through the rows to get the JSON sub-string section specific to 1 variant
             for(vcnt in 1:nrow(rtype.df)){
@@ -556,7 +556,7 @@ popPersonData <- function(tmp.ped,
       if(nrow(pp.genes.df) > 0){
 
         # only consider PLP genes
-        plp.pp.genes.df <- filter(pp.genes.df, Result == "PLP")
+        plp.pp.genes.df <- dplyr::filter(pp.genes.df, Result == "PLP")
         
         # initialize list of unique P/LP PanelPRO genes
         pp.mark.pos <- as.character()
@@ -572,7 +572,7 @@ popPersonData <- function(tmp.ped,
           ### not handled by PanelPRO, assume missing values are compatible with the PanelPRO
           special.plp.cases <- c("CHEK2", "NBN", "CDKN2A", "MUTYH")
           if(ug %in% special.plp.cases){
-            sc.df <- filter(plp.pp.genes.df, Gene == ug)
+            sc.df <- dplyr::filter(plp.pp.genes.df, Gene == ug)
             if(ug == "CHEK2" & (any(sc.df$Nucleotide == nucCHEK2plp) | any(sc.df$Nucleotide == ""))){
               add.ug <- TRUE
             } else if(ug == "NBN" & (any(sc.df$Nucleotide == nucNBNplp) | any(sc.df$Nucleotide == ""))){

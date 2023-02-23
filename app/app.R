@@ -4,6 +4,7 @@
 library(shiny)
 library(shinyBS)    # shiny tool tips
 library(shinyjs)    # java script tools
+library(shinybusy)  # success notifications and waiting on calc spinner
 
 # pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
@@ -23,16 +24,22 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
-library(stringi)    # stri_trans_totitle
+library(stringi)    # conver to title case function: stri_trans_totitle()
 
 # html
 library(htmltools)  # formatting text
 
 # tables
-library(DT)
+library(DT)         # displays data tables
 
 # download
-library(zip)
+library(zip)        # create .zip files for download
+
+# plotting
+library(plotly)
+
+# access function doc string
+library(gbRd)
 
 #### UI 
 ui <- fixedPage(
@@ -45,6 +52,15 @@ ui <- fixedPage(
   
   # adjust all tab's padding for all tabSetPanels
   tags$style(HTML(".tabbable > .nav > li > a {padding:5px;}")),
+  
+  # ensure modal dialog box expands to fit all content
+  tags$style(
+    type = 'text/css',
+    '.modal-dialog { width: fit-content !important; }'
+  ),
+  
+  # server busy spinner
+  shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
   
   # title and log-out button
   titlePanel(
@@ -221,7 +237,7 @@ ui <- fixedPage(
           download one or more pedigrees in .csv or .rds format."),
         p("To run PanelPRO, you will first either need to create a new pedigree or load an 
           existing one which you previously saved to your account. Once you do either of these 
-          actions you will have access to the 'Create/Modify Pedigree' and the 'Run PanelPRO' pages."),
+          actions you will have access to the 'Create/Modify Pedigree' and the 'PanelPRO' pages."),
         p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
         p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
           to your user account and you can come back at any time to modify your saved pedigrees 
@@ -262,7 +278,7 @@ ui <- fixedPage(
           ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
-            p(strong("The currently loaded pedigree name/ID is: "), 
+            p(strong("Working pedigree: "), 
               textOutput("currentPed1", inline = T), 
               style = "font-size:17px"),
             p("To get started, you will either need to create a new pedigree using our 
@@ -311,7 +327,7 @@ ui <- fixedPage(
           ###### UI: Preview Pedigree ####
           tabPanel("Preview",
             h4("Preview Current Pedigree"),
-            p(strong("The currently loaded pedigree name/ID is: "), 
+            p(strong("Working pedigree: "), 
               textOutput("currentPed2", inline = T), 
               style = "font-size:17px"),
             p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
@@ -398,8 +414,8 @@ ui <- fixedPage(
           tabPanel("Download",
             h4("Download Pedigrees"),
             p("You can download one or more pedigrees in a single .zip file by selecting them below. 
-              The .zip file will include two directories (or folders): 'download-data' and 'data-dictionary'. 
-              'download-data' will include three files: 1) the selected pedigrees, 
+              The .zip file will include two directories (or folders): 'download-pedigrees' and 'data-dictionary'. 
+              'download-pedigrees' will include three files: 1) the selected pedigrees, 
               2) detailed cancer history (extracted from the cancerJSON column in the pedigrees file)
               and 3) detailed panel and gene results (extracted from the genesJSON column in the pedigree file). 
               'data-dictionary' will include 3 more files: 1) a description of the each pedigree column, 
@@ -1101,11 +1117,167 @@ ui <- fixedPage(
         ) # end of fluidRow for create/modify pedigree tab
       ), # end of tab for create/modify pedigree
       
-      ##### UI: Run PanelPRO ####
-      tabPanel("Run PanelPRO",
-        h3("Run PanelPRO"),
-        p("Sorry, this feature is not currently available but we are working on it.")
-      ), # end of PanelPRO tab
+      ##### UI: PanelPRO ####
+      tabPanel("PanelPRO",
+        h3("PanelPRO", style = "margin-bottom:0px"),
+        
+        # PanelPRO version
+        div(textOutput("ppVersion"), style = "margin-left:10px"),
+        
+        # show the current pedigree
+        p(strong("Working pedigree: "), 
+          textOutput("currentPed3", inline = T), 
+          style = "font-size:17px;margin-top:5px"),
+        
+        # split into settings and results tabs
+        tabsetPanel(id = "panelproTabs",
+          
+          ###### UI: Run / Settings ####
+          tabPanel(title = "Run PanelPRO",
+            
+            # basic settings
+            h4("Settings"),
+            selectInput("modelSpec", label = h5("Model Specification:"), 
+                        selected = "PanPRO22",
+                        choices = c("Custom", names(PanelPRO:::MODELPARAMS)),
+                        width = "150px"),
+            
+            # show genes and cancer for a pre-specified model
+            conditionalPanel("input.modelSpec != 'Custom'",
+              h5("This model specification includes:", style = "margin-left:15px;margin-top:0px"),
+              div(style = "margin-left:25px;margin-top:10px",
+                textOutput("modSpecCancers")
+              ),
+              div(style = "margin-left:25px;margin-top:10px",
+                textOutput("modSpecGenes")
+              )
+            ),
+            
+            # let user select genes and cancers for a custom model
+            conditionalPanel("input.modelSpec == 'Custom'",
+              div(style = "margin-left:25px",
+                selectInput("genes", label = h5("Custom Gene List:"),
+                            choices = PanelPRO:::GENE_TYPES,
+                            multiple = T,
+                            width = "400px"),
+                div(style = "margin-left:25px;margin-top:-10px",
+                  checkboxInput("allGenes", label = "Select all genes",
+                                value = F)
+                ),
+                selectInput("cancers", label = h5("Custom Cancer List:"),
+                            choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                            multiple = T,
+                            width = "400px"),
+                div(style = "margin-left:25px;margin-top:-10px",
+                  checkboxInput("allCancers", label = "Select all cancers",
+                                value = F)
+                ),
+              ),
+            ),
+            
+            # max.mut
+            h5("Maximum simultaneous mutations allowed:"),
+            selectInput("maxMut", label = NULL,
+                        choices = c("1","2","3"),
+                        selected = "2",
+                        width = "150px"),
+            
+            # age.by
+            h5("Year interval for future cancer risk:"),
+            numericInput("ageBy", label = NULL,
+                         min = 1, max = 10, step = 1, value = 5,
+                         width = "150px"),
+            textOutput("validYearInterval"),
+            tags$head(tags$style("#validYearInterval{color: red;}")),
+            br(),
+            
+            # RUN MODEL
+            actionButton("runPP", label = "Run PanelPRO",
+                         icon = icon('play'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+            br(),br(),
+            
+            # advanced settings
+            h4("Advanced Settings"),
+            p("Coming soon..."),
+            # proband
+            # database
+            # unknown.race
+            # unknown.ancestry
+            # impute.missing.ages
+            # allow.intervention
+            # ignore.proband.germ
+            # remove.miss.cancers
+            # iterations
+            # max.iter.tries
+            # parallel
+            # debug
+            # net
+            # random.seed
+            # plusBCRAT
+            # bcrat.vars
+            # rr.bcrat
+            # rr.pop
+            
+          ), # end of "Run" tab for PanelPRO
+          
+          ###### UI: Results ####
+          tabPanel(title = "PanelPRO Results",
+            
+            # top row for instructions and download button
+            fluidRow(div(style = "margin-top:10px",
+              column(width = 8,
+                p("View the results in one of the tabs below or download them using the 'Download Results' button")
+              ),
+              column(width = 4, align = "right",
+                actionButton("downloadResults1", label = "Download Results",
+                             icon = icon('download'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px")
+              )
+            )),
+            
+            tabsetPanel(id = "ppResultTabs",
+              
+              ## Carrier Probs
+              # plot
+              tabPanel(title = "Carrier Prob. Plot",
+                h4("Posterior Carrier Probabilities"),
+                plotly::plotlyOutput("ppCPPlot", width = "1000px", height = "500px")
+              ),
+              
+              # table
+              tabPanel(title = "Carrier Prob. Table",
+                h4("Posterior Carrier Probabilities"),
+                DT::DTOutput("ppCPTbl", width = "500px")
+              ),
+              
+              ## Cancer Risk
+              # plot
+              tabPanel(title = "Cancer Risk Plots",
+                h4("Future Cancer Risk"),
+                plotly::plotlyOutput("ppFRPlot", width = "1000px", height = "750px")
+              ),
+              
+              # table
+              tabPanel(title = "Cancer Risk Table",
+                h4("Future Cancer Risk"),
+                DT::DTOutput("ppFRTbl", width = "450px")
+              ),
+              
+              ## Settings
+              tabPanel(title = "Run Settings",
+                h4("Run Settings"),
+                p("The PanelPRO results were obtained using the setting listed below. For a detailed explanation of 
+                  the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
+                tableOutput("ppRunSettings"),
+                actionButton("showPPDocString", label = "Show PanelPRO Documentation",
+                             icon = icon('book'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B")
+              )
+            ) # end of ppResultTabs tabsetPanel
+          ) # end of PanelPRO Results Tab in panelproTabs tabsetPanel
+        ) # end of panelproTabs tabsetPanel
+      ), # end of PanelPRO tab in navbarTabs
       
       ##### UI: My Account ####
       tabPanel("My Account",
@@ -1405,7 +1577,11 @@ server <- function(input, output, session) {
                         user = input$newUsername,
                         tmp_tbl = example_pedigree)
       
-      shinyjs::refresh()
+      # notify user of successful account creation
+      shinybusy::notify_success("Account Created!", position = "center-bottom")
+      
+      # refresh app and take them to log-in screen
+      shinyjs::delay(ms = 3000, shinyjs::refresh())
       
       # problem with proposed credentials
     } else {
@@ -1740,6 +1916,15 @@ server <- function(input, output, session) {
   
   # text for preview screen
   output$currentPed2 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+    }
+  })
+  
+  # text for panelpro screen
+  output$currentPed3 <- renderText({ 
     if(!is.null(currentPed())){
       return(currentPed())
     } else {
@@ -2292,11 +2477,18 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "panelproTabs", selected = "Run PanelPRO")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
     
     # take user to the pedigree editor if they chose the create new option
     if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
+    }
+    
+    # notify user of load success
+    if(input$newOrLoad == "Load existing"){
+      shinybusy::notify_success("Load Successful!", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -2469,6 +2661,9 @@ server <- function(input, output, session) {
       
       # reset pedigree name input
       updateTextInput(session, "newPedName", value = "")
+      
+      # notify user of copy success
+      shinybusy::notify_success("Copy Successful!", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -2708,28 +2903,28 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(downloadPedsTable(), file = "download-data/pedigrees.csv", row.names = F)
-      write.csv(downloadCanDetails(), file = "download-data/cancer-details.csv", row.names = F)
-      write.csv(downloadPanelDetails(), file = "download-data/panel-details.csv", row.names = F)
+      write.csv(downloadPedsTable(), file = "download-pedigrees/pedigrees.csv", row.names = F)
+      write.csv(downloadCanDetails(), file = "download-pedigrees/cancer-details.csv", row.names = F)
+      write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
-      tmp.zip <- 
-        zip::zip(zipfile = file, 
-                 files = c("download-data/pedigrees.csv",
-                           "download-data/cancer-details.csv",
-                           "download-data/panel-details.csv",
-                           "data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
-      
-      # remove the created files
-      file.remove(c(
-        "download-data/pedigrees.csv",
-        "download-data/cancer-details.csv",
-        "download-data/panel-details.csv",
+      new.files <- c(
+        "download-pedigrees/pedigrees.csv",
+        "download-pedigrees/cancer-details.csv",
+        "download-pedigrees/panel-details.csv",
         "data-dictionary/panelpro-cancer-abbreviations.csv",
         "data-dictionary/panelpro-gene-list.csv"
-      ))
+      )
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/README.md",
+                           "download-pedigrees/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -2745,31 +2940,30 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .rds files and zip them together
-      saveRDS(downloadPedsTable(), file = "download-data/pedigrees.rds")
-      saveRDS(downloadCanDetails(), file = "download-data/cancer-details.rds")
-      saveRDS(downloadPanelDetails(), file = "download-data/panel-details.rds")
+      saveRDS(downloadPedsTable(), file = "download-pedigrees/pedigrees.rds")
+      saveRDS(downloadCanDetails(), file = "download-pedigrees/cancer-details.rds")
+      saveRDS(downloadPanelDetails(), file = "download-pedigrees/panel-details.rds")
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
       saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
       saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
-      tmp.zip <- 
-        zip::zip(zipfile = file, 
-                 files = c("download-data/pedigrees.rds",
-                           "download-data/cancer-details.rds",
-                           "download-data/panel-details.rds",
-                           "data-dictionary/columns-and-codings-dictionary.rds",
-                           "data-dictionary/panelpro-cancer-abbreviations.rds",
-                           "data-dictionary/panelpro-gene-list.rds"))
-      
-      # remove the created files
-      file.remove(c(
-        "download-data/pedigrees.rds",
-        "download-data/cancer-details.rds",
-        "download-data/panel-details.rds",
-        "data-dictionary/columns-and-codings-dictionary.rds",
+      new.files <- c(
+        "download-pedigrees/pedigrees.rds",
+        "download-pedigrees/cancer-details.rds",
+        "download-pedigrees/panel-details.rds",
         "data-dictionary/panelpro-cancer-abbreviations.rds",
         "data-dictionary/panelpro-gene-list.rds"
-      ))
+      )
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.rds",
+                           "data-dictionary/README.md",
+                           "download-pedigrees/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -2931,6 +3125,9 @@ server <- function(input, output, session) {
     
     # remove the confirmation pop-up window
     removeModal()
+    
+    # notify user of delete success
+    shinybusy::notify_success("Deletion Successful!", position = "center-bottom")
     
   }, ignoreInit = T)
   
@@ -4309,17 +4506,18 @@ server <- function(input, output, session) {
       # create .csv files and zip them together
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      )
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
+                           "data-dictionary/README.md",
+                           new.files))
       
       # remove the created files
-      file.remove(c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
-      ))
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -4336,17 +4534,18 @@ server <- function(input, output, session) {
       # create .csv files and zip them together
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      )
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
+                           "data-dictionary/README.md",
+                           new.files))
       
       # remove the created files
-      file.remove(c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
-      ))
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -4493,15 +4692,15 @@ server <- function(input, output, session) {
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
   observe({
     hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+    hideTab("navbarTabs", target = "PanelPRO", session = session)
   })
   
-  # only show Run PanelPRO tab when a pedigree has been created or loaded
+  # only show PanelPRO tab when a pedigree has been created or loaded
   observeEvent(PED(), {
     if(!is.null(PED())){
-      showTab("navbarTabs", target = "Run PanelPRO", session = session)
+      showTab("navbarTabs", target = "PanelPRO", session = session)
     } else {
-      hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+      hideTab("navbarTabs", target = "PanelPRO", session = session)
     }
   }, ignoreNULL = F)
   
@@ -4532,13 +4731,601 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
   }, ignoreInit = TRUE)
   
-  #### PanelPRO PLACEHOLDER ####
-
+  #### PanelPRO ####
+  # panelpro version number
+  output$ppVersion <- renderText({
+    paste0("version: ", packageVersion("PanelPRO"))
+  })
   
-}
+  ##### Settings ####
+  # clear genes and cancers when the model specification is not custom
+  observeEvent(input$modelSpec, {
+    if(input$modelSpec != "Custom"){
+      shinyjs::reset("genes")
+      shinyjs::reset("cancers")
+      shinyjs::reset("allGenes")
+      shinyjs::reset("allCancers")
+    }
+  }, ignoreInit = T)
+  
+  # show cancers and genes in each of the model specifications
+  output$modSpecCancers <- renderText({
+    if(input$modelSpec == "Custom"){
+      return(NULL)
+    } else {
+      mcans <- PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS
+      ncans <- length(mcans)
+      return(paste(ncans, "Cancers:", paste0(mcans, collapse = ", ")))
+    }
+  })
+  
+  # show cancers and genes in each of the model specifications
+  output$modSpecGenes <- renderText({
+    if(input$modelSpec == "Custom"){
+      return(NULL)
+    } else {
+      mgenes <- PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES
+      ngenes <- length(mgenes)
+      return(paste(ngenes, "Genes:", paste0(mgenes, collapse = ", ")))
+    }
+  })
+  
+  # select all genes
+  observeEvent(input$allGenes, {
+    if(input$allGenes){
+      updateSelectInput(session, "genes", 
+                        selected = PanelPRO:::GENE_TYPES, 
+                        choices = PanelPRO:::GENE_TYPES)
+    } else {
+      updateSelectInput(session, "genes", 
+                        choices = PanelPRO:::GENE_TYPES)
+    }
+  })
+  
+  # select all cancers
+  observeEvent(input$allCancers, {
+    if(input$allCancers){
+      updateSelectInput(session, "cancers", 
+                        selected = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+    } else {
+      updateSelectInput(session, "cancers", 
+                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+    }
+  })
+  
+  # validate year interval for future cancer risk
+  output$validYearInterval <- renderText({ 
+    shiny::validate(
+      need(input$ageBy %% 1 == 0, "Year interval must be an integer."),
+      need(input$ageBy >= 1, "Year interval must be greater than or equal to 1."),
+      need(input$ageBy <= 10, "Year interval must be less than or equal to 10.")
+    )
+  })
+  
+  # enable/disable run button if conditions are not met
+  observeEvent(PED(), {
+    if(is.null(PED())){
+      shinyjs::disable("runPP")
+    } else {
+      shinyjs::enable("runPP")
+    }
+  }, ignoreNULL = F, ignoreInit = F)
+  
+  ##### Results ####
+  ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, cpTblDF = NULL, frTblDF = NULL,
+                               cpPlot = NULL, frPlot = NULL, cpAndfrPlots = NULL,
+                               cpPlotStatic = NULL, frPlotStatic = NULL,
+                               settingsTbl = NULL)
+  
+  observeEvent(input$runPP, {
+    if(!is.null(PED())){
+      
+      # validate settings
+      if(is.na(input$ageBy)){
+        ageBy <- 5
+      } else {
+        ageBy <- input$ageBy
+      }
+      
+      # run using either a model spec or custom genes and cancers
+      if(input$modelSpec != "Custom"){
+        out <- PanelPRO(pedigree = PED(),
+                        model_spec = input$modelSpec,
+                        max.mut = input$maxMut,
+                        age.by = input$ageBy)
+      } else {
+        out <- PanelPRO(pedigree = PED(),
+                        genes = input$genes,
+                        cancers = input$cancers,
+                        max.mut = input$maxMut,
+                        age.by = input$ageBy)
+      }
+      
+      # get the proband 
+      pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
+      
+      # settings table
+      settings <- c("PedigreeID" = "pedigree", 
+                    "Proband ID" = "proband", 
+                    "Model Spec" = "model_spec", 
+                    "Num. Cancers" = NA, 
+                    "Cancers" = "cancers", 
+                    "Num. Genes" = NA, 
+                    "Genes" = "genes", 
+                    "Max. Mutations" = "max.mut",
+                    "Future Risk Year Interval" = "age.by")
+      settingsTbl <- data.frame(Setting = names(settings), 
+                                Arguement = unname(settings),
+                                Value = rep(NA, length(settings)))
+      settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
+      settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
+      if(input$modelSpec != "Custom"){
+        settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- input$modelSpec
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <- 
+          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <- 
+          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <- 
+          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES)
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <- 
+          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
+      } else {
+        settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- NA
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <- 
+          length(input$cancers)
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <- 
+          paste0(input$cancers, collapse = ", ")
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <- 
+          length(input$genes)
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <- 
+          paste0(input$genes, collapse = ", ")
+      }
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- input$maxMut
+      settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- input$ageBy
+      
+      # use PanelPRO defaults to populate the remainder of the table
+      def.vals <- formals(PanelPRO::PanelPRO)
+      for(st in settings[which(!is.na(settings))]){
+        def.vals[[st]] <- NULL
+      }
+      add.settings <- data.frame(Setting = rep(NA, length(def.vals)),
+                                 Arguement = names(def.vals),
+                                 Value = rep(NA, length(def.vals)))
+      def.setting.names <- c("Database" = "database",
+                             "Assume Missing Race As" = "unknown.race",
+                             "Assume Missing Ancestry As" = "unknown.ancestry",
+                             "Impute missing ages?" = "impute.missing.ages",
+                             "Allow surgical interventions?" = "allow.intervention",
+                             "Ignore Proband's germline testing results?" = "ignore.proband.germ",
+                             "Remove missing cancers from the model?" = "remove.miss.cancers",
+                             "Imputation iterations"= "iterations",
+                             "Max. iteration tries" = "max.iter.tries",
+                             "Parallelize age imputation?" = "parallel",
+                             "Provide debugging messages?" = "debug",
+                             "Provide net instead of crude future risk estimates?" = "net",
+                             "Random seed for imputing missing ages" = "random.seed",
+                             "Use BRCAPRO+BCRAT model?" = "plusBCRAT",
+                             "Data frame of BCRAT covariates" = "bcrat.vars",
+                             "Data frame of BCRAT relative risks" = "rr.bcrat",
+                             "Data frame of race-specific relative risks" = "rr.pop")
+      for(ln in names(def.vals)){
+        if(is.null(def.vals[[ln]])){
+          tmp.val <- "NULL"
+        } else if(is.symbol(def.vals[[ln]])){
+          tmp.val <- rlang::as_string(def.vals[[ln]])
+        } else if(ln == "remove.miss.cancers"){
+          tmp.val <- "Default is TRUE but not applicable when run on PPI."
+        } else {
+          tmp.val <- def.vals[[ln]]
+        }
+        add.settings$Value[which(add.settings$Arguement == ln)] <- tmp.val
+        add.settings$Setting[which(add.settings$Arguement == ln)] <- 
+          names(def.setting.names)[which(def.setting.names == ln)]
+      }
+      
+      # combine user specified settings and panelpro default settings
+      ppReactive$settingsTbl <- rbind(settingsTbl, add.settings)
+      
+      ## table of posterior probabilities
+      cpTbl <- 
+        out$posterior.prob[[pb]] %>%
+        mutate(NumMuts = 1 + stringr::str_count(genes, pattern = "\\."), .after = "genes") %>%
+        mutate(genes = PanelPRO:::formatGeneNames(gene_names = genes, format = "drop_hetero_anyPV")) %>%
+        mutate(genes = ifelse(grepl(pattern = "\\.", genes),
+                              sub(pattern = "\\.", replacement = " & ", genes),
+                              genes)) %>%
+        mutate(genes = ifelse(genes == "noncarrier", "Non-carrier", genes)) %>%
+        arrange(desc(estimate)) %>%
+        rename("Num. Muts." = "NumMuts",
+               "Genes" = "genes",
+               "Estimate" = "estimate",
+               "Lower" = "lower",
+               "Upper" = "upper")
+      
+      # save data frame version for download
+      ppReactive$cpTblDF <- cpTbl
+      
+      # format as a data.table
+      cpTbl <- 
+        cpTbl %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA, 
+                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
+        DT::datatable(rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact"),
+                      options = list(pageLength = 20)) %>%
+        DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
+                        textAlign = "right")
+      ppReactive$cpTbl <- cpTbl
+      
+      ## table of cancer risks
+      frByCancer <- out$future.risk[[pb]]
+      frTbl <- NULL
+      for(cn in names(frByCancer)){
+        can.df <- 
+          frByCancer[[cn]] %>%
+          mutate(Cancer = cn, .before = "ByAge")
+        if(is.null(frTbl)){
+          frTbl <- can.df
+        } else {
+          frTbl <- rbind(frTbl, can.df)
+        }
+      }
+      frTbl <- 
+        frTbl %>%
+        rename("By Age" = "ByAge",
+               "Estimate" = "estimate",
+               "Lower" = "lower",
+               "Upper" = "upper")
+      
+      # save data frame version for download
+      ppReactive$frTblDF <- frTbl
+      
+      # format as a data.table
+      frTbl <- 
+        frTbl %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA, 
+                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
+        DT::datatable(rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact"),
+                      options = list(pageLength = 20)) %>%
+        DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
+                        textAlign = "right")
+      ppReactive$frTbl <- frTbl
+      
+      ### plots
+      vr.plots <- visRiskPPI(pp_output = out, 
+                             markdown = NULL, 
+                             return_obj = TRUE, 
+                             prob_threshold = 0.01, 
+                             show_fr_ci = FALSE)
+      
+      ## carrier prob plots
+      ppReactive$cpPlot <- vr.plots$cp
+      ppReactive$cpPlotStatic <- vr.plots$cpStatic   # for download
+      
+      ## cancer risk plots
+      ppReactive$frPlot <- vr.plots$fr
+      ppReactive$frPlotStatic <- vr.plots$frStatic   # for download
+      
+      ## combined prob and cancer risk plot
+      ppReactive$cpAndfrPlots <- vr.plots$both
+      
+      ## take user to results
+      updateTabsetPanel(session, "panelproTabs", selected = "PanelPRO Results")
+      
+      # pedigree was NULL so make all results NULL
+    } else {
+      ppReactive$cpTbl <- NULL
+      ppReactive$frTbl<- NULL
+      ppReactive$cpPlot <- NULL
+      ppReactive$frPlot <- NULL
+      ppReactive$cpPlotStatic <- NULL
+      ppReactive$frPlotStatic <- NULL
+      ppReactive$settingsTbl <- NULL
+      ppReactive$cpAndfrPlots <- NULL
+    }
+  }, ignoreNULL = F, ignoreInit = T)
+  
+  # carrier probabilities table
+  output$ppCPTbl <- renderDT({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$cpTbl), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$cpTbl)
+  }, server = F)
+  
+  # cancer risk table
+  output$ppFRTbl <- renderDT({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frTbl), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$frTbl)
+  }, server = F)
+  
+  # carrier prob. plot
+  output$ppCPPlot <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$cpPlot), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$cpPlot)
+  })
+  
+  # carrier prob. plot
+  output$ppFRPlot <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frPlot), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$frPlot)
+  })
+  
+  # run settings table
+  output$ppRunSettings <- renderTable({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$settingsTbl), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$settingsTbl)
+  }, striped = T)
+  
+  # PanelPRO function doc string
+  observeEvent(input$showPPDocString, {
+    showModal(modalDialog(
+      tagList(htmlOutput("ppDocString")),
+      title = "PanelPRO Function R Documentation",
+      footer = tagList(
+        modalButton("Close")
+      ),
+      easyClose = T
+    ))
+  })
+  ppDocString <- reactive({
+    temp = Rd2HTML(Rd_fun("PanelPRO"), out = tempfile("docs"))
+    content = read_file(temp)
+    file.remove(temp)
+    content
+  })
+  output$ppDocString <- renderText({
+    ppDocString()
+  })
+  
+  ##### Download ####
+  # prepare cancersJSON for download as its own table
+  canJSONToDF <- reactive({
+    
+    # convert JSONs into a data frame of cancer hx indexed by PedigreeID and ID
+    can.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$cancersJSON[row])){
+        mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
+        rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+        rel.can.df <- cbind(data.frame(PedigreeID = rep(PED()$PedigreeID[1], nrow(rel.can.df)), 
+                                       ID = rep(PED()$ID[row], nrow(rel.can.df))), 
+                            rel.can.df)
+        if(is.null(can.df)){
+          can.df <- rel.can.df
+        } else {
+          can.df <- rbind(can.df, rel.can.df)
+        }
+      }
+    }
+    
+    # if there was no cancer hx in any of the selected pedigrees return a 0 row data frame
+    if(is.null(can.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(colnames(cancer.inputs.store)))), 
+                      c("PedigreeID", "ID", colnames(cancer.inputs.store))))
+    } else {
+      return(can.df)
+    }
+  })
+  
+  # prepare genesJSON for download as its own table
+  genesJSONToDF <- reactive({
+  
+    # convert JSONs into a data frame of gene results indexed by PedigreeID and ID
+    gene.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$genesJSON[row])){
+        mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
+        rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+        rel.gene.df <- cbind(data.frame(PedigreeID = rep(PED()$PedigreeID[1], nrow(rel.gene.df)), 
+                                        ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
+                             rel.gene.df)
+        if(is.null(gene.df)){
+          gene.df <- rel.gene.df
+        } else {
+          gene.df <- rbind(gene.df, rel.gene.df)
+        }
+      }
+    }
+    
+    # if there was no gene results in any of the selected pedigrees return a 0 row data frame
+    if(is.null(gene.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(gene.df.colnames))), 
+                      c("PedigreeID", "ID", gene.df.colnames)))
+    } else {
+      return(gene.df)
+    }
+  })
+  
+  # model for user to select file format
+  observeEvent(input$downloadResults1, {
+    showModal(modalDialog(
+      tagList(
+        h5("Choose a file format for the tables:"),
+        radioButtons("downloadResultsAs", label = NULL,
+                     choices = c(".csv", ".rds"),
+                     selected = ".csv"),
+      ),
+      title = "Download File Format",
+      footer = tagList(
+        conditionalPanel("input.downloadResultsAs == '.csv'",
+          downloadButton("downloadResultsCSV", label = "Download",
+                         icon = icon('download'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+        ),
+        conditionalPanel("input.downloadResultsAs == '.rds'",
+          downloadButton("downloadResultsRDS", label = "Download",
+                         icon = icon('download'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+        ),
+        modalButton("Cancel")
+      )
+    ))
+  })
+  
+  # download as .csv
+  output$downloadResultsCSV <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-results-", 
+             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # remove modal when done
+      on.exit(removeModal())
+      
+      # pedigreeID
+      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      
+      # data dictionary files
+      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      
+      # pedigree files
+      write.csv(PED(), file = paste0("download-results/pedigree-", pedID, ".csv"), row.names = F)
+      write.csv(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".csv"), row.names = F)
+      write.csv(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".csv"), row.names = F)
+      
+      # run settings table
+      write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
+      
+      # result tables
+      write.csv(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".csv"), row.names = F)
+      write.csv(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".csv"), row.names = F)
+      
+      # result images and other
+      ggsave(plot = ppReactive$cpPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("posterior-probs-", pedID, ".png"))
+      ggsave(plot = ppReactive$frPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("cancer-risks-", pedID, ".png"))
+      
+      # zip them all together
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv",
+        "data-dictionary/panelpro-function-documentation.html",
+        paste0("download-results/pedigree-", pedID, ".csv"),
+        paste0("download-results/cancer-details-", pedID, ".csv"),
+        paste0("download-results/panel-details-", pedID, ".csv"),
+        paste0("download-results/run-settings-", pedID, ".csv"),
+        paste0("download-results/posterior-probs-", pedID, ".csv"),
+        paste0("download-results/cancer-risks-", pedID, ".csv"),
+        paste0("download-results/posterior-probs-", pedID, ".png"),
+        paste0("download-results/cancer-risks-", pedID, ".png")
+      )
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/README.md",
+                           "download-results/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
+  
+  # download as .rds
+  output$downloadResultsRDS <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-results-", 
+             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # remove modal when done
+      on.exit(removeModal())
+      
+      # pedigreeID
+      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      
+      # data dictionary files
+      saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
+              file = "data-dictionary/columns-and-codings-dictionary.rds")
+      saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
+      saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      
+      # pedigree files
+      saveRDS(PED(), file = paste0("download-results/pedigree-", pedID, ".rds"))
+      saveRDS(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".rds"))
+      saveRDS(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".rds"))
+      
+      # run settings table
+      saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
+      
+      # result tables
+      saveRDS(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".rds"))
+      saveRDS(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".rds"))
+      
+      # result images and other
+      ggsave(plot = ppReactive$cpPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("posterior-probs-", pedID, ".png"))
+      ggsave(plot = ppReactive$frPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("cancer-risks-", pedID, ".png"))
+      
+      # zip them all together
+      new.files <- c(
+        "data-dictionary/columns-and-codings-dictionary.rds",
+        "data-dictionary/panelpro-cancer-abbreviations.rds",
+        "data-dictionary/panelpro-gene-list.rds",
+        "data-dictionary/panelpro-function-documentation.html",
+        paste0("download-results/pedigree-", pedID, ".rds"),
+        paste0("download-results/cancer-details-", pedID, ".rds"),
+        paste0("download-results/panel-details-", pedID, ".rds"),
+        paste0("download-results/run-settings-", pedID, ".rds"),
+        paste0("download-results/posterior-probs-", pedID, ".rds"),
+        paste0("download-results/cancer-risks-", pedID, ".rds"),
+        paste0("download-results/posterior-probs-", pedID, ".png"),
+        paste0("download-results/cancer-risks-", pedID, ".png")
+      )
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.rds",
+                           "data-dictionary/README.md",
+                           "download-results/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
+  
+} # end of server
 
 # Run the application 
 shinyApp(ui = ui, server = server)
