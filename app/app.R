@@ -278,7 +278,7 @@ ui <- fixedPage(
           ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
-            p(strong("Currently loaded pedigree ID: "), 
+            p(strong("Working pedigree: "), 
               textOutput("currentPed1", inline = T), 
               style = "font-size:17px"),
             p("To get started, you will either need to create a new pedigree using our 
@@ -327,7 +327,7 @@ ui <- fixedPage(
           ###### UI: Preview Pedigree ####
           tabPanel("Preview",
             h4("Preview Current Pedigree"),
-            p(strong("Currently loaded pedigree ID: "), 
+            p(strong("Working pedigree: "), 
               textOutput("currentPed2", inline = T), 
               style = "font-size:17px"),
             p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
@@ -414,8 +414,8 @@ ui <- fixedPage(
           tabPanel("Download",
             h4("Download Pedigrees"),
             p("You can download one or more pedigrees in a single .zip file by selecting them below. 
-              The .zip file will include two directories (or folders): 'download-data' and 'data-dictionary'. 
-              'download-data' will include three files: 1) the selected pedigrees, 
+              The .zip file will include two directories (or folders): 'download-pedigrees' and 'data-dictionary'. 
+              'download-pedigrees' will include three files: 1) the selected pedigrees, 
               2) detailed cancer history (extracted from the cancerJSON column in the pedigrees file)
               and 3) detailed panel and gene results (extracted from the genesJSON column in the pedigree file). 
               'data-dictionary' will include 3 more files: 1) a description of the each pedigree column, 
@@ -1119,13 +1119,13 @@ ui <- fixedPage(
       
       ##### UI: PanelPRO ####
       tabPanel("PanelPRO",
-        h3("Run PanelPRO", style = "margin-bottom:0px"),
+        h3("PanelPRO", style = "margin-bottom:0px"),
         
         # PanelPRO version
         div(textOutput("ppVersion"), style = "margin-left:10px"),
         
         # show the current pedigree
-        p(strong("Currently loaded pedigree ID: "), 
+        p(strong("Working pedigree: "), 
           textOutput("currentPed3", inline = T), 
           style = "font-size:17px;margin-top:5px"),
         
@@ -1223,6 +1223,18 @@ ui <- fixedPage(
           
           ###### UI: Results ####
           tabPanel(title = "PanelPRO Results",
+            
+            # top row for instructions and download button
+            fluidRow(div(style = "margin-top:10px",
+              column(width = 8,
+                p("View the results in one of the tabs below or download them using the 'Download Results' button")
+              ),
+              column(width = 4, align = "right",
+                actionButton("downloadResults1", label = "Download Results",
+                             icon = icon('download'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px")
+              )
+            )),
             
             tabsetPanel(id = "ppResultTabs",
               
@@ -2891,28 +2903,28 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(downloadPedsTable(), file = "download-data/pedigrees.csv", row.names = F)
-      write.csv(downloadCanDetails(), file = "download-data/cancer-details.csv", row.names = F)
-      write.csv(downloadPanelDetails(), file = "download-data/panel-details.csv", row.names = F)
+      write.csv(downloadPedsTable(), file = "download-pedigrees/pedigrees.csv", row.names = F)
+      write.csv(downloadCanDetails(), file = "download-pedigrees/cancer-details.csv", row.names = F)
+      write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
-      tmp.zip <- 
-        zip::zip(zipfile = file, 
-                 files = c("download-data/pedigrees.csv",
-                           "download-data/cancer-details.csv",
-                           "download-data/panel-details.csv",
-                           "data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
-      
-      # remove the created files
-      file.remove(c(
-        "download-data/pedigrees.csv",
-        "download-data/cancer-details.csv",
-        "download-data/panel-details.csv",
+      new.files <- c(
+        "download-pedigrees/pedigrees.csv",
+        "download-pedigrees/cancer-details.csv",
+        "download-pedigrees/panel-details.csv",
         "data-dictionary/panelpro-cancer-abbreviations.csv",
         "data-dictionary/panelpro-gene-list.csv"
-      ))
+      )
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/README.md",
+                           "download-pedigrees/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -2928,31 +2940,30 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .rds files and zip them together
-      saveRDS(downloadPedsTable(), file = "download-data/pedigrees.rds")
-      saveRDS(downloadCanDetails(), file = "download-data/cancer-details.rds")
-      saveRDS(downloadPanelDetails(), file = "download-data/panel-details.rds")
+      saveRDS(downloadPedsTable(), file = "download-pedigrees/pedigrees.rds")
+      saveRDS(downloadCanDetails(), file = "download-pedigrees/cancer-details.rds")
+      saveRDS(downloadPanelDetails(), file = "download-pedigrees/panel-details.rds")
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
       saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
       saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
-      tmp.zip <- 
-        zip::zip(zipfile = file, 
-                 files = c("download-data/pedigrees.rds",
-                           "download-data/cancer-details.rds",
-                           "download-data/panel-details.rds",
-                           "data-dictionary/columns-and-codings-dictionary.rds",
-                           "data-dictionary/panelpro-cancer-abbreviations.rds",
-                           "data-dictionary/panelpro-gene-list.rds"))
-      
-      # remove the created files
-      file.remove(c(
-        "download-data/pedigrees.rds",
-        "download-data/cancer-details.rds",
-        "download-data/panel-details.rds",
-        "data-dictionary/columns-and-codings-dictionary.rds",
+      new.files <- c(
+        "download-pedigrees/pedigrees.rds",
+        "download-pedigrees/cancer-details.rds",
+        "download-pedigrees/panel-details.rds",
         "data-dictionary/panelpro-cancer-abbreviations.rds",
         "data-dictionary/panelpro-gene-list.rds"
-      ))
+      )
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.rds",
+                           "data-dictionary/README.md",
+                           "download-pedigrees/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -4495,17 +4506,18 @@ server <- function(input, output, session) {
       # create .csv files and zip them together
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      )
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
+                           "data-dictionary/README.md",
+                           new.files))
       
       # remove the created files
-      file.remove(c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
-      ))
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -4522,17 +4534,18 @@ server <- function(input, output, session) {
       # create .csv files and zip them together
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      )
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
+                           "data-dictionary/README.md",
+                           new.files))
       
       # remove the created files
-      file.remove(c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
-      ))
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -4723,6 +4736,12 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   #### PanelPRO ####
+  # panelpro version number
+  output$ppVersion <- renderText({
+    paste0("version: ", packageVersion("PanelPRO"))
+  })
+  
+  ##### Settings ####
   # clear genes and cancers when the model specification is not custom
   observeEvent(input$modelSpec, {
     if(input$modelSpec != "Custom"){
@@ -4788,11 +4807,6 @@ server <- function(input, output, session) {
     )
   })
   
-  # panelpro version number
-  output$ppVersion <- renderText({
-    paste0("version: ", packageVersion("PanelPRO"))
-  })
-  
   # enable/disable run button if conditions are not met
   observeEvent(PED(), {
     if(is.null(PED())){
@@ -4803,8 +4817,9 @@ server <- function(input, output, session) {
   }, ignoreNULL = F, ignoreInit = F)
   
   ##### Results ####
-  ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, 
+  ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, cpTblDF = NULL, frTblDF = NULL,
                                cpPlot = NULL, frPlot = NULL, cpAndfrPlots = NULL,
+                               cpPlotStatic = NULL, frPlotStatic = NULL,
                                settingsTbl = NULL)
   
   observeEvent(input$runPP, {
@@ -4926,14 +4941,21 @@ server <- function(input, output, session) {
                               genes)) %>%
         mutate(genes = ifelse(genes == "noncarrier", "Non-carrier", genes)) %>%
         arrange(desc(estimate)) %>%
-        mutate(across(.cols = c(estimate, lower, upper), ~ round(., digits = 6))) %>%
-        mutate(across(.cols = c(estimate, lower, upper), ~ ifelse(is.na(.), NA, 
-                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
         rename("Num. Muts." = "NumMuts",
                "Genes" = "genes",
                "Estimate" = "estimate",
                "Lower" = "lower",
-               "Upper" = "upper") %>%
+               "Upper" = "upper")
+      
+      # save data frame version for download
+      ppReactive$cpTblDF <- cpTbl
+      
+      # format as a data.table
+      cpTbl <- 
+        cpTbl %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA, 
+                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
         DT::datatable(rownames = FALSE,
                       class = list("nowrap", "stripe", "compact"),
                       options = list(pageLength = 20)) %>%
@@ -4956,13 +4978,20 @@ server <- function(input, output, session) {
       }
       frTbl <- 
         frTbl %>%
-        mutate(across(.cols = c(estimate, lower, upper), ~ round(., digits = 6))) %>%
-        mutate(across(.cols = c(estimate, lower, upper), ~ ifelse(is.na(.), NA, 
-                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
         rename("By Age" = "ByAge",
                "Estimate" = "estimate",
                "Lower" = "lower",
-               "Upper" = "upper") %>%
+               "Upper" = "upper")
+      
+      # save data frame version for download
+      ppReactive$frTblDF <- frTbl
+      
+      # format as a data.table
+      frTbl <- 
+        frTbl %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA, 
+                                                                  ifelse(.<0.000001, "<1E-6", .)))) %>%
         DT::datatable(rownames = FALSE,
                       class = list("nowrap", "stripe", "compact"),
                       options = list(pageLength = 20)) %>%
@@ -4976,11 +5005,14 @@ server <- function(input, output, session) {
                              return_obj = TRUE, 
                              prob_threshold = 0.01, 
                              show_fr_ci = FALSE)
-      ## carrier prob plot
-      ppReactive$cpPlot <- vr.plots$cp
       
-      ## cancer risk plot
+      ## carrier prob plots
+      ppReactive$cpPlot <- vr.plots$cp
+      ppReactive$cpPlotStatic <- vr.plots$cpStatic   # for download
+      
+      ## cancer risk plots
       ppReactive$frPlot <- vr.plots$fr
+      ppReactive$frPlotStatic <- vr.plots$frStatic   # for download
       
       ## combined prob and cancer risk plot
       ppReactive$cpAndfrPlots <- vr.plots$both
@@ -4994,6 +5026,8 @@ server <- function(input, output, session) {
       ppReactive$frTbl<- NULL
       ppReactive$cpPlot <- NULL
       ppReactive$frPlot <- NULL
+      ppReactive$cpPlotStatic <- NULL
+      ppReactive$frPlotStatic <- NULL
       ppReactive$settingsTbl <- NULL
       ppReactive$cpAndfrPlots <- NULL
     }
@@ -5064,6 +5098,232 @@ server <- function(input, output, session) {
   output$ppDocString <- renderText({
     ppDocString()
   })
+  
+  ##### Download ####
+  # prepare cancersJSON for download as its own table
+  canJSONToDF <- reactive({
+    
+    # convert JSONs into a data frame of cancer hx indexed by PedigreeID and ID
+    can.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$cancersJSON[row])){
+        mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
+        rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+        rel.can.df <- cbind(data.frame(PedigreeID = rep(PED()$PedigreeID[1], nrow(rel.can.df)), 
+                                       ID = rep(PED()$ID[row], nrow(rel.can.df))), 
+                            rel.can.df)
+        if(is.null(can.df)){
+          can.df <- rel.can.df
+        } else {
+          can.df <- rbind(can.df, rel.can.df)
+        }
+      }
+    }
+    
+    # if there was no cancer hx in any of the selected pedigrees return a 0 row data frame
+    if(is.null(can.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(colnames(cancer.inputs.store)))), 
+                      c("PedigreeID", "ID", colnames(cancer.inputs.store))))
+    } else {
+      return(can.df)
+    }
+  })
+  
+  # prepare genesJSON for download as its own table
+  genesJSONToDF <- reactive({
+  
+    # convert JSONs into a data frame of gene results indexed by PedigreeID and ID
+    gene.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$genesJSON[row])){
+        mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
+        rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+        rel.gene.df <- cbind(data.frame(PedigreeID = rep(PED()$PedigreeID[1], nrow(rel.gene.df)), 
+                                        ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
+                             rel.gene.df)
+        if(is.null(gene.df)){
+          gene.df <- rel.gene.df
+        } else {
+          gene.df <- rbind(gene.df, rel.gene.df)
+        }
+      }
+    }
+    
+    # if there was no gene results in any of the selected pedigrees return a 0 row data frame
+    if(is.null(gene.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(gene.df.colnames))), 
+                      c("PedigreeID", "ID", gene.df.colnames)))
+    } else {
+      return(gene.df)
+    }
+  })
+  
+  # model for user to select file format
+  observeEvent(input$downloadResults1, {
+    showModal(modalDialog(
+      tagList(
+        h5("Choose a file format for the tables:"),
+        radioButtons("downloadResultsAs", label = NULL,
+                     choices = c(".csv", ".rds"),
+                     selected = ".csv"),
+      ),
+      title = "Download File Format",
+      footer = tagList(
+        conditionalPanel("input.downloadResultsAs == '.csv'",
+          downloadButton("downloadResultsCSV", label = "Download",
+                         icon = icon('download'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+        ),
+        conditionalPanel("input.downloadResultsAs == '.rds'",
+          downloadButton("downloadResultsRDS", label = "Download",
+                         icon = icon('download'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+        ),
+        modalButton("Cancel")
+      )
+    ))
+  })
+  
+  # download as .csv
+  output$downloadResultsCSV <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-results-", 
+             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # remove modal when done
+      on.exit(removeModal())
+      
+      # pedigreeID
+      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      
+      # data dictionary files
+      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      
+      # pedigree files
+      write.csv(PED(), file = paste0("download-results/pedigree-", pedID, ".csv"), row.names = F)
+      write.csv(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".csv"), row.names = F)
+      write.csv(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".csv"), row.names = F)
+      
+      # run settings table
+      write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
+      
+      # result tables
+      write.csv(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".csv"), row.names = F)
+      write.csv(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".csv"), row.names = F)
+      
+      # result images and other
+      ggsave(plot = ppReactive$cpPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("posterior-probs-", pedID, ".png"))
+      ggsave(plot = ppReactive$frPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("cancer-risks-", pedID, ".png"))
+      
+      # zip them all together
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv",
+        "data-dictionary/panelpro-function-documentation.html",
+        paste0("download-results/pedigree-", pedID, ".csv"),
+        paste0("download-results/cancer-details-", pedID, ".csv"),
+        paste0("download-results/panel-details-", pedID, ".csv"),
+        paste0("download-results/run-settings-", pedID, ".csv"),
+        paste0("download-results/posterior-probs-", pedID, ".csv"),
+        paste0("download-results/cancer-risks-", pedID, ".csv"),
+        paste0("download-results/posterior-probs-", pedID, ".png"),
+        paste0("download-results/cancer-risks-", pedID, ".png")
+      )
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/README.md",
+                           "download-results/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
+  
+  # download as .rds
+  output$downloadResultsRDS <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-results-", 
+             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # remove modal when done
+      on.exit(removeModal())
+      
+      # pedigreeID
+      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      
+      # data dictionary files
+      saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
+              file = "data-dictionary/columns-and-codings-dictionary.rds")
+      saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
+      saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      
+      # pedigree files
+      saveRDS(PED(), file = paste0("download-results/pedigree-", pedID, ".rds"))
+      saveRDS(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".rds"))
+      saveRDS(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".rds"))
+      
+      # run settings table
+      saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
+      
+      # result tables
+      saveRDS(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".rds"))
+      saveRDS(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".rds"))
+      
+      # result images and other
+      ggsave(plot = ppReactive$cpPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("posterior-probs-", pedID, ".png"))
+      ggsave(plot = ppReactive$frPlotStatic, 
+             path = "./download-results", 
+             filename = paste0("cancer-risks-", pedID, ".png"))
+      
+      # zip them all together
+      new.files <- c(
+        "data-dictionary/columns-and-codings-dictionary.rds",
+        "data-dictionary/panelpro-cancer-abbreviations.rds",
+        "data-dictionary/panelpro-gene-list.rds",
+        "data-dictionary/panelpro-function-documentation.html",
+        paste0("download-results/pedigree-", pedID, ".rds"),
+        paste0("download-results/cancer-details-", pedID, ".rds"),
+        paste0("download-results/panel-details-", pedID, ".rds"),
+        paste0("download-results/run-settings-", pedID, ".rds"),
+        paste0("download-results/posterior-probs-", pedID, ".rds"),
+        paste0("download-results/cancer-risks-", pedID, ".rds"),
+        paste0("download-results/posterior-probs-", pedID, ".png"),
+        paste0("download-results/cancer-risks-", pedID, ".png")
+      )
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.rds",
+                           "data-dictionary/README.md",
+                           "download-results/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
   
 } # end of server
 

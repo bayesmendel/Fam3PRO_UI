@@ -128,6 +128,19 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       gg1 <- plotly::ggplotly(p1, height = height, width = width)
     }
     
+    # create static ggplot version for download
+    p1 <- 
+      p1 +
+      ggplot2::facet_wrap(vars(Cancer)) +
+      ggplot2::labs(title = "Future cancer risks", y = "Cumulative cancer risk", x = "Age",
+                    caption = 
+                    "Variability in estimates may arise from an imputation process for missing ages.\nThe range of estimates is indicated by error bars or (lower, upper) estimates.\n\nIf the hetero/homogeneity or variant of the gene has not been specified,\nit is assumed to be heterogeneous and of any pathogenic variant."
+                    ) +
+      ggplot2::theme_bw() +
+      ggplot2::theme(plot.title = element_text(hjust = 0.5),
+                     plot.caption = element_text(size = 7, hjust = 0),
+                     strip.text.x = element_text(size = 5))
+    
     # Set up Plotly layout for future risk plot
     pp1 <- plotly::layout(gg1,
                           yaxis = list(
@@ -209,21 +222,34 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       gg2 <- plotly::ggplotly(p2, height = height, width = width)
     }
     
+    # create static ggplot version for download
+    p2 <- 
+      p2 +
+      ggplot2::labs(title = "Mutation probabilities", y = "Mutation probability", x = "Gene",
+                    caption = 
+                      "Variability in estimates may arise from an imputation process for missing ages.\nThe range of estimates is indicated by error bars or (lower, upper) estimates.\n\nIf the hetero/homogeneity or variant of the gene has not been specified,\nit is assumed to be heterogeneous and of any pathogenic variant."
+                    ) +
+      ggplot2::theme_bw() +
+      ggplot2::theme(plot.title = element_text(hjust = 0.5), 
+                     axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+                     plot.caption = element_text(size = 7, hjust = 0))
+    
     # Set up Plotly layout for carrier probability plot
     pp2 <- plotly::layout(gg2,
                           yaxis = list(
                             title = "Mutation probability",
-                            titlefont = list(size = 12)
+                            titlefont = list(size = 14)
                           ),
                           xaxis = list(
                             title = "Gene",
-                            titlefont = list(size = 12),
+                            titlefont = list(size = 14),
                             tickangle = -45),
                           margin = 1
     )
     
     # Plot of carrier probability estimates
     pp2 <- pp2 %>% plotly::add_annotations(text = "Mutation probabilities",
+                                           font = list(size = 18),
                                            xref = "paper",
                                            yref = "paper",
                                            yanchor = "bottom",
@@ -308,7 +334,9 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     return(list(
       both = figs,
       cp = pp2,
-      fr = pp1a
+      fr = pp1a,
+      cpStatic = p2,
+      frStatic = p1
     ))
   }
   
