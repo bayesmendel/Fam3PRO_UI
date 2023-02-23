@@ -225,9 +225,7 @@ ui <- fixedPage(
         
         h4("Beta Version"),
         p("This website is a beta version that is still in development and we are working towards adding more 
-          features. For the time being, you can use this site to create, store, view, download, and delete 
-          pedigrees however, users cannot run PanelPRO on those pedigrees yet. We hope to add this capability soon."),
-        p("If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
+          features. If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
           at the bottom of the page."),
         br(),
         
@@ -266,8 +264,15 @@ ui <- fixedPage(
         h4("Support and Contact Information"),
         p("Please direct all questions to your study or site PI."),
         p("If you find any bugs, have suggestions to improve the website, or are interested in 
-          working with us, please email us at: hereditarycancer AT ds.dfci.harvard DOT edu")
+          working with us, please email us at: hereditarycancer AT ds.dfci.harvard DOT edu"),
+        br(),
         
+        h4("Terms and Conditions"),
+        div(style = "margin-left:5px",
+          actionButton("terms", label = "Terms and Conditions",
+                       icon = icon('book'),
+                       style = "color: white; background-color: #10699B; border-color: #10699B;margin-top:5px")
+        )
       ), # end of tab
       
       ##### UI: Manage Pedigrees ####
@@ -296,7 +301,7 @@ ui <- fixedPage(
                             choices = c(""))
               ),
                
-              # if there are not pedgirees to load, tell the user
+              # if there are not pedigrees to load, tell the user
               conditionalPanel(condition = "output.showTblExistsError",
                 p("You do not have any saved pedigrees.", style = "color: red;")
               ),
@@ -1011,9 +1016,10 @@ ui <- fixedPage(
               ###### UI: Num/Type Rels ####
               tabPanel("Add Relatives",
                 h3("Number and Types of Relatives"),
-                p("Begin creating the proband's pedigree by entering the number of 
-                  each relative type below. Relative types not listed on this screen 
-                  can be added later on."),
+                p("Begin creating the proband's pedigree by entering the number of each relative type below. 
+                  The proband's mother and father will be added to the pedigree automatically. 
+                  If aunts or uncles are added on this screen, the proband's grandparents will also be added to the pedigree automatically.
+                  Relative types not listed on this screen can be added later on."),
                 
                 fluidRow(
                   column(width = 6,
@@ -1137,7 +1143,11 @@ ui <- fixedPage(
             
             # basic settings
             h4("Settings"),
-            selectInput("modelSpec", label = h5("Model Specification:"), 
+            p("Specify the model parameters below. For more information on the parameters click on the 
+              'Show PanelPRO Documentation' button at the bottom of the screen."),
+            
+            h5("Model Specification (model_spec):"),
+            selectInput("modelSpec", label = NULL, 
                         selected = "PanPRO22",
                         choices = c("Custom", names(PanelPRO:::MODELPARAMS)),
                         width = "150px"),
@@ -1156,7 +1166,8 @@ ui <- fixedPage(
             # let user select genes and cancers for a custom model
             conditionalPanel("input.modelSpec == 'Custom'",
               div(style = "margin-left:25px",
-                selectInput("genes", label = h5("Custom Gene List:"),
+                h5("Custom Gene List (genes):"),
+                selectInput("genes", label = NULL,
                             choices = PanelPRO:::GENE_TYPES,
                             multiple = T,
                             width = "400px"),
@@ -1164,7 +1175,8 @@ ui <- fixedPage(
                   checkboxInput("allGenes", label = "Select all genes",
                                 value = F)
                 ),
-                selectInput("cancers", label = h5("Custom Cancer List:"),
+                h5("Custom Cancer List (cancers):"),
+                selectInput("cancers", label = NULL,
                             choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
                             multiple = T,
                             width = "400px"),
@@ -1176,14 +1188,14 @@ ui <- fixedPage(
             ),
             
             # max.mut
-            h5("Maximum simultaneous mutations allowed:"),
+            h5("Maximum simultaneous mutations allowed (max.mut):"),
             selectInput("maxMut", label = NULL,
                         choices = c("1","2","3"),
                         selected = "2",
                         width = "150px"),
             
             # age.by
-            h5("Year interval for future cancer risk:"),
+            h5("Year interval for future cancer risk (age.by):"),
             numericInput("ageBy", label = NULL,
                          min = 1, max = 10, step = 1, value = 5,
                          width = "150px"),
@@ -1218,6 +1230,11 @@ ui <- fixedPage(
             # bcrat.vars
             # rr.bcrat
             # rr.pop
+            
+            # show panelpro doc string
+            actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
+                         icon = icon('book'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
             
           ), # end of "Run" tab for PanelPRO
           
@@ -1270,7 +1287,7 @@ ui <- fixedPage(
                 p("The PanelPRO results were obtained using the setting listed below. For a detailed explanation of 
                   the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
                 tableOutput("ppRunSettings"),
-                actionButton("showPPDocString", label = "Show PanelPRO Documentation",
+                actionButton("showPPDocString2", label = "Show PanelPRO Documentation",
                              icon = icon('book'),
                              style = "color: white; background-color: #10699B; border-color: #10699B")
               )
@@ -4845,49 +4862,49 @@ server <- function(input, output, session) {
                         max.mut = input$maxMut,
                         age.by = input$ageBy)
       }
-      
-      # get the proband 
+
+      # get the proband
       pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
-      
+
       # settings table
-      settings <- c("PedigreeID" = "pedigree", 
-                    "Proband ID" = "proband", 
-                    "Model Spec" = "model_spec", 
-                    "Num. Cancers" = NA, 
-                    "Cancers" = "cancers", 
-                    "Num. Genes" = NA, 
-                    "Genes" = "genes", 
+      settings <- c("PedigreeID" = "pedigree",
+                    "Proband ID" = "proband",
+                    "Model Spec" = "model_spec",
+                    "Num. Cancers" = NA,
+                    "Cancers" = "cancers",
+                    "Num. Genes" = NA,
+                    "Genes" = "genes",
                     "Max. Mutations" = "max.mut",
                     "Future Risk Year Interval" = "age.by")
-      settingsTbl <- data.frame(Setting = names(settings), 
+      settingsTbl <- data.frame(Setting = names(settings),
                                 Arguement = unname(settings),
                                 Value = rep(NA, length(settings)))
       settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
       settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
       if(input$modelSpec != "Custom"){
         settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- input$modelSpec
-        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
           length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
-        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
           paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
-        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
           length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES)
-        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
           paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
       } else {
         settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- NA
-        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
           length(input$cancers)
-        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
           paste0(input$cancers, collapse = ", ")
-        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
           length(input$genes)
-        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <- 
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
           paste0(input$genes, collapse = ", ")
       }
       settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- input$maxMut
       settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- input$ageBy
-      
+
       # use PanelPRO defaults to populate the remainder of the table
       def.vals <- formals(PanelPRO::PanelPRO)
       for(st in settings[which(!is.na(settings))]){
@@ -4924,15 +4941,15 @@ server <- function(input, output, session) {
           tmp.val <- def.vals[[ln]]
         }
         add.settings$Value[which(add.settings$Arguement == ln)] <- tmp.val
-        add.settings$Setting[which(add.settings$Arguement == ln)] <- 
+        add.settings$Setting[which(add.settings$Arguement == ln)] <-
           names(def.setting.names)[which(def.setting.names == ln)]
       }
-      
+
       # combine user specified settings and panelpro default settings
       ppReactive$settingsTbl <- rbind(settingsTbl, add.settings)
-      
+
       ## table of posterior probabilities
-      cpTbl <- 
+      cpTbl <-
         out$posterior.prob[[pb]] %>%
         mutate(NumMuts = 1 + stringr::str_count(genes, pattern = "\\."), .after = "genes") %>%
         mutate(genes = PanelPRO:::formatGeneNames(gene_names = genes, format = "drop_hetero_anyPV")) %>%
@@ -4946,15 +4963,15 @@ server <- function(input, output, session) {
                "Estimate" = "estimate",
                "Lower" = "lower",
                "Upper" = "upper")
-      
+
       # save data frame version for download
       ppReactive$cpTblDF <- cpTbl
-      
+
       # format as a data.table
-      cpTbl <- 
+      cpTbl <-
         cpTbl %>%
         mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
-        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA, 
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA,
                                                                   ifelse(.<0.000001, "<1E-6", .)))) %>%
         DT::datatable(rownames = FALSE,
                       class = list("nowrap", "stripe", "compact"),
@@ -4962,12 +4979,12 @@ server <- function(input, output, session) {
         DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
                         textAlign = "right")
       ppReactive$cpTbl <- cpTbl
-      
+
       ## table of cancer risks
       frByCancer <- out$future.risk[[pb]]
       frTbl <- NULL
       for(cn in names(frByCancer)){
-        can.df <- 
+        can.df <-
           frByCancer[[cn]] %>%
           mutate(Cancer = cn, .before = "ByAge")
         if(is.null(frTbl)){
@@ -4976,21 +4993,21 @@ server <- function(input, output, session) {
           frTbl <- rbind(frTbl, can.df)
         }
       }
-      frTbl <- 
+      frTbl <-
         frTbl %>%
         rename("By Age" = "ByAge",
                "Estimate" = "estimate",
                "Lower" = "lower",
                "Upper" = "upper")
-      
+
       # save data frame version for download
       ppReactive$frTblDF <- frTbl
-      
+
       # format as a data.table
-      frTbl <- 
+      frTbl <-
         frTbl %>%
         mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
-        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA, 
+        mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA,
                                                                   ifelse(.<0.000001, "<1E-6", .)))) %>%
         DT::datatable(rownames = FALSE,
                       class = list("nowrap", "stripe", "compact"),
@@ -4998,39 +5015,29 @@ server <- function(input, output, session) {
         DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
                         textAlign = "right")
       ppReactive$frTbl <- frTbl
-      
+
       ### plots
-      vr.plots <- visRiskPPI(pp_output = out, 
-                             markdown = NULL, 
-                             return_obj = TRUE, 
-                             prob_threshold = 0.01, 
+      vr.plots <- visRiskPPI(pp_output = out,
+                             markdown = NULL,
+                             return_obj = TRUE,
+                             prob_threshold = 0.01,
                              show_fr_ci = FALSE)
-      
+
       ## carrier prob plots
       ppReactive$cpPlot <- vr.plots$cp
       ppReactive$cpPlotStatic <- vr.plots$cpStatic   # for download
-      
+
       ## cancer risk plots
       ppReactive$frPlot <- vr.plots$fr
       ppReactive$frPlotStatic <- vr.plots$frStatic   # for download
-      
+
       ## combined prob and cancer risk plot
       ppReactive$cpAndfrPlots <- vr.plots$both
-      
+
       ## take user to results
       updateTabsetPanel(session, "panelproTabs", selected = "PanelPRO Results")
       
-      # pedigree was NULL so make all results NULL
-    } else {
-      ppReactive$cpTbl <- NULL
-      ppReactive$frTbl<- NULL
-      ppReactive$cpPlot <- NULL
-      ppReactive$frPlot <- NULL
-      ppReactive$cpPlotStatic <- NULL
-      ppReactive$frPlotStatic <- NULL
-      ppReactive$settingsTbl <- NULL
-      ppReactive$cpAndfrPlots <- NULL
-    }
+    } # end of if statement to check if pedigree was present
   }, ignoreNULL = F, ignoreInit = T)
   
   # carrier probabilities table
@@ -5079,7 +5086,7 @@ server <- function(input, output, session) {
   }, striped = T)
   
   # PanelPRO function doc string
-  observeEvent(input$showPPDocString, {
+  observeEvent(list(input$showPPDocString1, input$showPPDocString2), {
     showModal(modalDialog(
       tagList(htmlOutput("ppDocString")),
       title = "PanelPRO Function R Documentation",
@@ -5088,7 +5095,7 @@ server <- function(input, output, session) {
       ),
       easyClose = T
     ))
-  })
+  }, ignoreInit = T)
   ppDocString <- reactive({
     temp = Rd2HTML(Rd_fun("PanelPRO"), out = tempfile("docs"))
     content = read_file(temp)
@@ -5100,6 +5107,15 @@ server <- function(input, output, session) {
   })
   
   ##### Download ####
+  # disable download button if PanelPRO has not been run yet
+  observeEvent(ppReactive$cpTbl, {
+    if(!is.null(ppReactive$cpTbl)){
+      shinyjs::enable('downloadResults1')
+    } else {
+      shinyjs::disable('downloadResults1')
+    }
+  }, ignoreInit = F, ignoreNULL = F)
+  
   # prepare cancersJSON for download as its own table
   canJSONToDF <- reactive({
     
@@ -5324,6 +5340,29 @@ server <- function(input, output, session) {
     },
     contentType = "application/zip"
   )
+  
+  #### Terms and Conditions ####
+  output$termsOut <- renderUI({
+    # temp = Rd2HTML(Rd_fun("PanelPRO"), out = tempfile("docs"))
+    # content = read_file(temp)
+    # file.remove(temp)
+    # content
+    # read_lines(system.file("LICENSE", package="PanelPRO"))
+    # includeHTML("LICENSE-text.html")
+    includeHTML(system.file("LICENSE", package="PanelPRO"))
+  })
+  
+  observeEvent(input$terms, {
+    showModal(modalDialog(
+      # tagList(HTML(read_lines(system.file("LICENSE", package="PanelPRO")))),
+      tagList(htmlOutput("termsOut")),
+      title = "Terms and Conditions",
+      footer = tagList(
+        modalButton("Close")
+      ),
+      easyClose = T
+    ))
+  })
   
 } # end of server
 
