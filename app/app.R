@@ -1140,15 +1140,22 @@ ui <- fixedPage(
           
           ###### UI: Run / Settings ####
           tabPanel(title = "Run PanelPRO",
+            h4("Instructions"),
+            p("Specify the model parameters below then hit the 'Run PanelPRO' button at the bottom of the page. For more information on the parameters click on the 
+              'Show PanelPRO Documentation' button."),
+            
+            # show panelpro doc string
+            actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
+                         icon = icon('book'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px"),
             
             # basic settings
-            h4("Settings"),
-            p("Specify the model parameters below. For more information on the parameters click on the 
-              'Show PanelPRO Documentation' button at the bottom of the screen."),
+            h4("Basic Settings"),
             
-            h5("Model Specification (model_spec):"),
+            # model_spec
+            h5("Model Specification ('model_spec'):"),
             selectInput("modelSpec", label = NULL, 
-                        selected = "PanPRO22",
+                        selected = formals(PanelPRO::PanelPRO)$model_spec,
                         choices = c("Custom", names(PanelPRO:::MODELPARAMS)),
                         width = "150px"),
             
@@ -1166,7 +1173,9 @@ ui <- fixedPage(
             # let user select genes and cancers for a custom model
             conditionalPanel("input.modelSpec == 'Custom'",
               div(style = "margin-left:25px",
-                h5("Custom Gene List (genes):"),
+                  
+                #  genes
+                h5("Custom Gene List ('genes'):"),
                 selectInput("genes", label = NULL,
                             choices = PanelPRO:::GENE_TYPES,
                             multiple = T,
@@ -1175,7 +1184,9 @@ ui <- fixedPage(
                   checkboxInput("allGenes", label = "Select all genes",
                                 value = F)
                 ),
-                h5("Custom Cancer List (cancers):"),
+                
+                # cancers
+                h5("Custom Cancer List ('cancers'):"),
                 selectInput("cancers", label = NULL,
                             choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
                             multiple = T,
@@ -1183,58 +1194,107 @@ ui <- fixedPage(
                 div(style = "margin-left:25px;margin-top:-10px",
                   checkboxInput("allCancers", label = "Select all cancers",
                                 value = F)
-                ),
-              ),
+                )
+              )
             ),
             
             # max.mut
-            h5("Maximum simultaneous mutations allowed (max.mut):"),
+            h5("Maximum simultaneous mutations allowed ('max.mut'):"),
             selectInput("maxMut", label = NULL,
                         choices = c("1","2","3"),
                         selected = "2",
                         width = "150px"),
             
             # age.by
-            h5("Year interval for future cancer risk (age.by):"),
+            h5("Year interval for future cancer risk (1 to 10) ('age.by'):"),
             numericInput("ageBy", label = NULL,
-                         min = 1, max = 10, step = 1, value = 5,
+                         min = 1, max = 10, step = 1, 
+                         value = formals(PanelPRO::PanelPRO)$age.by,
                          width = "150px"),
             textOutput("validYearInterval"),
             tags$head(tags$style("#validYearInterval{color: red;}")),
             br(),
             
+            # advanced settings
+            bsCollapse(id = "PanelPROAdvanced",
+              bsCollapsePanel(title = "Advanced Settings", 
+                              
+                # not currently supported (default values used): 
+                # proband, remove.miss.cancers, parallel, debug, 
+                # impute.missing.ages, database, 
+                # plusBCRAT, bcrat.vars, rr.bcrat, rr.pop
+                
+                # unknown.race
+                h5("Assume all unknown races to be ('unknown.race'):"),
+                selectInput("unknownRace", label = NULL,
+                            selected = PanelPRO:::UNKNOWN_RACE,
+                            choices = PanelPRO:::RACE_TYPES,
+                            width = "150px"),
+                
+                # unknown.ancestry
+                h5("Assume all unknown ancestries to be ('unknown.ancestry'):"),
+                selectInput("unknownAncestry", label = NULL,
+                            selected = PanelPRO:::UNKNOWN_ANCESTRY,
+                            choices = PanelPRO:::ANCESTRY_TYPES,
+                            width = "150px"),
+                
+                # allow.intervention
+                h5("Should cancer prevention risk modifiers be considered ('allow.intervention')?"),
+                div(style = "margin-left:25px",
+                  checkboxInput("allowInter", label = "Allow Interventions", 
+                                value = formals(PanelPRO::PanelPRO)$allow.intervention)
+                ),
+                
+                # ignore.proband.germ
+                h5("Should the proband's germline testing results be ignored ('ignore.proband.germ')?"),
+                div(style = "margin-left:25px",
+                  checkboxInput("ignorePbGerm", label = "Ignore Germline Results", 
+                                value = formals(PanelPRO::PanelPRO)$ignore.proband.germ)
+                ),
+                
+                # iterations
+                h5("The number of iterations to be run when multiply imputing missing ages (1 to 100; excludes failed iterations; 'iterations'):"),
+                numericInput("missAgeIters", label = NULL, 
+                             min = 1, max = 100, step = 1, 
+                             value = formals(PanelPRO::PanelPRO)$iterations,
+                             width = "150px"),
+                
+                # max.iter.tries
+                h5("The maximum number of iterations, including failed iterations, to be run when multiply imputing missing ages (1 to 500; 'max.iter.tries'):"),
+                numericInput("missAgeMaxIters", label = NULL, 
+                             min = 1, max = 500, step = 1, 
+                             value = formals(PanelPRO::PanelPRO)$iterations * 5,
+                             width = "150px"),
+                
+                # random.seed
+                h5("Random seed for age imputation: (>0; 'random.seed')"),
+                numericInput("randomSeed", label = NULL,
+                             min = 1, max = NA, step = 1,
+                             value = formals(PanelPRO::PanelPRO)$random.seed,
+                             width = "150px"),
+                
+                # net
+                h5("Return net or crude future risk estimates ('net')?",
+                   style = "margin-bottom: 20px"),
+                div(style = "margin-left:25px",
+                  radioButtons("netOrCrude", label = NULL,
+                               selected = "Crude",
+                               choices = c("Crude", "Net"))
+                ),
+                
+                # reset settings to defaults
+                h5("Reset all settings to PanelPRO default values"),
+                actionButton("resetPanelPROInputs", label = "Reset to Defaults",
+                             icon = icon('undo'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px")
+              )
+            ),
+            
             # RUN MODEL
+            br(),
             actionButton("runPP", label = "Run PanelPRO",
                          icon = icon('play'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B"),
-            br(),br(),
-            
-            # advanced settings
-            h4("Advanced Settings"),
-            p("Coming soon..."),
-            # proband
-            # database
-            # unknown.race
-            # unknown.ancestry
-            # impute.missing.ages
-            # allow.intervention
-            # ignore.proband.germ
-            # remove.miss.cancers
-            # iterations
-            # max.iter.tries
-            # parallel
-            # debug
-            # net
-            # random.seed
-            # plusBCRAT
-            # bcrat.vars
-            # rr.bcrat
-            # rr.pop
-            
-            # show panelpro doc string
-            actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
-                         icon = icon('book'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+                         style = "color: white; background-color: #10699B; border-color: #10699B")
             
           ), # end of "Run" tab for PanelPRO
           
@@ -4759,6 +4819,19 @@ server <- function(input, output, session) {
   })
   
   ##### Settings ####
+  # reset to default input values
+  observeEvent(input$resetPanelPROInputs, {
+    settingInputs <- c("modelSpec", "genes", "cancers",
+                       "maxMut", "ageBy",
+                       "unknownRace", "unknownAncestry",
+                       "allowInter", "ignorePbGerm",
+                       "missAgeIters", "missAgeMaxIters",
+                       "randomSeed", "netOrCrude")
+    for(si in settingInputs){
+      shinyjs::reset(si)
+    }
+  })
+  
   # clear genes and cancers when the model specification is not custom
   observeEvent(input$modelSpec, {
     if(input$modelSpec != "Custom"){
@@ -4842,11 +4915,38 @@ server <- function(input, output, session) {
   observeEvent(input$runPP, {
     if(!is.null(PED())){
       
-      # validate settings
+      # validate numeric settings
+      if(is.na(input$maxMut)){
+        maxMut <- 2
+      } else {
+        maxMut <- input$maxMut
+      }
       if(is.na(input$ageBy)){
-        ageBy <- 5
+        ageBy <- formals(PanelPRO::PanelPRO)$age.by
       } else {
         ageBy <- input$ageBy
+      }
+      if(is.na(input$missAgeIters)){
+        missAgeIters <- formals(PanelPRO::PanelPRO)$iterations
+      } else {
+        missAgeIters <- input$missAgeIters
+      }
+      if(is.na(input$missAgeMaxIters)){
+        missAgeMaxIters <- formals(PanelPRO::PanelPRO)$max.iter.tries * 5
+      } else {
+        missAgeMaxIters <- input$missAgeMaxIters
+      }
+      if(is.na(input$randomSeed)){
+        randomSeed <- formals(PanelPRO::PanelPRO)$random.seed
+      } else {
+        randomSeed <- input$randomSeed
+      }
+      
+      # convert net vs crude future risk to logical indicating whether net should be returned
+      if(input$netOrCrude == "Net"){
+        net.logical <- TRUE
+      } else {
+        net.logical <- FALSE
       }
       
       # run using either a model spec or custom genes and cancers
@@ -4854,15 +4954,31 @@ server <- function(input, output, session) {
         out <- PanelPRO(pedigree = PED(),
                         model_spec = input$modelSpec,
                         max.mut = input$maxMut,
-                        age.by = input$ageBy)
+                        age.by = ageBy,
+                        unknown.race = input$unknownRace,
+                        unknown.ancestry = input$unknownAncestry,
+                        allow.intervention = input$allowInter,
+                        ignore.proband.germ = input$ignorePbGerm,
+                        iterations = missAgeIters,
+                        max.iter.tries = missAgeMaxIters,
+                        random.seed = randomSeed,
+                        net = net.logical)
       } else {
         out <- PanelPRO(pedigree = PED(),
                         genes = input$genes,
                         cancers = input$cancers,
                         max.mut = input$maxMut,
-                        age.by = input$ageBy)
+                        age.by = ageBy,
+                        unknown.race = input$unknownRace,
+                        unknown.ancestry = input$unknownAncestry,
+                        allow.intervention = input$allowInter,
+                        ignore.proband.germ = input$ignorePbGerm,
+                        iterations = missAgeIters,
+                        max.iter.tries = missAgeMaxIters,
+                        random.seed = randomSeed,
+                        net = net.logical)
       }
-
+      
       # get the proband
       pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
 
@@ -4875,9 +4991,17 @@ server <- function(input, output, session) {
                     "Num. Genes" = NA,
                     "Genes" = "genes",
                     "Max. Mutations" = "max.mut",
-                    "Future Risk Year Interval" = "age.by")
+                    "Future Risk Year Interval" = "age.by",
+                    "Assume Missing Race As" = "unknown.race",
+                    "Assume Missing Ancestry As" = "unknown.ancestry",
+                    "Allow surgical interventions?" = "allow.intervention",
+                    "Ignore Proband's germline testing results?" = "ignore.proband.germ",
+                    "Imputation iterations"= "iterations",
+                    "Max. iteration tries" = "max.iter.tries",
+                    "Random seed for imputing missing ages" = "random.seed",
+                    "Provide net, instead of crude, future risk estimates?" = "net")
       settingsTbl <- data.frame(Setting = names(settings),
-                                Arguement = unname(settings),
+                                Argument = unname(settings),
                                 Value = rep(NA, length(settings)))
       settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
       settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
@@ -4902,8 +5026,16 @@ server <- function(input, output, session) {
         settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
           paste0(input$genes, collapse = ", ")
       }
-      settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- input$maxMut
-      settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- input$ageBy
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- maxMut
+      settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- ageBy
+      settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Race As")] <- input$unknownRace
+      settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Ancestry As")] <- input$unknownAncestry
+      settingsTbl$Value[which(settingsTbl$Setting == "Allow surgical interventions?")] <- input$allowInter
+      settingsTbl$Value[which(settingsTbl$Setting == "Ignore Proband's germline testing results?")] <- input$ignorePbGerm
+      settingsTbl$Value[which(settingsTbl$Setting == "Imputation iterations")] <- missAgeIters
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. iteration tries")] <- missAgeMaxIters
+      settingsTbl$Value[which(settingsTbl$Setting == "Random seed for imputing missing ages")] <- randomSeed
+      settingsTbl$Value[which(settingsTbl$Setting == "Provide net, instead of crude, future risk estimates?")] <- net.logical
 
       # use PanelPRO defaults to populate the remainder of the table
       def.vals <- formals(PanelPRO::PanelPRO)
@@ -4911,21 +5043,13 @@ server <- function(input, output, session) {
         def.vals[[st]] <- NULL
       }
       add.settings <- data.frame(Setting = rep(NA, length(def.vals)),
-                                 Arguement = names(def.vals),
+                                 Argument = names(def.vals),
                                  Value = rep(NA, length(def.vals)))
-      def.setting.names <- c("Database" = "database",
-                             "Assume Missing Race As" = "unknown.race",
-                             "Assume Missing Ancestry As" = "unknown.ancestry",
-                             "Impute missing ages?" = "impute.missing.ages",
-                             "Allow surgical interventions?" = "allow.intervention",
-                             "Ignore Proband's germline testing results?" = "ignore.proband.germ",
+      def.setting.names <- c("Impute missing ages?" = "impute.missing.ages",
                              "Remove missing cancers from the model?" = "remove.miss.cancers",
-                             "Imputation iterations"= "iterations",
-                             "Max. iteration tries" = "max.iter.tries",
+                             "Database" = "database",
                              "Parallelize age imputation?" = "parallel",
                              "Provide debugging messages?" = "debug",
-                             "Provide net instead of crude future risk estimates?" = "net",
-                             "Random seed for imputing missing ages" = "random.seed",
                              "Use BRCAPRO+BCRAT model?" = "plusBCRAT",
                              "Data frame of BCRAT covariates" = "bcrat.vars",
                              "Data frame of BCRAT relative risks" = "rr.bcrat",
@@ -4940,13 +5064,21 @@ server <- function(input, output, session) {
         } else {
           tmp.val <- def.vals[[ln]]
         }
-        add.settings$Value[which(add.settings$Arguement == ln)] <- tmp.val
-        add.settings$Setting[which(add.settings$Arguement == ln)] <-
+        add.settings$Value[which(add.settings$Argument == ln)] <- tmp.val
+        add.settings$Setting[which(add.settings$Argument == ln)] <-
           names(def.setting.names)[which(def.setting.names == ln)]
       }
 
       # combine user specified settings and panelpro default settings
-      ppReactive$settingsTbl <- rbind(settingsTbl, add.settings)
+      tmp.tbl <- rbind(settingsTbl, add.settings)
+      allow.age.impute.row <- which(tmp.tbl$Argument == "impute.missing.ages")
+      iterations.row <- which(tmp.tbl$Argument == "iterations")
+      tmp.tbl <- tmp.tbl[c(1:(iterations.row-1), 
+                           allow.age.impute.row, 
+                           iterations.row:(allow.age.impute.row-1), 
+                           (allow.age.impute.row+1):nrow(tmp.tbl)),]
+      ppReactive$settingsTbl <- tmp.tbl
+      
 
       ## table of posterior probabilities
       cpTbl <-
@@ -5344,10 +5476,8 @@ server <- function(input, output, session) {
   #### Terms and Conditions ####
   output$termsOut <- renderText({
     lines <- read_lines(system.file("LICENSE", package="PanelPRO"))
-    lines <- paste0(lines[which(lines != "")], collapse = "\n")
-    lines
+    paste0(lines[which(lines != "")], collapse = "\n\n")
   })
-  
   observeEvent(input$terms, {
     showModal(modalDialog(
       tagList(tagAppendAttributes(textOutput("termsOut"), style="white-space:pre-wrap;")),
@@ -5355,7 +5485,6 @@ server <- function(input, output, session) {
       footer = tagList(
         modalButton("Close")
       ),
-      size = "m",
       easyClose = T
     ))
   })
