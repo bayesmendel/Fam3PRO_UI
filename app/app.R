@@ -5342,24 +5342,20 @@ server <- function(input, output, session) {
   )
   
   #### Terms and Conditions ####
-  output$termsOut <- renderUI({
-    # temp = Rd2HTML(Rd_fun("PanelPRO"), out = tempfile("docs"))
-    # content = read_file(temp)
-    # file.remove(temp)
-    # content
-    # read_lines(system.file("LICENSE", package="PanelPRO"))
-    # includeHTML("LICENSE-text.html")
-    includeHTML(system.file("LICENSE", package="PanelPRO"))
+  output$termsOut <- renderText({
+    lines <- read_lines(system.file("LICENSE", package="PanelPRO"))
+    lines <- paste0(lines[which(lines != "")], collapse = "\n")
+    lines
   })
   
   observeEvent(input$terms, {
     showModal(modalDialog(
-      # tagList(HTML(read_lines(system.file("LICENSE", package="PanelPRO")))),
-      tagList(htmlOutput("termsOut")),
+      tagList(tagAppendAttributes(textOutput("termsOut"), style="white-space:pre-wrap;")),
       title = "Terms and Conditions",
       footer = tagList(
         modalButton("Close")
       ),
+      size = "m",
       easyClose = T
     ))
   })
