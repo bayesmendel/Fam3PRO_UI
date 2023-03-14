@@ -24,7 +24,7 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
-library(stringi)    # conver to title case function: stri_trans_totitle()
+library(stringi)    # convert to title case function: stri_trans_totitle()
 
 # html
 library(htmltools)  # formatting text
@@ -36,6 +36,8 @@ library(DT)         # displays data tables
 library(zip)        # create .zip files for download
 
 # plotting
+library(grid)
+library(gridExtra)  # combine plots as a grob
 library(plotly)
 
 # access function doc string
@@ -352,7 +354,7 @@ ui <- fixedPage(
               # cancer hx
               tabPanel(title = "Cancers",
                 br(),
-                DTOutput("cancersTblViewer")
+                DTOutput("cancersTblViewer", width = "75%")
               ),
               
               # genes
@@ -1199,7 +1201,7 @@ ui <- fixedPage(
             ),
             
             # max.mut
-            h5("Maximum simultaneous mutations allowed per person ('max.mut'):"),
+            h5("Maximum simultaneous mutations allowed per individual ('max.mut'):"),
             selectInput("maxMut", label = NULL,
                         choices = c("1","2","3"),
                         selected = "2",
@@ -1319,7 +1321,15 @@ ui <- fixedPage(
               # plot
               tabPanel(title = "Carrier Prob. Plot",
                 h4("Posterior Carrier Probabilities"),
-                plotly::plotlyOutput("ppCPPlot", width = "1000px", height = "500px")
+                radioButtons("ppCPPlotView", label = "Select a Y-axis Scale:",
+                             choices = c("Full (0 to 1)", "Zoomed"),
+                             inline = T),
+                conditionalPanel(condition = "input.ppCPPlotView == 'Zoomed'",
+                  plotly::plotlyOutput("ppCPPlotZoom", width = "1000px", height = "500px")
+                ),
+                conditionalPanel(condition = "input.ppCPPlotView != 'Zoomed'",
+                  plotly::plotlyOutput("ppCPPlotFull", width = "1000px", height = "500px")
+                )
               ),
               
               # table
@@ -1332,7 +1342,18 @@ ui <- fixedPage(
               # plot
               tabPanel(title = "Cancer Risk Plots",
                 h4("Future Cancer Risk"),
-                plotly::plotlyOutput("ppFRPlot", width = "1000px", height = "750px")
+                radioButtons("ppFRPlotView1", label = "Select a plot type:",
+                             choices = c("Standard", "Zoomed Y-axis", "Compare risks to an average person"),
+                             inline = F),
+                conditionalPanel(condition = "input.ppFRPlotView1 == 'Zoomed Y-axis'",
+                  plotly::plotlyOutput("ppFRPlotZoom", width = "1000px", height = "750px")
+                ),
+                conditionalPanel(condition = "input.ppFRPlotView1 == 'Standard'",
+                  plotly::plotlyOutput("ppFRPlotFull", width = "1000px", height = "750px")
+                ),
+                conditionalPanel(condition = "input.ppFRPlotView1 == 'Compare risks to an average person'",
+                  uiOutput("comparisonPlotH")
+                )
               ),
               
               # table
@@ -1352,7 +1373,7 @@ ui <- fixedPage(
                              style = "color: white; background-color: #10699B; border-color: #10699B")
               ),
               
-              ## Messages
+              ## Console Output
               tabPanel(title = "Console Output",
                 h4("PanelPRO Function R Console Output"),
                 tags$div(
@@ -3037,14 +3058,14 @@ server <- function(input, output, session) {
         "download-pedigrees/pedigrees.rds",
         "download-pedigrees/cancer-details.rds",
         "download-pedigrees/panel-details.rds",
+        "data-dictionary/columns-and-codings-dictionary.rds",
         "data-dictionary/panelpro-cancer-abbreviations.rds",
         "data-dictionary/panelpro-gene-list.rds"
       )
       
       tmp.zip <- 
         zip::zip(zipfile = file, 
-                 files = c("data-dictionary/columns-and-codings-dictionary.rds",
-                           "data-dictionary/README.md",
+                 files = c("data-dictionary/README.md",
                            "download-pedigrees/README.md",
                            new.files))
       
@@ -4499,8 +4520,9 @@ server <- function(input, output, session) {
         if(!is.na(PED()$cancersJSON[row])){
           mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
           rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+          colnames(rel.can.df) <- stri_trans_totitle(colnames(rel.can.df))
           rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df)),
-                                         Name = rep(PED()$ID[row], nrow(rel.can.df))), 
+                                         Name = rep(PED()$name[row], nrow(rel.can.df))), 
                               rel.can.df)
           if(is.null(can.df)){
             can.df <- rel.can.df
@@ -4545,8 +4567,9 @@ server <- function(input, output, session) {
         if(!is.na(PED()$genesJSON[row])){
           mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
           rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+          colnames(rel.gene.df) <- stri_trans_totitle(colnames(rel.gene.df))
           rel.gene.df <- cbind(data.frame(ID   = rep(PED()$ID[row], nrow(rel.gene.df)),
-                                          Name = rep(PED()$ID[row], nrow(rel.gene.df))), 
+                                          Name = rep(PED()$name[row], nrow(rel.gene.df))), 
                                rel.gene.df)
           if(is.null(gene.df)){
             gene.df <- rel.gene.df
@@ -4571,7 +4594,12 @@ server <- function(input, output, session) {
     shiny::validate(
       need(!is.null(genesTbl()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    genesTbl()
+    
+    # save space by abbreviating column names and removing row number
+    gt <- genesTbl()
+    colnames(gt) <- c("ID", "Name", "Panel", "Gene", "Res", "Nuc", "Prot", "Zyg")
+    gt <- datatable(gt, rownames = F)
+    gt
   }, server = F)
   
   # display in the pedigree viewer
@@ -4918,8 +4946,12 @@ server <- function(input, output, session) {
   ##### Results ####
   ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, 
                                cpTblDF = NULL, frTblDF = NULL,
-                               cpPlot = NULL, frPlot = NULL, cpAndfrPlots = NULL,
-                               cpPlotStatic = NULL, frPlotStatic = NULL,
+                               cpPlotZoom = NULL, cpPlotFull = NULL,
+                               frPlotZoom = NULL, frPlotFull = NULL, 
+                               comparisonPlot = NULL, grows = NULL, gcols = NULL,
+                               cpAndfrPlots = NULL,
+                               cpPlotStaticZoom = NULL, cpPlotStaticFull = NULL, 
+                               frPlotStaticZoom = NULL, frPlotStaticFull = NULL,
                                settingsTbl = NULL)
   
   observeEvent(input$runPP, {
@@ -5093,7 +5125,41 @@ server <- function(input, output, session) {
             mutate(genes = ifelse(grepl(pattern = "\\.", genes),
                                   sub(pattern = "\\.", replacement = " & ", genes),
                                   genes)) %>%
-            mutate(genes = ifelse(genes == "noncarrier", "Non-carrier", genes)) %>%
+            mutate(genes = ifelse(genes == "noncarrier", "Non-carrier", genes))
+            
+          ## get the risk any PV gene
+          # estimate
+          prob.anyPVdf <- filter(cpTbl, !grepl(pattern = " & ", genes))
+          prob.anyPVdf <- filter(prob.anyPVdf, genes != "Non-carrier")
+          prob.anyPV <- sum(prob.anyPVdf$estimate, na.rm = T)
+          cpTbl[nrow(cpTbl)+1,] <- rep(NA, 5)
+          cpTbl$NumMuts[nrow(cpTbl)] <- 1
+          cpTbl$genes[nrow(cpTbl)] <- "Any Gene"
+          cpTbl$estimate[nrow(cpTbl)] <- prob.anyPV
+          
+          # lower and upper prediction intervals
+          if(!(all(is.na(prob.anyPVdf$lower)) && 
+               all(is.na(prob.anyPVdf$upper)))){
+            pred.mat <- NULL
+            for(gn in unique(prob.anyPVdf$genes)){
+              g.preds <- runif(n = input$missAgeIters, 
+                               min = prob.anyPVdf$lower[which(prob.anyPVdf$genes == gn)],
+                               max = prob.anyPVdf$upper[which(prob.anyPVdf$genes == gn)])
+              if(is.null(pred.mat)){
+                pred.mat <- g.preds
+              } else {
+                pred.mat <- cbind(pred.mat, g.preds)
+              }
+            }
+            any.preds <- apply(pred.mat, 1, sum, simplify = T)
+            cpTbl$lower[nrow(cpTbl)] <- min(any.preds, na.rm = T)
+            cpTbl$upper[nrow(cpTbl)] <- max(any.preds, na.rm = T)
+          } 
+          
+          ## format table
+          cpTbl <-
+            cpTbl %>%
+            mutate(across(.cols = -genes, ~as.numeric(.))) %>%
             arrange(desc(estimate)) %>%
             rename("Num. Muts." = "NumMuts",
                    "Genes" = "genes",
@@ -5129,7 +5195,8 @@ server <- function(input, output, session) {
           for(cn in names(frByCancer)){
             can.df <-
               frByCancer[[cn]] %>%
-              mutate(Cancer = cn, .before = "ByAge")
+              mutate(Cancer = cn, .before = "ByAge") %>%
+              mutate(Who = "Proband", .after = "Cancer")
             if(is.null(frTbl)){
               frTbl <- can.df
             } else {
@@ -5138,10 +5205,50 @@ server <- function(input, output, session) {
           }
           frTbl <-
             frTbl %>%
-            rename("By Age" = "ByAge",
-                   "Estimate" = "estimate",
+            rename("Estimate" = "estimate",
                    "Lower" = "lower",
                    "Upper" = "upper")
+          
+          ## get average person risks
+          nc.pens <-
+            as.data.frame(
+              PanelPRO::PanelPRODatabase$Penetrance[, # Cancer
+                                                    "SEER", # Gene
+                                                    ifelse(is.na(PED()$race[which(PED()$isProband == 1)]), "All_Races", 
+                                                           PED()$race[which(PED()$isProband == 1)]), #Race
+                                                    ifelse(PED()$Sex[which(PED()$isProband == 1)] == 0, "Female", 
+                                                           "Male"), #Sex
+                                                    , # Age
+                                                    ifelse(net.logical, "Net", "Crude") # PenetType
+                                                    ]
+            ) %>%
+            tibble::rownames_to_column("Cancer") %>%
+            pivot_longer(cols = -Cancer, names_to = "ByAge", values_to = "Penetrance") %>%
+            mutate(Who = "Average Person", .after = "Cancer") %>%
+            mutate(Estimate = 0, .after = "ByAge") %>%
+            mutate(Lower = NA, .after = "Estimate") %>%
+            mutate(Upper = NA, .after = "Lower") %>%
+            group_by(Cancer) %>%
+            mutate(Survival = 1 - cumsum(Penetrance)) %>%
+            mutate(across(.cols = c(Survival, Estimate), ~as.numeric(.)))
+          pb.age <- PED()$CurAge[which(PED()$isProband == 1)]
+          for(c in unique(nc.pens$Cancer)){
+            tmp.pens <- nc.pens[which(nc.pens$Cancer == c),]
+            for(a in (pb.age+1):(PanelPRO:::MAXAGE)){
+              nc.pens$Estimate[which(nc.pens$Cancer == c & nc.pens$ByAge == a)] <- 
+                sum(tmp.pens$Penetrance[(pb.age+1):a]) / nc.pens$Survival[pb.age]
+            }
+          }
+          nc.pens <- 
+            nc.pens %>% 
+            select(-c(Penetrance, Survival)) %>%
+            mutate(ByAge = as.numeric(ByAge)) %>%
+            filter(ByAge %in% frTbl$ByAge)
+          
+          frTbl <- 
+            rbind(frTbl, nc.pens) %>%
+            arrange(Cancer, desc(Who), ByAge) %>%
+            rename("By Age" = "ByAge")
 
           # save data frame version for download
           ppReactive$frTblDF <- frTbl
@@ -5170,29 +5277,48 @@ server <- function(input, output, session) {
                                markdown = NULL,
                                return_obj = TRUE,
                                prob_threshold = 0.01,
-                               show_fr_ci = FALSE)
-
+                               show_fr_ci = FALSE,
+                               race = PED()$race[which(PED()$isProband == 1)],
+                               sex = PED()$Sex[which(PED()$isProband == 1)],
+                               cur.age = PED()$CurAge[which(PED()$isProband == 1)],
+                               net = net.logical,
+                               missAgeIters = input$missAgeIters)
+        
         ## carrier prob plots
         if(class(out$posterior.prob[[pb]]) == "data.frame"){
-          ppReactive$cpPlot <- vr.plots$cp
-          ppReactive$cpPlotStatic <- vr.plots$cpStatic     # for download
+          ppReactive$cpPlotZoom <- vr.plots$cp.zoom
+          ppReactive$cpPlotFull <- vr.plots$cp.full
+          ppReactive$cpPlotStaticZoom <- vr.plots$cpStatic.zoom     # for download
+          ppReactive$cpPlotStaticFull <- vr.plots$cpStatic.full     # for download
         } else {
-          ppReactive$cpPlot <- NULL
-          ppReactive$cpPlotStatic <- NULL
+          ppReactive$cpPlotZoom <- NULL
+          ppReactive$cpPlotFull <- NULL
+          ppReactive$cpPlotStaticZoom <- NULL
+          ppReactive$cpPlotStaticFull <- NULL
         }
-
+        
         ## cancer risk plots
         if(!any(lapply(out$future.risk[[pb]], class) == "character")){
-          ppReactive$frPlot <- vr.plots$fr
-          ppReactive$frPlotStatic <- vr.plots$frStatic   # for download
+          ppReactive$frPlotZoom <- vr.plots$fr.zoom
+          ppReactive$frPlotFull <- vr.plots$fr.full
+          ppReactive$frPlotStaticZoom <- vr.plots$frStatic.zoom   # for download
+          ppReactive$frPlotStaticFull <- vr.plots$frStatic.full   # for download
+          ppReactive$comparisonPlot <- vr.plots$comparison
+          ppReactive$grows <- vr.plots$grows
+          ppReactive$gcols <- vr.plots$gcols
         } else {
-          ppReactive$frPlot <- NULL
-          ppReactive$frPlotStatic <- NULL
+          ppReactive$frPlotZoom <- NULL
+          ppReactive$frPlotFull <- NULL
+          ppReactive$frPlotStaticZoom <- NULL
+          ppReactive$frPlotStaticFull <- NULL
+          ppReactive$comparisonPlot <- NULL
+          ppReactive$grows <- NULL
+          ppReactive$gcols <- NULL
         }
-
+        
         ## combined prob and cancer risk plot
         ppReactive$cpAndfrPlots <- vr.plots$both
-
+        
       } # end of if statement to confirm PanelPRO output was not an error
     } # end of if statement to check if pedigree was present
   }, ignoreNULL = F, ignoreInit = T)
@@ -5215,22 +5341,54 @@ server <- function(input, output, session) {
     return(ppReactive$frTbl)
   }, server = F)
   
-  # carrier prob. plot
-  output$ppCPPlot <- plotly::renderPlotly({
+  # carrier prob. plot, zoomed y-axis
+  output$ppCPPlotZoom <- plotly::renderPlotly({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$cpPlot), "A carrier probability plot could not be generated.")
+      need(!is.null(ppReactive$cpPlotZoom), "A carrier probability plot could not be generated.")
     )
-    return(ppReactive$cpPlot)
+    return(ppReactive$cpPlotZoom)
+  })
+  
+  # carrier prob. plot, full y-axis
+  output$ppCPPlotFull <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$cpPlotFull), "A carrier probability plot could not be generated.")
+    )
+    return(ppReactive$cpPlotFull)
   })
   
   # carrier prob. plot
-  output$ppFRPlot <- plotly::renderPlotly({
+  output$ppFRPlotZoom <- plotly::renderPlotly({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$frPlot), "A cancer risk plot could not be generated.")
+      need(!is.null(ppReactive$frPlotZoom), "A cancer risk plot could not be generated.")
     )
-    return(ppReactive$frPlot)
+    return(ppReactive$frPlotZoom)
+  })
+  
+  # carrier prob. plot
+  output$ppFRPlotFull <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frPlotFull), "A cancer risk plot could not be generated.")
+    )
+    return(ppReactive$frPlotFull)
+  })
+  
+  # comparison to average person cancer risks
+  output$comparisonPlot <- renderPlot({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$comparisonPlot), "A cancer risk plot could not be generated.")
+    )
+    return(grid::grid.draw(ppReactive$comparisonPlot))
+  })
+  output$comparisonPlotH <- renderUI({
+    h <- paste0(300*as.numeric(ppReactive$grows), "px")
+    w <- paste0(360*as.numeric(ppReactive$gcols), "px")
+    plotOutput("comparisonPlot", height = h, width = w)
   })
   
   # run settings table
@@ -5362,6 +5520,7 @@ server <- function(input, output, session) {
     filename = function(){
       paste0("PanelPRO-results-", 
              ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             "-",
              Sys.Date(), ".zip")
     },
     content = function(file){
@@ -5394,15 +5553,33 @@ server <- function(input, output, session) {
       }
       
       # result images and other
-      if(!is.null(ppReactive$cpPlotStatic)){
-        ggsave(plot = ppReactive$cpPlotStatic, 
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        ggsave(plot = ppReactive$cpPlotStaticZoom, 
                path = "./download-results", 
-               filename = paste0("posterior-probs-", pedID, ".png"))
+               filename = paste0("posterior-probs-zoom-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStatic)){
-        ggsave(plot = ppReactive$frPlotStatic, 
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        ggsave(plot = ppReactive$cpPlotStaticFull, 
                path = "./download-results", 
-               filename = paste0("cancer-risks-", pedID, ".png"))
+               filename = paste0("posterior-probs-full-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        ggsave(plot = ppReactive$frPlotStaticZoom, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        ggsave(plot = ppReactive$frPlotStaticFull, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        ggsave(plot = ppReactive$comparisonPlot,
+               width = 1667*as.numeric(ppReactive$gcols),
+               height = 1250*as.numeric(ppReactive$grows),
+               units = "px",
+               path = "./download-results", 
+               filename = paste0("cancer-risks-compared-to-ave-person-", pedID, ".png"))
       }
       
       # zip them all together
@@ -5418,14 +5595,23 @@ server <- function(input, output, session) {
       if(!is.null(ppReactive$cpTblDF)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".csv"))
       }
-      if(!is.null(ppReactive$cpPlotStatic)){
-        new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".png"))
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-zoom-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-full-", pedID, ".png"))
       }
       if(!is.null(ppReactive$frTblDF)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".csv"))
       }
-      if(!is.null(ppReactive$frPlotStatic)){
-        new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".png"))
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-compared-to-ave-person-", pedID, ".png"))
       }
       
       tmp.zip <- 
@@ -5448,6 +5634,7 @@ server <- function(input, output, session) {
     filename = function(){
       paste0("PanelPRO-results-", 
              ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             "-",
              Sys.Date(), ".zip")
     },
     content = function(file){
@@ -5482,15 +5669,33 @@ server <- function(input, output, session) {
       }
       
       # result images and other
-      if(!is.null(ppReactive$cpPlotStatic)){
-        ggsave(plot = ppReactive$cpPlotStatic, 
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        ggsave(plot = ppReactive$cpPlotStaticZoom, 
                path = "./download-results", 
-               filename = paste0("posterior-probs-", pedID, ".png"))
+               filename = paste0("posterior-probs-zoom-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStatic)){
-        ggsave(plot = ppReactive$frPlotStatic, 
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        ggsave(plot = ppReactive$cpPlotStaticFull, 
                path = "./download-results", 
-               filename = paste0("cancer-risks-", pedID, ".png"))
+               filename = paste0("posterior-probs-full-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        ggsave(plot = ppReactive$frPlotStaticZoom, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        ggsave(plot = ppReactive$frPlotStaticFull, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        ggsave(plot = ppReactive$comparisonPlot,
+               width = 1667*as.numeric(ppReactive$gcols),
+               height = 1250*as.numeric(ppReactive$grows),
+               units = "px",
+               path = "./download-results", 
+               filename = paste0("cancer-risks-compared-to-ave-person-", pedID, ".png"))
       }
       
       # zip them all together
@@ -5507,20 +5712,28 @@ server <- function(input, output, session) {
       if(!is.null(ppReactive$cpTblDF)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".rds"))
       }
-      if(!is.null(ppReactive$cpPlotStatic)){
-        new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".png"))
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-zoom-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-full-", pedID, ".png"))
       }
       if(!is.null(ppReactive$frTblDF)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".rds"))
       }
-      if(!is.null(ppReactive$frPlotStatic)){
-        new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".png"))
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-compared-to-ave-person-", pedID, ".png"))
       }
       
       tmp.zip <- 
         zip::zip(zipfile = file, 
-                 files = c("data-dictionary/columns-and-codings-dictionary.rds",
-                           "data-dictionary/README.md",
+                 files = c("data-dictionary/README.md",
                            "download-results/README.md",
                            new.files))
       
