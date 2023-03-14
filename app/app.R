@@ -73,8 +73,7 @@ ui <- fixedPage(
           div(class = "pull-right", 
             img(src="dana-farber-logo-small-2.PNG", height = "50px"),
             shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), style = "padding:5px")
-          ),
-          
+          )
         )
       ),
     windowTitle = "PPI: PanelPRO Interface"
@@ -506,6 +505,15 @@ ui <- fixedPage(
         
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
+          
+          # manual save button
+          conditionalPanel("output.pedExists",
+            div(class = "pull-right", 
+              actionButton("manualPedSave", label = "Force Save Pedigree",
+                           icon = icon('save'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom: 25px")
+            )
+          ),
           
           ###### UI: Visualize Pedgiree ####
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
@@ -3239,6 +3247,38 @@ server <- function(input, output, session) {
   }, ignoreInit = T)
   
   #### Edit Pedigree ####
+  # manually save the pedigree, useful for pre-logout save and to update the pedigree viewers
+  # with information just entered on an editor tab without requiring the user to change tabs
+  observeEvent(input$manualPedSave, {
+    if(!is.null(PED())){
+      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
+                           cr = canReactive$canNums,
+                           sr = surgReactive$lst,
+                           gr = geneReactive$GeneNums,
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+      )
+      
+      # if tab is switched prior to pedigree being visualized, when the parent's
+      # race/eth/anc cannot be individually set, assume those values from the proband
+      if(input$pedTabs == "Demographics" & !showPed() & newOrLoadFlag() == "new"){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
+      }
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
+      # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+    }
+  }, ignoreInit = TRUE)
+  
   ##### Demographics / Create Pedigree ####
   # user confirms proband is deceased
   observeEvent(list(input$isDead, PED()), {
@@ -4668,6 +4708,37 @@ server <- function(input, output, session) {
     contentType = "application/zip"
   )
   
+  # Save data to pedigree when navbarTabs change or one of the viewer tabs in the editor
+  observeEvent(list(input$navbarTabs), {
+    if(!is.null(PED())){
+      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
+                           cr = canReactive$canNums,
+                           sr = surgReactive$lst,
+                           gr = geneReactive$GeneNums,
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+      )
+      
+      # if tab is switched prior to pedigree being visualized, when the parent's
+      # race/eth/anc cannot be individually set, assume those values from the proband
+      if(input$pedTabs == "Demographics" & !showPed() & newOrLoadFlag() == "new"){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
+      }
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
+      # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+    }
+  }, ignoreInit = TRUE)
+  
   ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband
   lastRel <- reactiveVal(1)
@@ -4820,8 +4891,8 @@ server <- function(input, output, session) {
     }
   }, ignoreNULL = F)
   
-  # Save data to pedigree when navbarTabs change
-  observeEvent(input$navbarTabs, {
+  # Save data to pedigree when one of the viewer tabs in the editor
+  observeEvent(input$pedVisualsEditor, {
     if(!is.null(PED())){
       PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
                            cr = canReactive$canNums,
@@ -4846,7 +4917,6 @@ server <- function(input, output, session) {
       # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
-      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
   }, ignoreInit = TRUE)
@@ -4961,27 +5031,27 @@ server <- function(input, output, session) {
       if(is.na(input$maxMut)){
         maxMut <- 2
       } else {
-        maxMut <- input$maxMut
+        maxMut <- as.numeric(input$maxMut)
       }
       if(is.na(input$ageBy)){
-        ageBy <- formals(PanelPRO::PanelPRO)$age.by
+        ageBy <- as.numeric(formals(PanelPRO::PanelPRO)$age.by)
       } else {
-        ageBy <- input$ageBy
+        ageBy <- as.numeric(input$ageBy)
       }
       if(is.na(input$missAgeIters)){
-        missAgeIters <- formals(PanelPRO::PanelPRO)$iterations
+        missAgeIters <- as.numeric(formals(PanelPRO::PanelPRO)$iterations)
       } else {
-        missAgeIters <- input$missAgeIters
+        missAgeIters <- as.numeric(input$missAgeIters)
       }
       if(is.na(input$missAgeMaxIters)){
-        missAgeMaxIters <- formals(PanelPRO::PanelPRO)$max.iter.tries * 5
+        missAgeMaxIters <- as.numeric(formals(PanelPRO::PanelPRO)$max.iter.tries) * 5
       } else {
-        missAgeMaxIters <- input$missAgeMaxIters
+        missAgeMaxIters <- as.numeric(input$missAgeMaxIters)
       }
       if(is.na(input$randomSeed)){
-        randomSeed <- formals(PanelPRO::PanelPRO)$random.seed
+        randomSeed <- as.numeric(formals(PanelPRO::PanelPRO)$random.seed)
       } else {
-        randomSeed <- input$randomSeed
+        randomSeed <- as.numeric(input$randomSeed)
       }
       
       # convert net vs crude future risk to logical indicating whether net should be returned
@@ -5001,7 +5071,7 @@ server <- function(input, output, session) {
           model_spec = input$modelSpec,
           genes = input$genes,
           cancers = input$cancers,
-          max.mut = input$maxMut,
+          max.mut = maxMut,
           age.by = ageBy,
           unknown.race = input$unknownRace,
           unknown.ancestry = input$unknownAncestry,
@@ -5013,108 +5083,109 @@ server <- function(input, output, session) {
           net = net.logical
         )
       
+      # get the proband
+      pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
+      
+      # settings table
+      settings <- c("PedigreeID" = "pedigree",
+                    "Proband ID" = "proband",
+                    "Model Spec" = "model_spec",
+                    "Num. Cancers" = NA,
+                    "Cancers" = "cancers",
+                    "Num. Genes" = NA,
+                    "Genes" = "genes",
+                    "Max. Mutations" = "max.mut",
+                    "Future Risk Year Interval" = "age.by",
+                    "Assume Missing Race As" = "unknown.race",
+                    "Assume Missing Ancestry As" = "unknown.ancestry",
+                    "Allow surgical interventions?" = "allow.intervention",
+                    "Ignore Proband's germline testing results?" = "ignore.proband.germ",
+                    "Imputation iterations"= "iterations",
+                    "Max. iteration tries" = "max.iter.tries",
+                    "Random seed for imputing missing ages" = "random.seed",
+                    "Provide net, instead of crude, future risk estimates?" = "net")
+      settingsTbl <- data.frame(Setting = names(settings),
+                                Argument = unname(settings),
+                                Value = rep(NA, length(settings)))
+      settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
+      settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
+      if(input$modelSpec != "Custom"){
+        settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- input$modelSpec
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
+          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
+          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
+          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES)
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
+          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
+      } else {
+        settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- NA
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
+          length(input$cancers)
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
+          paste0(input$cancers, collapse = ", ")
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
+          length(input$genes)
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
+          paste0(input$genes, collapse = ", ")
+      }
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- maxMut
+      settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- ageBy
+      settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Race As")] <- input$unknownRace
+      settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Ancestry As")] <- input$unknownAncestry
+      settingsTbl$Value[which(settingsTbl$Setting == "Allow surgical interventions?")] <- input$allowInter
+      settingsTbl$Value[which(settingsTbl$Setting == "Ignore Proband's germline testing results?")] <- input$ignorePbGerm
+      settingsTbl$Value[which(settingsTbl$Setting == "Imputation iterations")] <- missAgeIters
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. iteration tries")] <- missAgeMaxIters
+      settingsTbl$Value[which(settingsTbl$Setting == "Random seed for imputing missing ages")] <- randomSeed
+      settingsTbl$Value[which(settingsTbl$Setting == "Provide net, instead of crude, future risk estimates?")] <- net.logical
+      
+      # use PanelPRO defaults to populate the remainder of the table
+      def.vals <- formals(PanelPRO::PanelPRO)
+      for(st in settings[which(!is.na(settings))]){
+        def.vals[[st]] <- NULL
+      }
+      add.settings <- data.frame(Setting = rep(NA, length(def.vals)),
+                                 Argument = names(def.vals),
+                                 Value = rep(NA, length(def.vals)))
+      def.setting.names <- c("Impute missing ages?" = "impute.missing.ages",
+                             "Remove missing cancers from the model?" = "remove.miss.cancers",
+                             "Database" = "database",
+                             "Parallelize age imputation?" = "parallel",
+                             "Provide debugging messages?" = "debug",
+                             "Use BRCAPRO+BCRAT model?" = "plusBCRAT",
+                             "Data frame of BCRAT covariates" = "bcrat.vars",
+                             "Data frame of BCRAT relative risks" = "rr.bcrat",
+                             "Data frame of race-specific relative risks" = "rr.pop")
+      for(ln in names(def.vals)){
+        if(is.null(def.vals[[ln]])){
+          tmp.val <- "NULL"
+        } else if(is.symbol(def.vals[[ln]])){
+          tmp.val <- rlang::as_string(def.vals[[ln]])
+        } else if(ln == "remove.miss.cancers"){
+          tmp.val <- "Default is TRUE but not applicable when run on PPI."
+        } else {
+          tmp.val <- def.vals[[ln]]
+        }
+        add.settings$Value[which(add.settings$Argument == ln)] <- tmp.val
+        add.settings$Setting[which(add.settings$Argument == ln)] <-
+          names(def.setting.names)[which(def.setting.names == ln)]
+      }
+      
+      # combine user specified settings and PanelPRO default settings
+      tmp.tbl <- rbind(settingsTbl, add.settings)
+      allow.age.impute.row <- which(tmp.tbl$Argument == "impute.missing.ages")
+      iterations.row <- which(tmp.tbl$Argument == "iterations")
+      tmp.tbl <- tmp.tbl[c(1:(iterations.row-1),
+                           allow.age.impute.row,
+                           iterations.row:(allow.age.impute.row-1),
+                           (allow.age.impute.row+1):nrow(tmp.tbl)),]
+      ppReactive$settingsTbl <- tmp.tbl
+      
+      ## create tables and graphs from results
       # only execute if the result was not an error
       if(!is.null(out)){
-        
-        # get the proband
-        pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
-        
-        # settings table
-        settings <- c("PedigreeID" = "pedigree",
-                      "Proband ID" = "proband",
-                      "Model Spec" = "model_spec",
-                      "Num. Cancers" = NA,
-                      "Cancers" = "cancers",
-                      "Num. Genes" = NA,
-                      "Genes" = "genes",
-                      "Max. Mutations" = "max.mut",
-                      "Future Risk Year Interval" = "age.by",
-                      "Assume Missing Race As" = "unknown.race",
-                      "Assume Missing Ancestry As" = "unknown.ancestry",
-                      "Allow surgical interventions?" = "allow.intervention",
-                      "Ignore Proband's germline testing results?" = "ignore.proband.germ",
-                      "Imputation iterations"= "iterations",
-                      "Max. iteration tries" = "max.iter.tries",
-                      "Random seed for imputing missing ages" = "random.seed",
-                      "Provide net, instead of crude, future risk estimates?" = "net")
-        settingsTbl <- data.frame(Setting = names(settings),
-                                  Argument = unname(settings),
-                                  Value = rep(NA, length(settings)))
-        settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
-        settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
-        if(input$modelSpec != "Custom"){
-          settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- input$modelSpec
-          settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
-            length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
-          settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
-            paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
-          settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
-            length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES)
-          settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
-            paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
-        } else {
-          settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- NA
-          settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
-            length(input$cancers)
-          settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
-            paste0(input$cancers, collapse = ", ")
-          settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
-            length(input$genes)
-          settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
-            paste0(input$genes, collapse = ", ")
-        }
-        settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- maxMut
-        settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- ageBy
-        settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Race As")] <- input$unknownRace
-        settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Ancestry As")] <- input$unknownAncestry
-        settingsTbl$Value[which(settingsTbl$Setting == "Allow surgical interventions?")] <- input$allowInter
-        settingsTbl$Value[which(settingsTbl$Setting == "Ignore Proband's germline testing results?")] <- input$ignorePbGerm
-        settingsTbl$Value[which(settingsTbl$Setting == "Imputation iterations")] <- missAgeIters
-        settingsTbl$Value[which(settingsTbl$Setting == "Max. iteration tries")] <- missAgeMaxIters
-        settingsTbl$Value[which(settingsTbl$Setting == "Random seed for imputing missing ages")] <- randomSeed
-        settingsTbl$Value[which(settingsTbl$Setting == "Provide net, instead of crude, future risk estimates?")] <- net.logical
-        
-        # use PanelPRO defaults to populate the remainder of the table
-        def.vals <- formals(PanelPRO::PanelPRO)
-        for(st in settings[which(!is.na(settings))]){
-          def.vals[[st]] <- NULL
-        }
-        add.settings <- data.frame(Setting = rep(NA, length(def.vals)),
-                                   Argument = names(def.vals),
-                                   Value = rep(NA, length(def.vals)))
-        def.setting.names <- c("Impute missing ages?" = "impute.missing.ages",
-                               "Remove missing cancers from the model?" = "remove.miss.cancers",
-                               "Database" = "database",
-                               "Parallelize age imputation?" = "parallel",
-                               "Provide debugging messages?" = "debug",
-                               "Use BRCAPRO+BCRAT model?" = "plusBCRAT",
-                               "Data frame of BCRAT covariates" = "bcrat.vars",
-                               "Data frame of BCRAT relative risks" = "rr.bcrat",
-                               "Data frame of race-specific relative risks" = "rr.pop")
-        for(ln in names(def.vals)){
-          if(is.null(def.vals[[ln]])){
-            tmp.val <- "NULL"
-          } else if(is.symbol(def.vals[[ln]])){
-            tmp.val <- rlang::as_string(def.vals[[ln]])
-          } else if(ln == "remove.miss.cancers"){
-            tmp.val <- "Default is TRUE but not applicable when run on PPI."
-          } else {
-            tmp.val <- def.vals[[ln]]
-          }
-          add.settings$Value[which(add.settings$Argument == ln)] <- tmp.val
-          add.settings$Setting[which(add.settings$Argument == ln)] <-
-            names(def.setting.names)[which(def.setting.names == ln)]
-        }
-        
-        # combine user specified settings and PanelPRO default settings
-        tmp.tbl <- rbind(settingsTbl, add.settings)
-        allow.age.impute.row <- which(tmp.tbl$Argument == "impute.missing.ages")
-        iterations.row <- which(tmp.tbl$Argument == "iterations")
-        tmp.tbl <- tmp.tbl[c(1:(iterations.row-1),
-                             allow.age.impute.row,
-                             iterations.row:(allow.age.impute.row-1),
-                             (allow.age.impute.row+1):nrow(tmp.tbl)),]
-        ppReactive$settingsTbl <- tmp.tbl
         
         ## table of posterior probabilities
         if(class(out$posterior.prob[[pb]]) == "data.frame"){
@@ -5142,7 +5213,7 @@ server <- function(input, output, session) {
                all(is.na(prob.anyPVdf$upper)))){
             pred.mat <- NULL
             for(gn in unique(prob.anyPVdf$genes)){
-              g.preds <- runif(n = input$missAgeIters, 
+              g.preds <- runif(n = missAgeIters, 
                                min = prob.anyPVdf$lower[which(prob.anyPVdf$genes == gn)],
                                max = prob.anyPVdf$upper[which(prob.anyPVdf$genes == gn)])
               if(is.null(pred.mat)){
@@ -5154,7 +5225,7 @@ server <- function(input, output, session) {
             any.preds <- apply(pred.mat, 1, sum, simplify = T)
             cpTbl$lower[nrow(cpTbl)] <- min(any.preds, na.rm = T)
             cpTbl$upper[nrow(cpTbl)] <- max(any.preds, na.rm = T)
-          } 
+          }
           
           ## format table
           cpTbl <-
@@ -5282,7 +5353,7 @@ server <- function(input, output, session) {
                                sex = PED()$Sex[which(PED()$isProband == 1)],
                                cur.age = PED()$CurAge[which(PED()$isProband == 1)],
                                net = net.logical,
-                               missAgeIters = input$missAgeIters)
+                               missAgeIters = missAgeIters)
         
         ## carrier prob plots
         if(class(out$posterior.prob[[pb]]) == "data.frame"){
@@ -5319,7 +5390,25 @@ server <- function(input, output, session) {
         ## combined prob and cancer risk plot
         ppReactive$cpAndfrPlots <- vr.plots$both
         
-      } # end of if statement to confirm PanelPRO output was not an error
+        # end of if statement to confirm PanelPRO output was not an error
+      } else {
+        cpTbl <- NULL
+        frTbl <- NULL
+        cpTblDF <- NULL
+        frTblDF <- NULL
+        cpPlotZoom <- NULL
+        cpPlotFull <- NULL
+        frPlotZoom <- NULL
+        frPlotFull <- NULL
+        comparisonPlot <- NULL
+        grows <- NULL
+        gcols <- NULL
+        cpAndfrPlots <- NULL
+        cpPlotStaticZoom <- NULL
+        cpPlotStaticFull <- NULL
+        frPlotStaticZoom <- NULL
+        frPlotStaticFull <- NULL
+      }
     } # end of if statement to check if pedigree was present
   }, ignoreNULL = F, ignoreInit = T)
   

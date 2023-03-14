@@ -605,6 +605,21 @@ popPersonData <- function(tmp.ped,
       } # end of if statement for if there were PanelPRO genes in the panel
     } # end of if statement for if a panel was selected
   } # end of section for adding gene information to the pedigree
+  
+  # ensure numeric column data types are correct
+  tmp.ped <-
+    tmp.ped %>%
+    mutate(across(.cols = c(ID, Twins, Sex, MotherID, FatherID,
+                            isProband, CurAge, isDead, NPPAJ, NPPIt,
+                            starts_with("riskmod"), starts_with("interAge"),
+                            starts_with("isAff"), starts_with("Age"),
+                            AntiEstrogen, HRPreneoplasia), 
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                   PanelPRO:::MARKER_TESTING$COL$MARKERS,
+                                   PanelPRO:::GENE_TYPES)),
+                  ~as.numeric(.)))
+  
   return(tmp.ped)
 }
 
