@@ -4,6 +4,7 @@
 library(shiny)
 library(shinyBS)    # shiny tool tips
 library(shinyjs)    # java script tools
+library(shinybusy)  # success notifications and waiting on calc spinner
 
 # pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
@@ -23,16 +24,24 @@ library(httr)       # authentication for gmail
 library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
-library(stringi)    # stri_trans_totitle
+library(stringi)    # convert to title case function: stri_trans_totitle()
 
 # html
 library(htmltools)  # formatting text
 
 # tables
-library(DT)
+library(DT)         # displays data tables
 
 # download
-library(zip)
+library(zip)        # create .zip files for download
+
+# plotting
+library(grid)
+library(gridExtra)  # combine plots as a grob
+library(plotly)
+
+# access function doc string
+library(gbRd)
 
 #### UI 
 ui <- fixedPage(
@@ -46,6 +55,15 @@ ui <- fixedPage(
   # adjust all tab's padding for all tabSetPanels
   tags$style(HTML(".tabbable > .nav > li > a {padding:5px;}")),
   
+  # ensure modal dialog box expands to fit all content
+  tags$style(
+    type = 'text/css',
+    '.modal-dialog { width: fit-content !important; }'
+  ),
+  
+  # server busy spinner
+  shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
+  
   # title and log-out button
   titlePanel(
     title = 
@@ -55,8 +73,7 @@ ui <- fixedPage(
           div(class = "pull-right", 
             img(src="dana-farber-logo-small-2.PNG", height = "50px"),
             shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), style = "padding:5px")
-          ),
-          
+          )
         )
       ),
     windowTitle = "PPI: PanelPRO Interface"
@@ -209,9 +226,7 @@ ui <- fixedPage(
         
         h4("Beta Version"),
         p("This website is a beta version that is still in development and we are working towards adding more 
-          features. For the time being, you can use this site to create, store, view, download, and delete 
-          pedigrees however, users cannot run PanelPRO on those pedigrees yet. We hope to add this capability soon."),
-        p("If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
+          features. If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
           at the bottom of the page."),
         br(),
         
@@ -221,7 +236,7 @@ ui <- fixedPage(
           download one or more pedigrees in .csv or .rds format."),
         p("To run PanelPRO, you will first either need to create a new pedigree or load an 
           existing one which you previously saved to your account. Once you do either of these 
-          actions you will have access to the 'Create/Modify Pedigree' and the 'Run PanelPRO' pages."),
+          actions you will have access to the 'Create/Modify Pedigree' and the 'PanelPRO' pages."),
         p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
         p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
           to your user account and you can come back at any time to modify your saved pedigrees 
@@ -250,8 +265,15 @@ ui <- fixedPage(
         h4("Support and Contact Information"),
         p("Please direct all questions to your study or site PI."),
         p("If you find any bugs, have suggestions to improve the website, or are interested in 
-          working with us, please email us at: hereditarycancer AT ds.dfci.harvard DOT edu")
+          working with us, please email us at: hereditarycancer AT ds.dfci.harvard DOT edu"),
+        br(),
         
+        h4("Terms and Conditions"),
+        div(style = "margin-left:5px",
+          actionButton("terms", label = "Terms and Conditions",
+                       icon = icon('book'),
+                       style = "color: white; background-color: #10699B; border-color: #10699B;margin-top:5px")
+        )
       ), # end of tab
       
       ##### UI: Manage Pedigrees ####
@@ -262,7 +284,7 @@ ui <- fixedPage(
           ###### UI: Create or Load Pedigree ####
           tabPanel("Create or Load",
             h4("Create New or Load Existing Pedigree"),
-            p(strong("The currently loaded pedigree name/ID is: "), 
+            p(strong("Working pedigree: "), 
               textOutput("currentPed1", inline = T), 
               style = "font-size:17px"),
             p("To get started, you will either need to create a new pedigree using our 
@@ -280,7 +302,7 @@ ui <- fixedPage(
                             choices = c(""))
               ),
                
-              # if there are not pedgirees to load, tell the user
+              # if there are not pedigrees to load, tell the user
               conditionalPanel(condition = "output.showTblExistsError",
                 p("You do not have any saved pedigrees.", style = "color: red;")
               ),
@@ -311,7 +333,7 @@ ui <- fixedPage(
           ###### UI: Preview Pedigree ####
           tabPanel("Preview",
             h4("Preview Current Pedigree"),
-            p(strong("The currently loaded pedigree name/ID is: "), 
+            p(strong("Working pedigree: "), 
               textOutput("currentPed2", inline = T), 
               style = "font-size:17px"),
             p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
@@ -331,7 +353,7 @@ ui <- fixedPage(
               # cancer hx
               tabPanel(title = "Cancers",
                 br(),
-                DTOutput("cancersTblViewer")
+                DTOutput("cancersTblViewer", width = "75%")
               ),
               
               # genes
@@ -398,8 +420,8 @@ ui <- fixedPage(
           tabPanel("Download",
             h4("Download Pedigrees"),
             p("You can download one or more pedigrees in a single .zip file by selecting them below. 
-              The .zip file will include two directories (or folders): 'download-data' and 'data-dictionary'. 
-              'download-data' will include three files: 1) the selected pedigrees, 
+              The .zip file will include two directories (or folders): 'download-pedigrees' and 'data-dictionary'. 
+              'download-pedigrees' will include three files: 1) the selected pedigrees, 
               2) detailed cancer history (extracted from the cancerJSON column in the pedigrees file)
               and 3) detailed panel and gene results (extracted from the genesJSON column in the pedigree file). 
               'data-dictionary' will include 3 more files: 1) a description of the each pedigree column, 
@@ -483,6 +505,15 @@ ui <- fixedPage(
         
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
+          
+          # manual save button
+          conditionalPanel("output.pedExists",
+            div(class = "pull-right", 
+              actionButton("manualPedSave", label = "Force Save Pedigree",
+                           icon = icon('save'),
+                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom: 25px")
+            )
+          ),
           
           ###### UI: Visualize Pedgiree ####
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
@@ -995,9 +1026,10 @@ ui <- fixedPage(
               ###### UI: Num/Type Rels ####
               tabPanel("Add Relatives",
                 h3("Number and Types of Relatives"),
-                p("Begin creating the proband's pedigree by entering the number of 
-                  each relative type below. Relative types not listed on this screen 
-                  can be added later on."),
+                p("Begin creating the proband's pedigree by entering the number of each relative type below. 
+                  The proband's mother and father will be added to the pedigree automatically. 
+                  If aunts or uncles are added on this screen, the proband's grandparents will also be added to the pedigree automatically.
+                  Relative types not listed on this screen can be added later on."),
                 
                 fluidRow(
                   column(width = 6,
@@ -1101,11 +1133,266 @@ ui <- fixedPage(
         ) # end of fluidRow for create/modify pedigree tab
       ), # end of tab for create/modify pedigree
       
-      ##### UI: Run PanelPRO ####
-      tabPanel("Run PanelPRO",
-        h3("Run PanelPRO"),
-        p("Sorry, this feature is not currently available but we are working on it.")
-      ), # end of PanelPRO tab
+      ##### UI: PanelPRO ####
+      tabPanel("PanelPRO",
+        h3("PanelPRO", style = "margin-bottom:0px"),
+        
+        # PanelPRO version
+        div(textOutput("ppVersion"), style = "margin-left:10px"),
+        
+        # show the current pedigree
+        p(strong("Working pedigree: "), 
+          textOutput("currentPed3", inline = T), 
+          style = "font-size:17px;margin-top:5px"),
+        
+        # split into settings and results tabs
+        tabsetPanel(id = "panelproTabs",
+          
+          ###### UI: Run / Settings ####
+          tabPanel(title = "Run PanelPRO",
+            h4("Instructions"),
+            p("Specify the model parameters below then hit the 'Run PanelPRO' button at the bottom of the page. For more information on the parameters click on the 
+              'Show PanelPRO Documentation' button."),
+            
+            # show panelpro doc string
+            actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
+                         icon = icon('book'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px"),
+            
+            # basic settings
+            h4("Basic Settings"),
+            
+            # model_spec
+            h5("Model Specification ('model_spec'):"),
+            selectInput("modelSpec", label = NULL, 
+                        selected = formals(PanelPRO::PanelPRO)$model_spec,
+                        choices = c("Custom", names(PanelPRO:::MODELPARAMS)),
+                        width = "150px"),
+            
+            # show genes and cancer for a pre-specified model
+            conditionalPanel("input.modelSpec != 'Custom'",
+              h5("This model specification includes:", style = "margin-left:15px;margin-top:0px"),
+              div(style = "margin-left:25px;margin-top:10px",
+                textOutput("modSpecCancers")
+              ),
+              div(style = "margin-left:25px;margin-top:10px",
+                textOutput("modSpecGenes")
+              )
+            ),
+            
+            # let user select genes and cancers for a custom model
+            conditionalPanel("input.modelSpec == 'Custom'",
+              div(style = "margin-left:25px",
+                  
+                #  genes
+                h5("Custom Gene List ('genes'):"),
+                selectInput("genes", label = NULL,
+                            choices = PanelPRO:::GENE_TYPES,
+                            multiple = T,
+                            width = "400px"),
+                div(style = "margin-left:25px;margin-top:-10px",
+                  checkboxInput("allGenes", label = "Select all genes",
+                                value = F)
+                ),
+                
+                # cancers
+                h5("Custom Cancer List ('cancers'):"),
+                selectInput("cancers", label = NULL,
+                            choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                            multiple = T,
+                            width = "400px"),
+                div(style = "margin-left:25px;margin-top:-10px",
+                  checkboxInput("allCancers", label = "Select all cancers",
+                                value = F)
+                )
+              )
+            ),
+            
+            # max.mut
+            h5("Maximum simultaneous mutations allowed per individual ('max.mut'):"),
+            selectInput("maxMut", label = NULL,
+                        choices = c("1","2","3"),
+                        selected = "2",
+                        width = "150px"),
+            
+            # age.by
+            h5("Year interval for future cancer risk (1 to 10) ('age.by'):"),
+            numericInput("ageBy", label = NULL,
+                         min = 1, max = 10, step = 1, 
+                         value = formals(PanelPRO::PanelPRO)$age.by,
+                         width = "150px"),
+            textOutput("validYearInterval"),
+            tags$head(tags$style("#validYearInterval{color: red;}")),
+            br(),
+            
+            # advanced settings
+            bsCollapse(id = "PanelPROAdvanced",
+              bsCollapsePanel(title = "Advanced Settings", 
+                              
+                # not currently supported (default values used): 
+                # proband, remove.miss.cancers, parallel, debug, 
+                # impute.missing.ages, database, 
+                # plusBCRAT, bcrat.vars, rr.bcrat, rr.pop
+                
+                # unknown.race
+                h5("Assume all unknown races to be ('unknown.race'):"),
+                selectInput("unknownRace", label = NULL,
+                            selected = PanelPRO:::UNKNOWN_RACE,
+                            choices = PanelPRO:::RACE_TYPES,
+                            width = "150px"),
+                
+                # unknown.ancestry
+                h5("Assume all unknown ancestries to be ('unknown.ancestry'):"),
+                selectInput("unknownAncestry", label = NULL,
+                            selected = PanelPRO:::UNKNOWN_ANCESTRY,
+                            choices = PanelPRO:::ANCESTRY_TYPES,
+                            width = "150px"),
+                
+                # allow.intervention
+                h5("Should cancer prevention risk modifiers be considered ('allow.intervention')?"),
+                div(style = "margin-left:25px",
+                  checkboxInput("allowInter", label = "Allow Interventions", 
+                                value = formals(PanelPRO::PanelPRO)$allow.intervention)
+                ),
+                
+                # ignore.proband.germ
+                h5("Should the proband's germline testing results be ignored ('ignore.proband.germ')?"),
+                div(style = "margin-left:25px",
+                  checkboxInput("ignorePbGerm", label = "Ignore Germline Results", 
+                                value = formals(PanelPRO::PanelPRO)$ignore.proband.germ)
+                ),
+                
+                # iterations
+                h5("The number of iterations to be run when multiply imputing missing ages (1 to 100; excludes failed iterations; 'iterations'):"),
+                numericInput("missAgeIters", label = NULL, 
+                             min = 1, max = 100, step = 1, 
+                             value = formals(PanelPRO::PanelPRO)$iterations,
+                             width = "150px"),
+                
+                # max.iter.tries
+                h5("The maximum number of iterations, including failed iterations, to be run when multiply imputing missing ages (1 to 500; 'max.iter.tries'):"),
+                numericInput("missAgeMaxIters", label = NULL, 
+                             min = 1, max = 500, step = 1, 
+                             value = formals(PanelPRO::PanelPRO)$iterations * 5,
+                             width = "150px"),
+                
+                # random.seed
+                h5("Random seed for age imputation: (>0; 'random.seed')"),
+                numericInput("randomSeed", label = NULL,
+                             min = 1, max = NA, step = 1,
+                             value = formals(PanelPRO::PanelPRO)$random.seed,
+                             width = "150px"),
+                
+                # net
+                h5("Return net or crude future risk estimates ('net')?",
+                   style = "margin-bottom: 20px"),
+                div(style = "margin-left:25px",
+                  radioButtons("netOrCrude", label = NULL,
+                               selected = "Crude",
+                               choices = c("Crude", "Net"))
+                ),
+                
+                # reset settings to defaults
+                h5("Reset all settings to PanelPRO default values"),
+                actionButton("resetPanelPROInputs", label = "Reset to Defaults",
+                             icon = icon('undo'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px")
+              )
+            ),
+            
+            # RUN MODEL
+            br(),
+            actionButton("runPP", label = "Run PanelPRO",
+                         icon = icon('play'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B")
+            
+          ), # end of "Run" tab for PanelPRO
+          
+          ###### UI: Results ####
+          tabPanel(title = "PanelPRO Results",
+            
+            # top row for instructions and download button
+            fluidRow(div(style = "margin-top:10px",
+              column(width = 8,
+                p("View the results in one of the tabs below or download them using the 'Download Results' button.")
+              ),
+              column(width = 4, align = "right",
+                actionButton("downloadResults1", label = "Download Results",
+                             icon = icon('download'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px")
+              )
+            )),
+            
+            tabsetPanel(id = "ppResultTabs",
+              
+              ## Carrier Probs
+              # plot
+              tabPanel(title = "Carrier Prob. Plot",
+                h4("Posterior Carrier Probabilities"),
+                radioButtons("ppCPPlotView", label = "Select a Y-axis Scale:",
+                             choices = c("Full (0 to 1)", "Zoomed"),
+                             inline = T),
+                conditionalPanel(condition = "input.ppCPPlotView == 'Zoomed'",
+                  plotly::plotlyOutput("ppCPPlotZoom", width = "1000px", height = "500px")
+                ),
+                conditionalPanel(condition = "input.ppCPPlotView != 'Zoomed'",
+                  plotly::plotlyOutput("ppCPPlotFull", width = "1000px", height = "500px")
+                )
+              ),
+              
+              # table
+              tabPanel(title = "Carrier Prob. Table",
+                h4("Posterior Carrier Probabilities"),
+                DT::DTOutput("ppCPTbl", width = "500px")
+              ),
+              
+              ## Cancer Risk
+              # plot
+              tabPanel(title = "Cancer Risk Plots",
+                h4("Future Cancer Risk"),
+                radioButtons("ppFRPlotView1", label = "Select a plot type:",
+                             choices = c("Standard", "Zoomed Y-axis", "Compare risks to an average person"),
+                             inline = F),
+                conditionalPanel(condition = "input.ppFRPlotView1 == 'Zoomed Y-axis'",
+                  plotly::plotlyOutput("ppFRPlotZoom", width = "1000px", height = "750px")
+                ),
+                conditionalPanel(condition = "input.ppFRPlotView1 == 'Standard'",
+                  plotly::plotlyOutput("ppFRPlotFull", width = "1000px", height = "750px")
+                ),
+                conditionalPanel(condition = "input.ppFRPlotView1 == 'Compare risks to an average person'",
+                  uiOutput("comparisonPlotH")
+                )
+              ),
+              
+              # table
+              tabPanel(title = "Cancer Risk Table",
+                h4("Future Cancer Risk"),
+                DT::DTOutput("ppFRTbl", width = "450px")
+              ),
+              
+              ## Settings
+              tabPanel(title = "Run Settings",
+                h4("Run Settings"),
+                p("The PanelPRO results were obtained using the setting listed below. For a detailed explanation of 
+                  the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
+                tableOutput("ppRunSettings"),
+                actionButton("showPPDocString2", label = "Show PanelPRO Documentation",
+                             icon = icon('book'),
+                             style = "color: white; background-color: #10699B; border-color: #10699B")
+              ),
+              
+              ## Console Output
+              tabPanel(title = "Console Output",
+                h4("PanelPRO Function R Console Output"),
+                tags$div(
+                  id = "ppMessageContainer",
+                  style = "width:100%"
+                ),
+              )
+            ) # end of ppResultTabs tabsetPanel
+          ) # end of PanelPRO Results Tab in panelproTabs tabsetPanel
+        ) # end of panelproTabs tabsetPanel
+      ), # end of PanelPRO tab in navbarTabs
       
       ##### UI: My Account ####
       tabPanel("My Account",
@@ -1405,7 +1692,11 @@ server <- function(input, output, session) {
                         user = input$newUsername,
                         tmp_tbl = example_pedigree)
       
-      shinyjs::refresh()
+      # notify user of successful account creation
+      shinybusy::notify_success("Account Created!", position = "center-bottom")
+      
+      # refresh app and take them to log-in screen
+      shinyjs::delay(ms = 3000, shinyjs::refresh())
       
       # problem with proposed credentials
     } else {
@@ -1740,6 +2031,15 @@ server <- function(input, output, session) {
   
   # text for preview screen
   output$currentPed2 <- renderText({ 
+    if(!is.null(currentPed())){
+      return(currentPed())
+    } else {
+      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+    }
+  })
+  
+  # text for panelpro screen
+  output$currentPed3 <- renderText({ 
     if(!is.null(currentPed())){
       return(currentPed())
     } else {
@@ -2292,11 +2592,18 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "panelproTabs", selected = "Run PanelPRO")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
     
     # take user to the pedigree editor if they chose the create new option
     if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
+    }
+    
+    # notify user of load success
+    if(input$newOrLoad == "Load existing"){
+      shinybusy::notify_success("Load Successful!", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -2469,6 +2776,9 @@ server <- function(input, output, session) {
       
       # reset pedigree name input
       updateTextInput(session, "newPedName", value = "")
+      
+      # notify user of copy success
+      shinybusy::notify_success("Copy Successful!", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -2708,28 +3018,28 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(downloadPedsTable(), file = "download-data/pedigrees.csv", row.names = F)
-      write.csv(downloadCanDetails(), file = "download-data/cancer-details.csv", row.names = F)
-      write.csv(downloadPanelDetails(), file = "download-data/panel-details.csv", row.names = F)
+      write.csv(downloadPedsTable(), file = "download-pedigrees/pedigrees.csv", row.names = F)
+      write.csv(downloadCanDetails(), file = "download-pedigrees/cancer-details.csv", row.names = F)
+      write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
-      tmp.zip <- 
-        zip::zip(zipfile = file, 
-                 files = c("download-data/pedigrees.csv",
-                           "download-data/cancer-details.csv",
-                           "download-data/panel-details.csv",
-                           "data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
-      
-      # remove the created files
-      file.remove(c(
-        "download-data/pedigrees.csv",
-        "download-data/cancer-details.csv",
-        "download-data/panel-details.csv",
+      new.files <- c(
+        "download-pedigrees/pedigrees.csv",
+        "download-pedigrees/cancer-details.csv",
+        "download-pedigrees/panel-details.csv",
         "data-dictionary/panelpro-cancer-abbreviations.csv",
         "data-dictionary/panelpro-gene-list.csv"
-      ))
+      )
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/README.md",
+                           "download-pedigrees/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -2745,31 +3055,30 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .rds files and zip them together
-      saveRDS(downloadPedsTable(), file = "download-data/pedigrees.rds")
-      saveRDS(downloadCanDetails(), file = "download-data/cancer-details.rds")
-      saveRDS(downloadPanelDetails(), file = "download-data/panel-details.rds")
+      saveRDS(downloadPedsTable(), file = "download-pedigrees/pedigrees.rds")
+      saveRDS(downloadCanDetails(), file = "download-pedigrees/cancer-details.rds")
+      saveRDS(downloadPanelDetails(), file = "download-pedigrees/panel-details.rds")
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
       saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
       saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
-      tmp.zip <- 
-        zip::zip(zipfile = file, 
-                 files = c("download-data/pedigrees.rds",
-                           "download-data/cancer-details.rds",
-                           "download-data/panel-details.rds",
-                           "data-dictionary/columns-and-codings-dictionary.rds",
-                           "data-dictionary/panelpro-cancer-abbreviations.rds",
-                           "data-dictionary/panelpro-gene-list.rds"))
-      
-      # remove the created files
-      file.remove(c(
-        "download-data/pedigrees.rds",
-        "download-data/cancer-details.rds",
-        "download-data/panel-details.rds",
+      new.files <- c(
+        "download-pedigrees/pedigrees.rds",
+        "download-pedigrees/cancer-details.rds",
+        "download-pedigrees/panel-details.rds",
         "data-dictionary/columns-and-codings-dictionary.rds",
         "data-dictionary/panelpro-cancer-abbreviations.rds",
         "data-dictionary/panelpro-gene-list.rds"
-      ))
+      )
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/README.md",
+                           "download-pedigrees/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -2932,9 +3241,44 @@ server <- function(input, output, session) {
     # remove the confirmation pop-up window
     removeModal()
     
+    # notify user of delete success
+    shinybusy::notify_success("Deletion Successful!", position = "center-bottom")
+    
   }, ignoreInit = T)
   
   #### Edit Pedigree ####
+  # manually save the pedigree, useful for pre-logout save and to update the pedigree viewers
+  # with information just entered on an editor tab without requiring the user to change tabs
+  observeEvent(input$manualPedSave, {
+    if(!is.null(PED())){
+      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
+                           cr = canReactive$canNums,
+                           sr = surgReactive$lst,
+                           gr = geneReactive$GeneNums,
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+      )
+      
+      # if tab is switched prior to pedigree being visualized, when the parent's
+      # race/eth/anc cannot be individually set, assume those values from the proband
+      if(input$pedTabs == "Demographics" & !showPed() & newOrLoadFlag() == "new"){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
+      }
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
+      # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+    }
+  }, ignoreInit = TRUE)
+  
   ##### Demographics / Create Pedigree ####
   # user confirms proband is deceased
   observeEvent(list(input$isDead, PED()), {
@@ -4216,7 +4560,9 @@ server <- function(input, output, session) {
         if(!is.na(PED()$cancersJSON[row])){
           mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
           rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
-          rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df))), 
+          colnames(rel.can.df) <- stri_trans_totitle(colnames(rel.can.df))
+          rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df)),
+                                         Name = rep(PED()$name[row], nrow(rel.can.df))), 
                               rel.can.df)
           if(is.null(can.df)){
             can.df <- rel.can.df
@@ -4229,8 +4575,8 @@ server <- function(input, output, session) {
     
     # if there was no cancer hx for any relatives return a 0 row data frame
     if(is.null(can.df)){
-      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 1 + length(colnames(cancer.inputs.store)))), 
-                      c("ID", colnames(cancer.inputs.store))))
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(colnames(cancer.inputs.store)))), 
+                      c("ID", "Name", stri_trans_totitle(colnames(cancer.inputs.store)))))
     } else {
       return(can.df)
     }
@@ -4261,8 +4607,10 @@ server <- function(input, output, session) {
         if(!is.na(PED()$genesJSON[row])){
           mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
           rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
-          rel.gene.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
-                              rel.gene.df)
+          colnames(rel.gene.df) <- stri_trans_totitle(colnames(rel.gene.df))
+          rel.gene.df <- cbind(data.frame(ID   = rep(PED()$ID[row], nrow(rel.gene.df)),
+                                          Name = rep(PED()$name[row], nrow(rel.gene.df))), 
+                               rel.gene.df)
           if(is.null(gene.df)){
             gene.df <- rel.gene.df
           } else {
@@ -4274,8 +4622,8 @@ server <- function(input, output, session) {
     
     # if there was no gene info for any relatives return a 0 row data frame
     if(is.null(gene.df)){
-      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 1 + length(gene.df.colnames))), 
-                      c("ID", gene.df.colnames)))
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(gene.df.colnames))), 
+                      c("ID", "Name", stri_trans_totitle(gene.df.colnames))))
     } else {
       return(gene.df)
     }
@@ -4286,7 +4634,12 @@ server <- function(input, output, session) {
     shiny::validate(
       need(!is.null(genesTbl()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    genesTbl()
+    
+    # save space by abbreviating column names and removing row number
+    gt <- genesTbl()
+    colnames(gt) <- c("ID", "Name", "Panel", "Gene", "Res", "Nuc", "Prot", "Zyg")
+    gt <- datatable(gt, rownames = F)
+    gt
   }, server = F)
   
   # display in the pedigree viewer
@@ -4309,17 +4662,18 @@ server <- function(input, output, session) {
       # create .csv files and zip them together
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      )
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
+                           "data-dictionary/README.md",
+                           new.files))
       
       # remove the created files
-      file.remove(c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
-      ))
+      file.remove(new.files)
       
       return(tmp.zip)
     },
@@ -4336,22 +4690,54 @@ server <- function(input, output, session) {
       # create .csv files and zip them together
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv"
+      )
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
-                           "data-dictionary/panelpro-cancer-abbreviations.csv",
-                           "data-dictionary/panelpro-gene-list.csv"))
+                           "data-dictionary/README.md",
+                           new.files))
       
       # remove the created files
-      file.remove(c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
-      ))
+      file.remove(new.files)
       
       return(tmp.zip)
     },
     contentType = "application/zip"
   )
+  
+  # Save data to pedigree when navbarTabs change or one of the viewer tabs in the editor
+  observeEvent(list(input$navbarTabs), {
+    if(!is.null(PED())){
+      PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
+                           cr = canReactive$canNums,
+                           sr = surgReactive$lst,
+                           gr = geneReactive$GeneNums,
+                           dupResultGene = dupResultGene(),
+                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+      )
+      
+      # if tab is switched prior to pedigree being visualized, when the parent's
+      # race/eth/anc cannot be individually set, assume those values from the proband
+      if(input$pedTabs == "Demographics" & !showPed() & newOrLoadFlag() == "new"){
+        PED(assumeBackground(PED(), id = PED()$MotherID[which(PED()$isProband == 1)]))
+        PED(assumeBackground(PED(), id = PED()$FatherID[which(PED()$isProband == 1)]))
+      }
+      
+      # save pedigree to database
+      savePedigreeToDB(conne = conn,
+                       user = credentials()$info[["user"]],
+                       tmp_tbl = PED())
+      
+      # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
+      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+    }
+  }, ignoreInit = TRUE)
   
   ##### Switch Selected Relative ####
   # initialize the ID of the last relative selected with proband
@@ -4493,20 +4879,20 @@ server <- function(input, output, session) {
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
   observe({
     hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+    hideTab("navbarTabs", target = "PanelPRO", session = session)
   })
   
-  # only show Run PanelPRO tab when a pedigree has been created or loaded
+  # only show PanelPRO tab when a pedigree has been created or loaded
   observeEvent(PED(), {
     if(!is.null(PED())){
-      showTab("navbarTabs", target = "Run PanelPRO", session = session)
+      showTab("navbarTabs", target = "PanelPRO", session = session)
     } else {
-      hideTab("navbarTabs", target = "Run PanelPRO", session = session)
+      hideTab("navbarTabs", target = "PanelPRO", session = session)
     }
   }, ignoreNULL = F)
   
-  # Save data to pedigree when navbarTabs change
-  observeEvent(input$navbarTabs, {
+  # Save data to pedigree when one of the viewer tabs in the editor
+  observeEvent(input$pedVisualsEditor, {
     if(!is.null(PED())){
       PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
                            cr = canReactive$canNums,
@@ -4531,14 +4917,940 @@ server <- function(input, output, session) {
       # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
-      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
   }, ignoreInit = TRUE)
   
-  #### PanelPRO PLACEHOLDER ####
-
+  #### PanelPRO ####
+  # panelpro version number
+  output$ppVersion <- renderText({
+    paste0("version: ", packageVersion("PanelPRO"))
+  })
   
-}
+  ##### Settings ####
+  # reset to default input values
+  observeEvent(input$resetPanelPROInputs, {
+    settingInputs <- c("modelSpec", "genes", "cancers",
+                       "maxMut", "ageBy",
+                       "unknownRace", "unknownAncestry",
+                       "allowInter", "ignorePbGerm",
+                       "missAgeIters", "missAgeMaxIters",
+                       "randomSeed", "netOrCrude")
+    for(si in settingInputs){ shinyjs::reset(si) }
+  })
+  
+  # clear genes and cancers when the model specification is not custom
+  observeEvent(input$modelSpec, {
+    if(input$modelSpec != "Custom"){
+      shinyjs::reset("genes")
+      shinyjs::reset("cancers")
+      shinyjs::reset("allGenes")
+      shinyjs::reset("allCancers")
+    }
+  }, ignoreInit = T)
+  
+  # show cancers and genes in each of the model specifications
+  output$modSpecCancers <- renderText({
+    if(input$modelSpec == "Custom"){
+      return(NULL)
+    } else {
+      mcans <- PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS
+      ncans <- length(mcans)
+      return(paste(ncans, "Cancers:", paste0(mcans, collapse = ", ")))
+    }
+  })
+  
+  # show cancers and genes in each of the model specifications
+  output$modSpecGenes <- renderText({
+    if(input$modelSpec == "Custom"){
+      return(NULL)
+    } else {
+      mgenes <- PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES
+      ngenes <- length(mgenes)
+      return(paste(ngenes, "Genes:", paste0(mgenes, collapse = ", ")))
+    }
+  })
+  
+  # select all genes
+  observeEvent(input$allGenes, {
+    if(input$allGenes){
+      updateSelectInput(session, "genes", 
+                        selected = PanelPRO:::GENE_TYPES, 
+                        choices = PanelPRO:::GENE_TYPES)
+    } else {
+      updateSelectInput(session, "genes", 
+                        choices = PanelPRO:::GENE_TYPES)
+    }
+  })
+  
+  # select all cancers
+  observeEvent(input$allCancers, {
+    if(input$allCancers){
+      updateSelectInput(session, "cancers", 
+                        selected = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+    } else {
+      updateSelectInput(session, "cancers", 
+                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+    }
+  })
+  
+  # validate year interval for future cancer risk
+  output$validYearInterval <- renderText({ 
+    shiny::validate(
+      need(input$ageBy %% 1 == 0, "Year interval must be an integer."),
+      need(input$ageBy >= 1, "Year interval must be greater than or equal to 1."),
+      need(input$ageBy <= 10, "Year interval must be less than or equal to 10.")
+    )
+  })
+  
+  # enable/disable run button if conditions are not met
+  observeEvent(PED(), {
+    if(is.null(PED())){
+      shinyjs::disable("runPP")
+    } else {
+      shinyjs::enable("runPP")
+    }
+  }, ignoreNULL = F, ignoreInit = F)
+  
+  ##### Results ####
+  ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, 
+                               cpTblDF = NULL, frTblDF = NULL,
+                               cpPlotZoom = NULL, cpPlotFull = NULL,
+                               frPlotZoom = NULL, frPlotFull = NULL, 
+                               comparisonPlot = NULL, grows = NULL, gcols = NULL,
+                               cpAndfrPlots = NULL,
+                               cpPlotStaticZoom = NULL, cpPlotStaticFull = NULL, 
+                               frPlotStaticZoom = NULL, frPlotStaticFull = NULL,
+                               settingsTbl = NULL)
+  
+  observeEvent(input$runPP, {
+    if(!is.null(PED())){
+      
+      # validate numeric settings
+      if(is.na(input$maxMut)){
+        maxMut <- 2
+      } else {
+        maxMut <- as.numeric(input$maxMut)
+      }
+      if(is.na(input$ageBy)){
+        ageBy <- as.numeric(formals(PanelPRO::PanelPRO)$age.by)
+      } else {
+        ageBy <- as.numeric(input$ageBy)
+      }
+      if(is.na(input$missAgeIters)){
+        missAgeIters <- as.numeric(formals(PanelPRO::PanelPRO)$iterations)
+      } else {
+        missAgeIters <- as.numeric(input$missAgeIters)
+      }
+      if(is.na(input$missAgeMaxIters)){
+        missAgeMaxIters <- as.numeric(formals(PanelPRO::PanelPRO)$max.iter.tries) * 5
+      } else {
+        missAgeMaxIters <- as.numeric(input$missAgeMaxIters)
+      }
+      if(is.na(input$randomSeed)){
+        randomSeed <- as.numeric(formals(PanelPRO::PanelPRO)$random.seed)
+      } else {
+        randomSeed <- as.numeric(input$randomSeed)
+      }
+      
+      # convert net vs crude future risk to logical indicating whether net should be returned
+      if(input$netOrCrude == "Net"){
+        net.logical <- TRUE
+      } else {
+        net.logical <- FALSE
+      }
+      
+      # take user to results
+      updateTabsetPanel(session, "panelproTabs", selected = "PanelPRO Results")
+      
+      # run the model, get the console output and check for warnings and error
+      out <- 
+        ppResultsAndConsole(
+          pedigree = PED(),
+          model_spec = input$modelSpec,
+          genes = input$genes,
+          cancers = input$cancers,
+          max.mut = maxMut,
+          age.by = ageBy,
+          unknown.race = input$unknownRace,
+          unknown.ancestry = input$unknownAncestry,
+          allow.intervention = input$allowInter,
+          ignore.proband.germ = input$ignorePbGerm,
+          iterations = missAgeIters,
+          max.iter.tries = missAgeMaxIters,
+          random.seed = randomSeed,
+          net = net.logical
+        )
+      
+      # get the proband
+      pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
+      
+      # settings table
+      settings <- c("PedigreeID" = "pedigree",
+                    "Proband ID" = "proband",
+                    "Model Spec" = "model_spec",
+                    "Num. Cancers" = NA,
+                    "Cancers" = "cancers",
+                    "Num. Genes" = NA,
+                    "Genes" = "genes",
+                    "Max. Mutations" = "max.mut",
+                    "Future Risk Year Interval" = "age.by",
+                    "Assume Missing Race As" = "unknown.race",
+                    "Assume Missing Ancestry As" = "unknown.ancestry",
+                    "Allow surgical interventions?" = "allow.intervention",
+                    "Ignore Proband's germline testing results?" = "ignore.proband.germ",
+                    "Imputation iterations"= "iterations",
+                    "Max. iteration tries" = "max.iter.tries",
+                    "Random seed for imputing missing ages" = "random.seed",
+                    "Provide net, instead of crude, future risk estimates?" = "net")
+      settingsTbl <- data.frame(Setting = names(settings),
+                                Argument = unname(settings),
+                                Value = rep(NA, length(settings)))
+      settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
+      settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
+      if(input$modelSpec != "Custom"){
+        settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- input$modelSpec
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
+          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
+          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
+          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES)
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
+          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
+      } else {
+        settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- NA
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
+          length(input$cancers)
+        settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
+          paste0(input$cancers, collapse = ", ")
+        settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
+          length(input$genes)
+        settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
+          paste0(input$genes, collapse = ", ")
+      }
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- maxMut
+      settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- ageBy
+      settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Race As")] <- input$unknownRace
+      settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Ancestry As")] <- input$unknownAncestry
+      settingsTbl$Value[which(settingsTbl$Setting == "Allow surgical interventions?")] <- input$allowInter
+      settingsTbl$Value[which(settingsTbl$Setting == "Ignore Proband's germline testing results?")] <- input$ignorePbGerm
+      settingsTbl$Value[which(settingsTbl$Setting == "Imputation iterations")] <- missAgeIters
+      settingsTbl$Value[which(settingsTbl$Setting == "Max. iteration tries")] <- missAgeMaxIters
+      settingsTbl$Value[which(settingsTbl$Setting == "Random seed for imputing missing ages")] <- randomSeed
+      settingsTbl$Value[which(settingsTbl$Setting == "Provide net, instead of crude, future risk estimates?")] <- net.logical
+      
+      # use PanelPRO defaults to populate the remainder of the table
+      def.vals <- formals(PanelPRO::PanelPRO)
+      for(st in settings[which(!is.na(settings))]){
+        def.vals[[st]] <- NULL
+      }
+      add.settings <- data.frame(Setting = rep(NA, length(def.vals)),
+                                 Argument = names(def.vals),
+                                 Value = rep(NA, length(def.vals)))
+      def.setting.names <- c("Impute missing ages?" = "impute.missing.ages",
+                             "Remove missing cancers from the model?" = "remove.miss.cancers",
+                             "Database" = "database",
+                             "Parallelize age imputation?" = "parallel",
+                             "Provide debugging messages?" = "debug",
+                             "Use BRCAPRO+BCRAT model?" = "plusBCRAT",
+                             "Data frame of BCRAT covariates" = "bcrat.vars",
+                             "Data frame of BCRAT relative risks" = "rr.bcrat",
+                             "Data frame of race-specific relative risks" = "rr.pop")
+      for(ln in names(def.vals)){
+        if(is.null(def.vals[[ln]])){
+          tmp.val <- "NULL"
+        } else if(is.symbol(def.vals[[ln]])){
+          tmp.val <- rlang::as_string(def.vals[[ln]])
+        } else if(ln == "remove.miss.cancers"){
+          tmp.val <- "Default is TRUE but not applicable when run on PPI."
+        } else {
+          tmp.val <- def.vals[[ln]]
+        }
+        add.settings$Value[which(add.settings$Argument == ln)] <- tmp.val
+        add.settings$Setting[which(add.settings$Argument == ln)] <-
+          names(def.setting.names)[which(def.setting.names == ln)]
+      }
+      
+      # combine user specified settings and PanelPRO default settings
+      tmp.tbl <- rbind(settingsTbl, add.settings)
+      allow.age.impute.row <- which(tmp.tbl$Argument == "impute.missing.ages")
+      iterations.row <- which(tmp.tbl$Argument == "iterations")
+      tmp.tbl <- tmp.tbl[c(1:(iterations.row-1),
+                           allow.age.impute.row,
+                           iterations.row:(allow.age.impute.row-1),
+                           (allow.age.impute.row+1):nrow(tmp.tbl)),]
+      ppReactive$settingsTbl <- tmp.tbl
+      
+      ## create tables and graphs from results
+      # only execute if the result was not an error
+      if(!is.null(out)){
+        
+        ## table of posterior probabilities
+        if(class(out$posterior.prob[[pb]]) == "data.frame"){
+          cpTbl <-
+            out$posterior.prob[[pb]] %>%
+            mutate(NumMuts = 1 + stringr::str_count(genes, pattern = "\\."), .after = "genes") %>%
+            mutate(genes = PanelPRO:::formatGeneNames(gene_names = genes, format = "drop_hetero_anyPV")) %>%
+            mutate(genes = ifelse(grepl(pattern = "\\.", genes),
+                                  sub(pattern = "\\.", replacement = " & ", genes),
+                                  genes)) %>%
+            mutate(genes = ifelse(genes == "noncarrier", "Non-carrier", genes))
+            
+          ## get the risk any PV gene
+          # estimate
+          prob.anyPVdf <- filter(cpTbl, !grepl(pattern = " & ", genes))
+          prob.anyPVdf <- filter(prob.anyPVdf, genes != "Non-carrier")
+          prob.anyPV <- sum(prob.anyPVdf$estimate, na.rm = T)
+          cpTbl[nrow(cpTbl)+1,] <- rep(NA, 5)
+          cpTbl$NumMuts[nrow(cpTbl)] <- 1
+          cpTbl$genes[nrow(cpTbl)] <- "Any Gene"
+          cpTbl$estimate[nrow(cpTbl)] <- prob.anyPV
+          
+          # lower and upper prediction intervals
+          if(!(all(is.na(prob.anyPVdf$lower)) && 
+               all(is.na(prob.anyPVdf$upper)))){
+            pred.mat <- NULL
+            for(gn in unique(prob.anyPVdf$genes)){
+              g.preds <- runif(n = missAgeIters, 
+                               min = prob.anyPVdf$lower[which(prob.anyPVdf$genes == gn)],
+                               max = prob.anyPVdf$upper[which(prob.anyPVdf$genes == gn)])
+              if(is.null(pred.mat)){
+                pred.mat <- g.preds
+              } else {
+                pred.mat <- cbind(pred.mat, g.preds)
+              }
+            }
+            any.preds <- apply(pred.mat, 1, sum, simplify = T)
+            cpTbl$lower[nrow(cpTbl)] <- min(any.preds, na.rm = T)
+            cpTbl$upper[nrow(cpTbl)] <- max(any.preds, na.rm = T)
+          }
+          
+          ## format table
+          cpTbl <-
+            cpTbl %>%
+            mutate(across(.cols = -genes, ~as.numeric(.))) %>%
+            arrange(desc(estimate)) %>%
+            rename("Num. Muts." = "NumMuts",
+                   "Genes" = "genes",
+                   "Estimate" = "estimate",
+                   "Lower" = "lower",
+                   "Upper" = "upper")
+  
+          # save data frame version for download
+          ppReactive$cpTblDF <- cpTbl
+  
+          # format as a data.table
+          cpTbl <-
+            cpTbl %>%
+            mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
+            mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA,
+                                                                      ifelse(.<0.000001, "<1E-6", .)))) %>%
+            DT::datatable(rownames = FALSE,
+                          class = list("nowrap", "stripe", "compact"),
+                          options = list(pageLength = 20)) %>%
+            DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
+                            textAlign = "right")
+          ppReactive$cpTbl <- cpTbl
+          
+        } else {
+          ppReactive$cpTblDF <- NULL
+          ppReactive$cpTbl <- NULL
+        }
+
+        ## table of cancer risks
+        if(!any(lapply(out$future.risk[[pb]], class) == "character")){
+          frByCancer <- out$future.risk[[pb]]
+          frTbl <- NULL
+          for(cn in names(frByCancer)){
+            can.df <-
+              frByCancer[[cn]] %>%
+              mutate(Cancer = cn, .before = "ByAge") %>%
+              mutate(Who = "Proband", .after = "Cancer")
+            if(is.null(frTbl)){
+              frTbl <- can.df
+            } else {
+              frTbl <- rbind(frTbl, can.df)
+            }
+          }
+          frTbl <-
+            frTbl %>%
+            rename("Estimate" = "estimate",
+                   "Lower" = "lower",
+                   "Upper" = "upper")
+          
+          ## get average person risks
+          nc.pens <-
+            as.data.frame(
+              PanelPRO::PanelPRODatabase$Penetrance[, # Cancer
+                                                    "SEER", # Gene
+                                                    ifelse(is.na(PED()$race[which(PED()$isProband == 1)]), "All_Races", 
+                                                           PED()$race[which(PED()$isProband == 1)]), #Race
+                                                    ifelse(PED()$Sex[which(PED()$isProband == 1)] == 0, "Female", 
+                                                           "Male"), #Sex
+                                                    , # Age
+                                                    ifelse(net.logical, "Net", "Crude") # PenetType
+                                                    ]
+            ) %>%
+            tibble::rownames_to_column("Cancer") %>%
+            pivot_longer(cols = -Cancer, names_to = "ByAge", values_to = "Penetrance") %>%
+            mutate(Who = "Average Person", .after = "Cancer") %>%
+            mutate(Estimate = 0, .after = "ByAge") %>%
+            mutate(Lower = NA, .after = "Estimate") %>%
+            mutate(Upper = NA, .after = "Lower") %>%
+            group_by(Cancer) %>%
+            mutate(Survival = 1 - cumsum(Penetrance)) %>%
+            mutate(across(.cols = c(Survival, Estimate), ~as.numeric(.)))
+          pb.age <- PED()$CurAge[which(PED()$isProband == 1)]
+          for(c in unique(nc.pens$Cancer)){
+            tmp.pens <- nc.pens[which(nc.pens$Cancer == c),]
+            for(a in (pb.age+1):(PanelPRO:::MAXAGE)){
+              nc.pens$Estimate[which(nc.pens$Cancer == c & nc.pens$ByAge == a)] <- 
+                sum(tmp.pens$Penetrance[(pb.age+1):a]) / nc.pens$Survival[pb.age]
+            }
+          }
+          nc.pens <- 
+            nc.pens %>% 
+            select(-c(Penetrance, Survival)) %>%
+            mutate(ByAge = as.numeric(ByAge)) %>%
+            filter(ByAge %in% frTbl$ByAge)
+          
+          frTbl <- 
+            rbind(frTbl, nc.pens) %>%
+            arrange(Cancer, desc(Who), ByAge) %>%
+            rename("By Age" = "ByAge")
+
+          # save data frame version for download
+          ppReactive$frTblDF <- frTbl
+
+          # format as a data.table
+          frTbl <-
+            frTbl %>%
+            mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
+            mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA,
+                                                                      ifelse(.<0.000001, "<1E-6", .)))) %>%
+            DT::datatable(rownames = FALSE,
+                          class = list("nowrap", "stripe", "compact"),
+                          options = list(pageLength = 20)) %>%
+            DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
+                            textAlign = "right")
+          ppReactive$frTbl <- frTbl
+
+          # PanelPRO did not return a cancer risk table
+        } else {
+          ppReactive$frTblDF <- NULL
+          ppReactive$frTbl <- NULL
+        }
+
+        ### plots
+        vr.plots <- visRiskPPI(pp_output = out,
+                               markdown = NULL,
+                               return_obj = TRUE,
+                               prob_threshold = 0.01,
+                               show_fr_ci = FALSE,
+                               race = PED()$race[which(PED()$isProband == 1)],
+                               sex = PED()$Sex[which(PED()$isProband == 1)],
+                               cur.age = PED()$CurAge[which(PED()$isProband == 1)],
+                               net = net.logical,
+                               missAgeIters = missAgeIters)
+        
+        ## carrier prob plots
+        if(class(out$posterior.prob[[pb]]) == "data.frame"){
+          ppReactive$cpPlotZoom <- vr.plots$cp.zoom
+          ppReactive$cpPlotFull <- vr.plots$cp.full
+          ppReactive$cpPlotStaticZoom <- vr.plots$cpStatic.zoom     # for download
+          ppReactive$cpPlotStaticFull <- vr.plots$cpStatic.full     # for download
+        } else {
+          ppReactive$cpPlotZoom <- NULL
+          ppReactive$cpPlotFull <- NULL
+          ppReactive$cpPlotStaticZoom <- NULL
+          ppReactive$cpPlotStaticFull <- NULL
+        }
+        
+        ## cancer risk plots
+        if(!any(lapply(out$future.risk[[pb]], class) == "character")){
+          ppReactive$frPlotZoom <- vr.plots$fr.zoom
+          ppReactive$frPlotFull <- vr.plots$fr.full
+          ppReactive$frPlotStaticZoom <- vr.plots$frStatic.zoom   # for download
+          ppReactive$frPlotStaticFull <- vr.plots$frStatic.full   # for download
+          ppReactive$comparisonPlot <- vr.plots$comparison
+          ppReactive$grows <- vr.plots$grows
+          ppReactive$gcols <- vr.plots$gcols
+        } else {
+          ppReactive$frPlotZoom <- NULL
+          ppReactive$frPlotFull <- NULL
+          ppReactive$frPlotStaticZoom <- NULL
+          ppReactive$frPlotStaticFull <- NULL
+          ppReactive$comparisonPlot <- NULL
+          ppReactive$grows <- NULL
+          ppReactive$gcols <- NULL
+        }
+        
+        ## combined prob and cancer risk plot
+        ppReactive$cpAndfrPlots <- vr.plots$both
+        
+        # end of if statement to confirm PanelPRO output was not an error
+      } else {
+        cpTbl <- NULL
+        frTbl <- NULL
+        cpTblDF <- NULL
+        frTblDF <- NULL
+        cpPlotZoom <- NULL
+        cpPlotFull <- NULL
+        frPlotZoom <- NULL
+        frPlotFull <- NULL
+        comparisonPlot <- NULL
+        grows <- NULL
+        gcols <- NULL
+        cpAndfrPlots <- NULL
+        cpPlotStaticZoom <- NULL
+        cpPlotStaticFull <- NULL
+        frPlotStaticZoom <- NULL
+        frPlotStaticFull <- NULL
+      }
+    } # end of if statement to check if pedigree was present
+  }, ignoreNULL = F, ignoreInit = T)
+  
+  # carrier probabilities table
+  output$ppCPTbl <- renderDT({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$cpTbl), "A carrier probability table could not be generated.")
+    )
+    return(ppReactive$cpTbl)
+  }, server = F)
+  
+  # cancer risk table
+  output$ppFRTbl <- renderDT({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frTbl), "A cancer risk table could not be generated.")
+    )
+    return(ppReactive$frTbl)
+  }, server = F)
+  
+  # carrier prob. plot, zoomed y-axis
+  output$ppCPPlotZoom <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$cpPlotZoom), "A carrier probability plot could not be generated.")
+    )
+    return(ppReactive$cpPlotZoom)
+  })
+  
+  # carrier prob. plot, full y-axis
+  output$ppCPPlotFull <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$cpPlotFull), "A carrier probability plot could not be generated.")
+    )
+    return(ppReactive$cpPlotFull)
+  })
+  
+  # carrier prob. plot
+  output$ppFRPlotZoom <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frPlotZoom), "A cancer risk plot could not be generated.")
+    )
+    return(ppReactive$frPlotZoom)
+  })
+  
+  # carrier prob. plot
+  output$ppFRPlotFull <- plotly::renderPlotly({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$frPlotFull), "A cancer risk plot could not be generated.")
+    )
+    return(ppReactive$frPlotFull)
+  })
+  
+  # comparison to average person cancer risks
+  output$comparisonPlot <- renderPlot({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$comparisonPlot), "A cancer risk plot could not be generated.")
+    )
+    return(grid::grid.draw(ppReactive$comparisonPlot))
+  })
+  output$comparisonPlotH <- renderUI({
+    h <- paste0(300*as.numeric(ppReactive$grows), "px")
+    w <- paste0(360*as.numeric(ppReactive$gcols), "px")
+    plotOutput("comparisonPlot", height = h, width = w)
+  })
+  
+  # run settings table
+  output$ppRunSettings <- renderTable({
+    shiny::validate(
+      need(!is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(!is.null(ppReactive$settingsTbl), "Run PanelPRO to see the results.")
+    )
+    return(ppReactive$settingsTbl)
+  }, striped = T)
+  
+  # PanelPRO function doc string
+  observeEvent(list(input$showPPDocString1, input$showPPDocString2), {
+    showModal(modalDialog(
+      tagList(htmlOutput("ppDocString")),
+      title = "PanelPRO Function R Documentation",
+      footer = tagList(
+        modalButton("Close")
+      ),
+      easyClose = T
+    ))
+  }, ignoreInit = T)
+  ppDocString <- reactive({
+    temp = Rd2HTML(Rd_fun("PanelPRO"), out = tempfile("docs"))
+    content = read_file(temp)
+    file.remove(temp)
+    content
+  })
+  output$ppDocString <- renderText({
+    ppDocString()
+  })
+  
+  ##### Download ####
+  # disable download button if PanelPRO has not been run yet
+  observeEvent(ppReactive$cpTbl, {
+    if(!is.null(ppReactive$cpTbl)){
+      shinyjs::enable('downloadResults1')
+    } else {
+      shinyjs::disable('downloadResults1')
+    }
+  }, ignoreInit = F, ignoreNULL = F)
+  
+  # prepare cancersJSON for download as its own table
+  canJSONToDF <- reactive({
+    
+    # convert JSONs into a data frame of cancer hx indexed by PedigreeID and ID
+    can.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$cancersJSON[row])){
+        mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[row])
+        rel.can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
+        rel.can.df <- cbind(data.frame(PedigreeID = rep(PED()$PedigreeID[1], nrow(rel.can.df)), 
+                                       ID = rep(PED()$ID[row], nrow(rel.can.df))), 
+                            rel.can.df)
+        if(is.null(can.df)){
+          can.df <- rel.can.df
+        } else {
+          can.df <- rbind(can.df, rel.can.df)
+        }
+      }
+    }
+    
+    # if there was no cancer hx in any of the selected pedigrees return a 0 row data frame
+    if(is.null(can.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(colnames(cancer.inputs.store)))), 
+                      c("PedigreeID", "ID", colnames(cancer.inputs.store))))
+    } else {
+      return(can.df)
+    }
+  })
+  
+  # prepare genesJSON for download as its own table
+  genesJSONToDF <- reactive({
+  
+    # convert JSONs into a data frame of gene results indexed by PedigreeID and ID
+    gene.df <- NULL
+    for(row in 1:nrow(PED())){
+      if(!is.na(PED()$genesJSON[row])){
+        mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[row])
+        rel.gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+        rel.gene.df <- cbind(data.frame(PedigreeID = rep(PED()$PedigreeID[1], nrow(rel.gene.df)), 
+                                        ID = rep(PED()$ID[row], nrow(rel.gene.df))), 
+                             rel.gene.df)
+        if(is.null(gene.df)){
+          gene.df <- rel.gene.df
+        } else {
+          gene.df <- rbind(gene.df, rel.gene.df)
+        }
+      }
+    }
+    
+    # if there was no gene results in any of the selected pedigrees return a 0 row data frame
+    if(is.null(gene.df)){
+      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(gene.df.colnames))), 
+                      c("PedigreeID", "ID", gene.df.colnames)))
+    } else {
+      return(gene.df)
+    }
+  })
+  
+  # model for user to select file format
+  observeEvent(input$downloadResults1, {
+    showModal(modalDialog(
+      tagList(
+        h5("Choose a file format for the tables:"),
+        radioButtons("downloadResultsAs", label = NULL,
+                     choices = c(".csv", ".rds"),
+                     selected = ".csv"),
+      ),
+      title = "Download File Format",
+      footer = tagList(
+        conditionalPanel("input.downloadResultsAs == '.csv'",
+          downloadButton("downloadResultsCSV", label = "Download",
+                         icon = icon('download'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+        ),
+        conditionalPanel("input.downloadResultsAs == '.rds'",
+          downloadButton("downloadResultsRDS", label = "Download",
+                         icon = icon('download'),
+                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+        ),
+        modalButton("Cancel")
+      )
+    ))
+  })
+  
+  # download as .csv
+  output$downloadResultsCSV <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-results-", 
+             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             "-",
+             Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # remove modal when done
+      on.exit(removeModal())
+      
+      # pedigreeID
+      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      
+      # data dictionary files
+      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      
+      # pedigree files
+      write.csv(PED(), file = paste0("download-results/pedigree-", pedID, ".csv"), row.names = F)
+      write.csv(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".csv"), row.names = F)
+      write.csv(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".csv"), row.names = F)
+      
+      # run settings table
+      write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
+      
+      # result tables
+      if(!is.null(ppReactive$cpTblDF)){
+        write.csv(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".csv"), row.names = F)
+      }
+      if(!is.null(ppReactive$frTblDF)){
+        write.csv(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".csv"), row.names = F)
+      }
+      
+      # result images and other
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        ggsave(plot = ppReactive$cpPlotStaticZoom, 
+               path = "./download-results", 
+               filename = paste0("posterior-probs-zoom-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        ggsave(plot = ppReactive$cpPlotStaticFull, 
+               path = "./download-results", 
+               filename = paste0("posterior-probs-full-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        ggsave(plot = ppReactive$frPlotStaticZoom, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        ggsave(plot = ppReactive$frPlotStaticFull, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        ggsave(plot = ppReactive$comparisonPlot,
+               width = 1667*as.numeric(ppReactive$gcols),
+               height = 1250*as.numeric(ppReactive$grows),
+               units = "px",
+               path = "./download-results", 
+               filename = paste0("cancer-risks-compared-to-ave-person-", pedID, ".png"))
+      }
+      
+      # zip them all together
+      new.files <- c(
+        "data-dictionary/panelpro-cancer-abbreviations.csv",
+        "data-dictionary/panelpro-gene-list.csv",
+        "data-dictionary/panelpro-function-documentation.html",
+        paste0("download-results/pedigree-", pedID, ".csv"),
+        paste0("download-results/cancer-details-", pedID, ".csv"),
+        paste0("download-results/panel-details-", pedID, ".csv"),
+        paste0("download-results/run-settings-", pedID, ".csv")
+      )
+      if(!is.null(ppReactive$cpTblDF)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".csv"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-zoom-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-full-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frTblDF)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".csv"))
+      }
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-compared-to-ave-person-", pedID, ".png"))
+      }
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/columns-and-codings-dictionary.csv",
+                           "data-dictionary/README.md",
+                           "download-results/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
+  
+  # download as .rds
+  output$downloadResultsRDS <- shiny::downloadHandler(
+    filename = function(){
+      paste0("PanelPRO-results-", 
+             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             "-",
+             Sys.Date(), ".zip")
+    },
+    content = function(file){
+      
+      # remove modal when done
+      on.exit(removeModal())
+      
+      # pedigreeID
+      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      
+      # data dictionary files
+      saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
+              file = "data-dictionary/columns-and-codings-dictionary.rds")
+      saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
+      saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      
+      # pedigree files
+      saveRDS(PED(), file = paste0("download-results/pedigree-", pedID, ".rds"))
+      saveRDS(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".rds"))
+      saveRDS(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".rds"))
+      
+      # run settings table
+      saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
+      
+      # result tables
+      if(!is.null(ppReactive$cpTblDF)){
+        saveRDS(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".rds"))
+      }
+      if(!is.null(ppReactive$frTblDF)){
+        saveRDS(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".rds"))
+      }
+      
+      # result images and other
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        ggsave(plot = ppReactive$cpPlotStaticZoom, 
+               path = "./download-results", 
+               filename = paste0("posterior-probs-zoom-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        ggsave(plot = ppReactive$cpPlotStaticFull, 
+               path = "./download-results", 
+               filename = paste0("posterior-probs-full-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        ggsave(plot = ppReactive$frPlotStaticZoom, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        ggsave(plot = ppReactive$frPlotStaticFull, 
+               path = "./download-results", 
+               filename = paste0("cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        ggsave(plot = ppReactive$comparisonPlot,
+               width = 1667*as.numeric(ppReactive$gcols),
+               height = 1250*as.numeric(ppReactive$grows),
+               units = "px",
+               path = "./download-results", 
+               filename = paste0("cancer-risks-compared-to-ave-person-", pedID, ".png"))
+      }
+      
+      # zip them all together
+      new.files <- c(
+        "data-dictionary/columns-and-codings-dictionary.rds",
+        "data-dictionary/panelpro-cancer-abbreviations.rds",
+        "data-dictionary/panelpro-gene-list.rds",
+        "data-dictionary/panelpro-function-documentation.html",
+        paste0("download-results/pedigree-", pedID, ".rds"),
+        paste0("download-results/cancer-details-", pedID, ".rds"),
+        paste0("download-results/panel-details-", pedID, ".rds"),
+        paste0("download-results/run-settings-", pedID, ".rds")
+      )
+      if(!is.null(ppReactive$cpTblDF)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".rds"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-zoom-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$cpPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/posterior-probs-full-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frTblDF)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".rds"))
+      }
+      if(!is.null(ppReactive$frPlotStaticZoom)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-zoomed-y-axis-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$frPlotStaticFull)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-standard-", pedID, ".png"))
+      }
+      if(!is.null(ppReactive$comparisonPlot)){
+        new.files <- c(new.files, paste0("download-results/cancer-risks-compared-to-ave-person-", pedID, ".png"))
+      }
+      
+      tmp.zip <- 
+        zip::zip(zipfile = file, 
+                 files = c("data-dictionary/README.md",
+                           "download-results/README.md",
+                           new.files))
+      
+      # remove the created files
+      file.remove(new.files)
+      
+      return(tmp.zip)
+    },
+    contentType = "application/zip"
+  )
+  
+  #### Terms and Conditions ####
+  output$termsOut <- renderText({
+    lines <- read_lines(system.file("LICENSE", package="PanelPRO"))
+    paste0(lines[which(lines != "")], collapse = "\n\n")
+  })
+  observeEvent(input$terms, {
+    showModal(modalDialog(
+      tagList(tagAppendAttributes(textOutput("termsOut"), style="white-space:pre-wrap;")),
+      title = "Terms and Conditions",
+      footer = tagList(
+        modalButton("Close")
+      ),
+      easyClose = T
+    ))
+  })
+  
+} # end of server
 
 # Run the application 
 shinyApp(ui = ui, server = server)
