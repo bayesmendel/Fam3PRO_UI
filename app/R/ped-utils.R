@@ -606,7 +606,7 @@ popPersonData <- function(tmp.ped,
     } # end of if statement for if a panel was selected
   } # end of section for adding gene information to the pedigree
   
-  # ensure numeric column data types are correct
+  # ensure column data types are correct
   tmp.ped <-
     tmp.ped %>%
     mutate(across(.cols = c(ID, Twins, Sex, MotherID, FatherID,
@@ -618,7 +618,11 @@ popPersonData <- function(tmp.ped,
     mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
                                    PanelPRO:::MARKER_TESTING$COL$MARKERS,
                                    PanelPRO:::GENE_TYPES)),
-                  ~as.numeric(.)))
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = c(PedigreeID, name, side, relationship, race, Ancestry, 
+                            NPPrace, NPPeth, cancersJSON, FirstBCType, BreastDensity, 
+                            FirstBCTumorSize, panelNames, genesJSON),
+                  ~as.character(.)))
   
   return(tmp.ped)
 }
@@ -880,4 +884,359 @@ validateRelNums <- function(num.rels){
       need(isNum, "Quantity must be numeric.")
     }
   }
+}
+
+#' Check and Modify a Pedigree for Upload
+#' 
+#' @param uped data.frame, the pedigree
+#' @param pedID string, the pedigree ID
+#' @param conn a database connection
+#' @returns either an error message if the pedigree could not be conformed to the 
+#' PPI format or a pedigree data.frame compatible with PPI
+checkUploadPed <- function(uped, pedID = NULL, conn){
+  
+  ## pedigreeID
+  if(!is.null(pedID)){
+    uped$PedigreeID <- pedID
+    
+    # if a PedigreeID column already exists
+  } else if("PedigreeID" %in% colnames(uped)){
+    
+    # error if the column is empty
+    if(all(is.na(uped$PedigreeID))){ 
+      return("PedigreeID column is empty.")
+    }
+    
+    # check if the name is unique to this user account
+    
+    
+    
+    
+    
+    # check the name is uniform
+    if(any(is.na(uped$PedigreeID))){
+      return("PedigreeID column contains NA.")
+    } else if(any(uped$PedigreeID != uped$PedigreeID[1])){
+      return("PedigreeID column contains multiple IDs in the same pedigree.")
+    } 
+    
+    
+    # error if a pedID was not provided and no PedigreeID column exists
+  } else {
+    return("No pedigree ID was provided.")
+  }
+  
+  
+  ### check for presence of columns
+  ## minimum required columns (return an error is any missing)
+  cnames <- colnames(uped)
+  req.cnames <- c("ID", "Twins", "Sex", "MotherID", "FatherID", "isProband", "CurAge", "isDead")
+  if(any(!req.cnames %in% cnames)){
+    return(paste0("Pedigree missing one of the minimum required columns: ", paste0(req.cnames, collapse = ", "),"."))
+  }
+  
+  ## optional columns (create dummy columns if missing)
+  # name, side, relationship
+  
+  
+  
+  
+  
+  
+  
+  # race/anc/eth
+  if(!"race" %in% cnames){
+    uped$race <- "All_Races"
+  }
+  if(!"Ancestry" %in% cnames){
+    uped$Ancestry <- "nonAJ"
+  }
+  if(!"NPPeth" %in% cnames){
+    uped <- mutate(uped, NPPeth = ifelse(race == "Hispanic" | race == "WH", 
+                                         "Hispanic", "Non-Hispanic"))
+  }
+  if(!"NPPrace" %in% cnames){
+    uped <- mutate(uped, NPPrace = ifelse(is.na(race), "All_Races",
+                                          ifelse(race == "Hispanic", "All_Races", 
+                                                 ifelse(race == "WH" | race == "WNH", "White", 
+                                                        race))))
+  }
+  if(!"NPPAJ" %in% cnames){
+    uped <- mutate(uped, NPPAJ = ifelse(is.na(Ancestry), 0,
+                                        ifelse(Ancestry == "AJ", 1, 0)))
+  }
+  if(!"NPPIt" %in% cnames){
+    uped <- mutate(uped, NPPIt = ifelse(is.na(Ancestry), 0,
+                                        ifelse(Ancestry == "Italian", 1, 0)))
+  }
+  
+  # check for missing columns with a default value of NA
+  def.na.cols <- c(paste0("Age", PanelPRO:::CANCER_NAME_MAP$short), "cancersJSON",
+                   cbcrisk.cols,
+                   PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS,
+                   PanelPRO:::GENE_TYPES, "genesJSON")
+  miss.def.na.cols <- def.na.cols[which(!def.na.cols %in% cnames)]
+  if(length(miss.def.na.cols) > 0){
+    for(mc in miss.def.na.cols){
+      uped[[mc]] <- NA
+    }
+  }
+  
+  # check for missing columns with a default value of 0
+  def.0.cols <- c(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short))
+  miss.def.0.cols <- def.0.cols[which(!def.0.cols %in% cnames)]
+  if(length(miss.def.0.cols) > 0){
+    for(mc in miss.def.0.cols){
+      uped[[mc]] <- NA
+    }
+  }
+  
+  # panelNames
+  if(!"panelNames" %in% cnames){
+    uped$panelNames <- "none"
+  }
+  
+  # surgical hx columns
+  # check if surgeries are listed in the original PanelPRO version format with just two columns vs 
+  # the newer six column format
+  old.surg.cols <- c("riskmod", "interAge")
+  surgs <- c("Mast", "Hyst", "Ooph")
+  new.surg.cols <- paste0("riskmod", surgs)
+  new.surg.age.cols <- paste0("interAge", surgs)
+  old.surg.format <- all(old.surg.cols %in% cnames)
+  new.surg.format <- (new.surg.cols[1] %in% cnames & new.surg.age.cols[1] %in% cnames) |
+                     (new.surg.cols[2] %in% cnames & new.surg.age.cols[2] %in% cnames) |
+                     (new.surg.cols[3] %in% cnames & new.surg.age.cols[3] %in% cnames)
+  if(old.surg.format & new.surg.format){
+    return("Pedigree contains the old and new PanelPRO formatting for prophylactic surgery columns.")
+  } else if(!old.surg.format){
+    miss.new.surg.cols <- new.surg.cols[!new.surg.cols %in% cnames]
+    if(length(miss.new.surg.cols) > 0){
+      for(mnsc in miss.new.surg.cols){
+        uped[[mnsc]] <- 0
+      }
+    }
+    miss.new.surg.age.cols <- new.surg.age.cols[!new.surg.age.cols %in% cnames]
+    if(length(miss.new.surg.age.cols) > 0){
+      for(mnsac in miss.new.surg.age.cols){
+        uped[[mnsac]] <- NA
+      }
+    }
+  }
+  
+  
+  ### check column codings
+  ## PanelPRO columns - run checkFam
+  
+  
+  
+  
+  
+  
+  
+  
+  ## PPI specific columns
+  # name/side/relationship
+  
+  
+  
+  
+  
+  
+  
+  
+  # NPPrace/NPPeth/NPPAJ/NPPIt
+  if(!all(is.na(uped$NPPrace))){
+    if(any(!uped$NPPrace %in% rc.choices)){
+      return(paste0("At least one value in the NPPrace columns is not valid. Valid choices are: ", paste0(rc.choices, collapse = ", ")))
+    }
+  }
+  if(!all(is.na(uped$NPPeth))){
+    if(any(!uped$NPPeth %in% et.choices)){
+      return(paste0("At least one value in the NPPeth columns is not valid. Valid choices are: ", paste0(et.choices, collapse = ", ")))
+    }
+  }
+  
+  # cancersJSON
+  # if the column is blank, but there are PanelPRO cancers reported
+  if(all(is.na(uped$cancersJSON)) & 
+     sum(uped[, paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)]) > 0){
+    
+    # create the JSON from the PanelPRO cancer columns
+    cJSON <- NULL
+    for(rw in 1:nrow(uped)){
+      for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+        if(uped[rw, paste0("isAff", cn)] == 1){
+          c.long.name <- PanelPRO:::CANCER_NAME_MAP$long[which(PanelPRO:::CANCER_NAME_MAP$short == cn)]
+          c.age <- uped[rw, paste0("Age", cn)]
+          if(is.null(cJSON)){
+            cJSON <- data.frame(cancer = c.long.name, age = c.age, other = "UnkType", ID = uped$ID[rw])
+          } else {
+            cJSON <- rbind(cJSON, 
+                           data.frame(cancer = c.long.name, age = c.age, other = "UnkType", ID = uped$ID[rw]))
+          }
+        }
+      }
+      if(!is.null(cJSON)){
+        cJSON <- 
+          cJSON %>%
+          mutate(String = paste0("{'cancer':'", cancer, "','age':'", age,"','other':'", other, "'}"))
+        
+        # ensure CBC is after BC
+        if(any(cJSON$cancer == "Breast") & any(cJSON$cancer == "Contralateral")){
+          cbc.row <- which(cJSON$cancer == "Contralateral")
+          other.rows <- seq(1, nrow(cJSON))[which(seq(1, nrow(cJSON)) != cbc.row)]
+          cJSON <- cJSON[c(other.rows, cbc.row),]
+        }
+        cJSON <- paste0("[", paste0(cJSON$String, collapse = ","), "]")
+        uped$cancersJSON[rw] <- cJSON
+        cJSON <- NULL
+      }
+    }
+    
+    # there are values populated in the cancersJSON column that need to be checked
+  } else if(any(!is.na(uped$cancersJSON))){
+    all.can.df <- NULL
+    
+    # check the format
+    for(rl in uped$ID[which(!is.na(uped$cancersJSON))]){
+      mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", uped$cancersJSON[which(uped$ID == rl)])
+      can.df <- try(fromJSON(mod.can.JSON, simplifyDataFrame = T))
+      can.df$ID <- rl
+      if(is.data.frame(can.df)){
+        if(is.null(all.can.df)){
+          all.can.df <- can.df
+        } else {
+          all.can.df <- rbind(all.can.df, can.df)
+        }
+      } else {
+        return("At least one entry in the cancersJSON column is improperly formatted.")
+      }
+    }
+    
+    # check column names are correct
+    if(!identical(colnames(all.can.df), c("cancer", "age", "other", "ID"))){
+      return("The cancerJSON column is improperly formatted.")
+    }
+    
+    # check PanelPRO cancer names
+    if(any(!all.can.df$cancer %in% c(PanelPRO:::CANCER_NAME_MAP$long, "Other"))){
+      return("The are cancers names in the 'cancer' field of the cancersJSON column which are not either a PanelPRO cancer or the word 'Other'.")
+    }
+    
+    # check cancer ages
+    if(all(varhandle::check.numeric(all.can.df$age))){
+      all.can.df$age <- round(as.numeric(all.can.df$age), 0)
+    } else {
+      return("The cancersJSON column contains age values which cannot be converted to numeric values.")
+    }
+    if(any(all.can.df$age > 89)){
+      return("The cancersJSON column contains ages above 89. The PPI privacy policy does not allow this. Please make all ages above 89, 89.")
+    }
+    if(any(all.can.df$age < 1)){
+      return("The cancerJSON columns contains ages below 1.")
+    }
+    
+    # check other cancer names
+    if(any(!all.can.df$other %in% c("UnkType", non.pp.cancers))){
+      return("The cancersJSON column contains cancer names in the 'other' field which are not recognized by PPI.")
+    }
+    
+    # verify PanelPRO cancer columns match the JSON
+    all.pp.can.df <- filter(all.can.df, cancer %in% PanelPRO:::CANCER_NAME_MAP$long)
+    if(nrow(all.pp.can.df) > 0){
+      
+      # check all PanelPRO cancer data in the JSON are in the PanelPRO cancer columns
+      for(rw in 1:nrow(all.pp.can.df)){
+        short.c.name <- PanelPRO:::CANCER_NAME_MAP$short[which(PanelPRO:::CANCER_NAME_MAP$long == all.pp.can.df$cancer[rw])]
+        if(uped[which(uped$ID == all.pp.can.df$ID[rw]), paste0("isAff", short.c.name)] != 1){
+          return("The cancersJSON column data from the 'cancer' field of the JSON does not match the data in the PanelPRO cancer 'isAffX' columns.")
+        }
+        if(uped[which(uped$ID == all.pp.can.df$ID[rw]), paste0("Age", short.c.name)] != all.pp.can.df$age[rw]){
+          return("The cancersJSON column data from the 'age' field of the JSON does not match the data in the PanelPRO cancer 'AgeX' columns.")
+        }
+      }
+      
+      # check that all PanelPRO cancer columns data are in the JSON
+      all.pp.can.df <- 
+        mutate(all.pp.can.df, 
+               cancer = PanelPRO:::CANCER_NAME_MAP$short[which(PanelPRO:::CANCER_NAME_MAP$long == cancer)])
+      for(rw in 1:nrow(uped)){
+        if(sum(uped[, paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)]) > 0){
+          for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+            num.cn.matches <- nrow(all.pp.can.df[which(all.pp.can.df$ID == uped$ID[rw] & 
+                                                         all.pp.can.df$cancer == cn), ])
+            if(uped[rw, paste0("isAff", cn)] == 1 & num.cn.matches != 1){
+              return("The PanelPRO 'isAffX' cancer columns do not match the data in the cancersJSON column.")
+            } else {
+              if(uped[rw, paste0("Age", cn)] != all.pp.can.df$age[which(all.pp.can.df$ID == uped$ID[rw] & 
+                                                                        all.pp.can.df$cancer == cn)]){
+                return("The PanelPRO 'AgeX' cancer columns do not match the data in the cancersJSON column.")
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  # panelNames
+  # check that all panel names are valid
+  uped$panelNames[which(is.na(uped$panelNames))] <- "none"
+  db.pans <- dbGetQuery(conn = conn, statement = "SELECT panel_name FROM panels")$panel_name
+  ped.pans <- paste0(uped$panelNames[which(uped$panelNames != "none")], collapse = ", ")
+  if(ped.pans != ""){
+    ped.pans <- str_split(ped.pans, pattern = ", ")[[1]]
+    if(any(!ped.pans %in% db.pans)){
+      return("The panelNames column contains panels which are not registered in the PPI database.")
+    }
+  }
+  
+  # check that no panelNames and genesJSON are matching
+  for(rw in 1:nrow(uped)){
+    if(xor(uped$panelNames[rw] == "none", is.na(uped$genesJSON))){
+      return("At least one relative has either a panelNames entry and no genesJSON entry or vice versa.")
+    }
+  }
+  
+  # genesJSON
+  # if the column is blank, but there are PanelPRO gene results reported, 
+  # and a panelNames column with 1 and only 1 panel name
+  # then genesJSON can be created
+  if(all(is.na(uped$genesJSON)) & 
+     sum(uped[, PanelPRO:::GENE_TYPES], na.rm = T) > 0){
+    
+    
+    # there are values populated in the column
+  } else if(any(!is.na(uped$cancersJSON))){
+    
+    # check the format
+    
+    
+    # verify PanelPRO cancer columns match the JSON
+    
+  }
+  
+  
+  
+  ## set data types and order the columns
+  uped <-
+    uped %>%
+    select(all_of(ped.cols)) %>%
+    mutate(across(.cols = c(ID, Twins, Sex, MotherID, FatherID,
+                            isProband, CurAge, isDead, NPPAJ, NPPIt,
+                            starts_with("riskmod"), starts_with("interAge"),
+                            starts_with("isAff"), starts_with("Age"),
+                            AntiEstrogen, HRPreneoplasia), 
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                   PanelPRO:::MARKER_TESTING$COL$MARKERS,
+                                   PanelPRO:::GENE_TYPES)),
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = c(PedigreeID, name, side, relationship, race, Ancestry, 
+                            NPPrace, NPPeth, cancersJSON, FirstBCType, BreastDensity, 
+                            FirstBCTumorSize, panelNames, genesJSON),
+                  ~as.character(.)))
+  
+  uped
 }

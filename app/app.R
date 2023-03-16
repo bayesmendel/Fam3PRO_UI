@@ -25,6 +25,7 @@ library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
 library(stringi)    # convert to title case function: stri_trans_totitle()
+library(varhandle)  # check if a character or factor can be safely converted to a number
 
 # html
 library(htmltools)  # formatting text
@@ -200,7 +201,6 @@ ui <- fixedPage(
       ##### UI: Home ####
       tabPanel(title = "Home",
         h3("Home"),
-        
         h4("What are PanelPRO and PPI?"),
         p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute,
           is a multi-cancer/multi-gene risk prediction model which utilizes family history
@@ -1477,6 +1477,7 @@ ui <- fixedPage(
 
 
 server <- function(input, output, session) {
+  
   #### Connect/Disconnect Database ####
   conn <- dbConnect(drv = RMariaDB::MariaDB(),
                     username = Sys.getenv('maria.un'),
