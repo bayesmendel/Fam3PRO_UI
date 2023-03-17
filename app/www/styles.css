@@ -1,0 +1,36 @@
+/* make all tabPanels, but not navbarTabs, smaller*/
+.tabbable > .nav > li > a {padding:5px;}
+
+/* ensure modals fit their contents */
+.modal-dialog { width: fit-content !important; }
+
+/* make the text which tells the user to wait before doing an action blue*/
+#waitLoad{color: blue;}
+#waitCopy{color: blue;}
+#waitDownload{color: blue;}
+#waitDelete{color: blue;}
+#waitNewPanel{color: blue;}
+
+/* color warning messages red */
+#validPedID{color: red;}
+#validAge{color: red;}
+#validMastAge{color: red;}
+#validHystAge{color: red;}
+#validOophAge{color: red;}
+#validPanelName{color: red;}
+#validDauQty{color: red;}
+#validSonQty{color: red;}
+#validSisQty{color: red;}
+#validBroQty{color: red;}
+#validMAuntQty{color: red;}
+#validMUncQty{color: red;}
+#validPAuntQty{color: red;}
+#validPUncQty{color: red;}
+#validYearInterval{color: red;}
+
+/* standard button formatting */
+.btn {
+	color: white; 
+	background-color: #10699B; 
+	border-color: #10699B
+}

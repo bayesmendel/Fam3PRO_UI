@@ -50,17 +50,11 @@ ui <- fixedPage(
   # Google analytics
   tags$head(includeHTML(("google-analytics.html"))),
   
+  # style sheet
+  tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")),
+  
   # allows shinyjs commands
   useShinyjs(),
-  
-  # adjust all tab's padding for all tabSetPanels
-  tags$style(HTML(".tabbable > .nav > li > a {padding:5px;}")),
-  
-  # ensure modal dialog box expands to fit all content
-  tags$style(
-    type = 'text/css',
-    '.modal-dialog { width: fit-content !important; }'
-  ),
   
   # server busy spinner
   shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
@@ -73,7 +67,8 @@ ui <- fixedPage(
           "PPI: PanelPRO Interface",
           div(class = "pull-right", 
             img(src="dana-farber-logo-small-2.PNG", height = "50px"),
-            shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), style = "padding:5px")
+            shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), 
+                                 style = "color:white; background-color:red; border-color:grey; padding:5px")
           )
         )
       ),
@@ -92,12 +87,13 @@ ui <- fixedPage(
             shiny::tagList(fluidRow(br()),
                            fluidRow(
                              actionButton(inputId = "signUp",
-                                          label = "Sign up")),
+                                          label = "Sign up",
+                                          style = "color: black; background-color: white; border-color:grey")),
                            fluidRow(br()),
                            fluidRow(
                              actionButton(inputId = "forgotUnPw",
                                           label = "Forgot Username or Password",
-                                          style = "padding:4px; font-size:80%"))
+                                          style = "color: black; background-color: white; border-color:grey; padding:4px; font-size:80%"))
           )
         )
       ), # end log-in tab
@@ -272,7 +268,7 @@ ui <- fixedPage(
         div(style = "margin-left:5px",
           actionButton("terms", label = "Terms and Conditions",
                        icon = icon('book'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B;margin-top:5px")
+                       style = "margin-top:5px")
         )
       ), # end of tab
       
@@ -323,10 +319,8 @@ ui <- fixedPage(
                 p("Clicking the button below will load your selected pedigree and will take you to the create/edit pedigree screen to view and/or edit your pedigree."),
               ),
               textOutput("waitLoad"),
-              tags$head(tags$style("#waitLoad{color: blue;}")),
               actionButton("goNewOrLoad", label = "Get Started",
-                           icon = icon('play'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B")
+                           icon = icon('play'))
             )
           ), # end of tab for loading/creating new pedigree
           
@@ -368,8 +362,7 @@ ui <- fixedPage(
               br(),
               p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
               downloadButton("downloadDD1", label = "Download Data Dictionary",
-                             icon = icon('download'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B")
+                             icon = icon('download'))
             )
           ),
           
@@ -406,12 +399,10 @@ ui <- fixedPage(
                 h5("Privacy note: the new pedigree name cannot contain identifying information.", 
                    style = "color:blue"),
                 textOutput("validPedID"),
-                tags$head(tags$style("#validPedID{color: red;}")),
                 textOutput("waitCopy"),
-                tags$head(tags$style("#waitCopy{color: blue;}")),
                 actionButton("copyPed", label = "Copy Pedigree",
                              icon = icon('copy'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+                             style = "margin-top:20px")
               )
             ) # end of conditionalPanel to check if there are tables to download
           ),
@@ -448,20 +439,17 @@ ui <- fixedPage(
                            choices = c(".csv", ".rds"),
                            selected = ".csv"),
               textOutput("waitDownload"),
-              tags$head(tags$style("#waitDownload{color: blue;}")),
                                
               # CSV download button
               conditionalPanel("input.downloadAs1 == '.csv'",
                 downloadButton("downloadPedsCSV", label = "Download",
-                               icon = icon('download'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+                               icon = icon('download'))
               ),
               
               # RDS download button
               conditionalPanel("input.downloadAs1 == '.rds'",
                 downloadButton("downloadPedsRDS", label = "Download",
-                               icon = icon('download'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+                               icon = icon('download'))
               )
             ) # end of conditionalPanel to check if there are tables to download
           ), # end of download tab
@@ -491,10 +479,9 @@ ui <- fixedPage(
                   checkboxInput("selectAllPedsDelete", label = "Select all pedigrees"), 
               ),
               textOutput("waitDelete"),
-              tags$head(tags$style("#waitDelete{color: blue;}")),
               actionButton("deletePeds", label = "Delete Pedigrees",
                            icon = icon('trash'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B")
+                           style = "color: white; background-color: red; border-color: grey")
             ) # end of conditionalPanel to check if there are tables to download
           ) # end of tabPanel for deleting pedigrees
         ) # end of tabsetPanels for manage pedigrees
@@ -511,7 +498,7 @@ ui <- fixedPage(
             div(class = "pull-right", 
               actionButton("manualPedSave", label = "Force Save Pedigree",
                            icon = icon('save'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom: 25px")
+                           style = "margin-top: 0px; margin-bottom: 25px")
             )
           ),
           
@@ -575,8 +562,7 @@ ui <- fixedPage(
               conditionalPanel("input.pedVisualsEditor != 'Tree'",
                 p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
                 downloadButton("downloadDD2", label = "Download Data Dictionary",
-                               icon = icon('download'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+                               icon = icon('download'))
               )
             ) # end of column for pedigree visualization
           ), # end of conditionalPanel to display pedigree visualization or not
@@ -623,13 +609,12 @@ ui <- fixedPage(
                              value = NA, min = min.age, max = max.age, step = 1,
                              width = "150px"),
                 textOutput("validAge"),
-                tags$head(tags$style("#validAge{color: red;}")),
                 
                 # is pedigree does not exist yet, show a create pedigree button
                 conditionalPanel("!output.pedExists",
                   actionButton("createPed", label = "Create Pedigree",
                                icon = icon('file'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+                               style = "margin-top:20px")
                 ),
                 
                 # once a pedigree exists, show other demographic options
@@ -665,7 +650,7 @@ ui <- fixedPage(
                 ),
                 actionButton("addCan", label = "Add Cancer",
                              icon = icon('plus'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+                             style = "margin-top: 20px")
               ), # end of cancers tab
               
               ###### UI: CBC Risk ####
@@ -794,8 +779,7 @@ ui <- fixedPage(
                                        label = h5("Age at Mastectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
                                        width = "150px"),
-                          textOutput("validMastAge"),
-                          tags$head(tags$style("#validMastAge{color: red;}"))
+                          textOutput("validMastAge")
                         )
                       )
                     )
@@ -814,8 +798,7 @@ ui <- fixedPage(
                                        label = h5("Age at Hysterectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
                                        width = "150px"),
-                          textOutput("validHystAge"),
-                          tags$head(tags$style("#validHystAge{color: red;}"))
+                          textOutput("validHystAge")
                         )
                       )
                     )
@@ -834,8 +817,7 @@ ui <- fixedPage(
                                        label = h5("Age at Oophorectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
                                        width = "150px"),
-                          textOutput("validOophAge"),
-                          tags$head(tags$style("#validOophAge{color: red;}"))
+                          textOutput("validOophAge")
                         )
                       )
                     )
@@ -883,7 +865,7 @@ ui <- fixedPage(
                                   choices = c("No panel selected", "Create new"),
                                   width = "300px"),
                       actionButton("addPanel", label = "Add Panel",
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px"),
+                                   style = "margin-top: 0px; margin-bottom:15px"),
                       
                       # create new panel
                       conditionalPanel("input.existingPanels == 'Create new'",
@@ -893,16 +875,14 @@ ui <- fixedPage(
                           'Create Panel' button. You will still need to add the panel above after its created."),
                         textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
                         textOutput("validPanelName"),
-                        tags$head(tags$style("#validPanelName{color: red;}")),
                         selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
                                        choices = all.genes, 
                                        multiple = TRUE, 
                                        options = list(create = TRUE),
                                        width = "500px"),
                         textOutput("waitNewPanel"),
-                        tags$head(tags$style("#waitNewPanel{color: blue;}")),
                         actionButton("createPanel", label = "Create Panel",
-                                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                                     style = "margin-top: 0px; margin-bottom:15px")
                       )
                     ))
                   ),
@@ -948,7 +928,7 @@ ui <- fixedPage(
                                 # add a new PLP gene module to the UI
                                 actionButton("addPLP", label = "Add P/LP Gene Variant",
                                              icon = icon('plus'),
-                                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                                             style = "margin-top: 10px")
                               )
                             ),
                           
@@ -967,7 +947,7 @@ ui <- fixedPage(
                                 # add a new VUS gene module to the UI
                                 actionButton("addVUS", label = "Add VUS Gene Variant",
                                              icon = icon('plus'),
-                                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
+                                             style = "margin-top: 10px"),
                               )
                             ),
                           
@@ -986,7 +966,7 @@ ui <- fixedPage(
                                 # add a new BLB gene module
                                 actionButton("addBLB", label = "Add B/LB Gene Variant",
                                              icon = icon('plus'),
-                                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                                             style = "margin-top: 10px")
                               )
                             )
                           ) # end of tabsetPanel for gene results by type
@@ -1042,7 +1022,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validDauQty"),
-                      tags$head(tags$style("#validDauQty{color: red;}")),
                       
                       numericInput("numSon",
                                    label = h5("Sons:"),
@@ -1050,8 +1029,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validSonQty"),
-                      tags$head(tags$style("#validSonQty{color: red;}"))
+                      textOutput("validSonQty")
                     ),
                     
                     wellPanel(
@@ -1063,7 +1041,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validSisQty"),
-                      tags$head(tags$style("#validSisQty{color: red;}")),
                       
                       numericInput("numBro",
                                    label = h5("Brothers:"),
@@ -1071,8 +1048,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validBroQty"),
-                      tags$head(tags$style("#validBroQty{color: red;}"))
+                      textOutput("validBroQty")
                     )
                   ), # end of column for siblings and children
                   
@@ -1086,7 +1062,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validMAuntQty"),
-                      tags$head(tags$style("#validMAuntQty{color: red;}")),
                       
                       numericInput("numMUnc",
                                    label = h5("Maternal Uncles:"),
@@ -1094,8 +1069,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validMUncQty"),
-                      tags$head(tags$style("#validMUncQty{color: red;}"))
+                      textOutput("validMUncQty")
                     ),
                     
                     wellPanel(
@@ -1107,7 +1081,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validPAuntQty"),
-                      tags$head(tags$style("#validPAuntQty{color: red;}")),
                       
                       numericInput("numPUnc",
                                    label = h5("Paternal Uncles:"),
@@ -1115,8 +1088,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validPUncQty"),
-                      tags$head(tags$style("#validPUncQty{color: red;}"))
+                      textOutput("validPUncQty")
                     )
                   ) # end of column for aunts and uncles
                 ), # end of fluidRow for the entire num/type rel tab
@@ -1124,8 +1096,7 @@ ui <- fixedPage(
                 # button to create visual pedigree
                 h4("To Continue"),
                 h5("Press the button below to display the proband's pedigree."),
-                actionButton("showPedButton", label = "Display Pedigree", icon = icon('tv'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B")
+                actionButton("showPedButton", label = "Display Pedigree", icon = icon('tv'))
                 
               ) # end of number and type of rels tab
             ) # end of tabsetPanel for data entry
@@ -1157,7 +1128,7 @@ ui <- fixedPage(
             # show panelpro doc string
             actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
                          icon = icon('book'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px"),
+                         style = "margin-bottom:25px"),
             
             # basic settings
             h4("Basic Settings"),
@@ -1222,7 +1193,6 @@ ui <- fixedPage(
                          value = formals(PanelPRO::PanelPRO)$age.by,
                          width = "150px"),
             textOutput("validYearInterval"),
-            tags$head(tags$style("#validYearInterval{color: red;}")),
             br(),
             
             # advanced settings
@@ -1296,15 +1266,14 @@ ui <- fixedPage(
                 h5("Reset all settings to PanelPRO default values"),
                 actionButton("resetPanelPROInputs", label = "Reset to Defaults",
                              icon = icon('undo'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px")
+                             style = "margin-bottom:25px")
               )
             ),
             
             # RUN MODEL
             br(),
             actionButton("runPP", label = "Run PanelPRO",
-                         icon = icon('play'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B")
+                         icon = icon('play'))
             
           ), # end of "Run" tab for PanelPRO
           
@@ -1319,7 +1288,7 @@ ui <- fixedPage(
               column(width = 4, align = "right",
                 actionButton("downloadResults1", label = "Download Results",
                              icon = icon('download'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px")
+                             style = "margin-top: 0px")
               )
             )),
             
@@ -1377,8 +1346,7 @@ ui <- fixedPage(
                   the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
                 tableOutput("ppRunSettings"),
                 actionButton("showPPDocString2", label = "Show PanelPRO Documentation",
-                             icon = icon('book'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B")
+                             icon = icon('book'))
               ),
               
               ## Console Output
@@ -1431,7 +1399,7 @@ ui <- fixedPage(
           ),
           actionButton("addManagersButton", label = "Add Selected Managers",
                        icon = icon('plus'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom: 25px")
+                       style = "margin-top: 0px; margin-bottom: 25px")
         ),
         br(),
         
@@ -1457,22 +1425,7 @@ ui <- fixedPage(
   
   #### UI: Footer ####
   br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
-  
-  #### UI: Tab Switching Tags #####
-  # automatically go to top of tab when selecting a tab
-  tags$script(" $(document).ready(function () {
-         $('#navbarTabs a[data-toggle=\"tab\"]').on('click', function (e) {
-          window.scrollTo(0, 0)
-               });
-               });"
-  ),
-  # automatically go to top of tab when selecting a tab
-  tags$script(" $(document).ready(function () {
-         $('#pedTabs a[data-toggle=\"tab\"]').on('click', function (e) {
-          window.scrollTo(0, 0)
-               });
-               });"
-  )
+
 ) # end of UI
 
 
@@ -5592,13 +5545,11 @@ server <- function(input, output, session) {
       footer = tagList(
         conditionalPanel("input.downloadResultsAs == '.csv'",
           downloadButton("downloadResultsCSV", label = "Download",
-                         icon = icon('download'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+                         icon = icon('download')),
         ),
         conditionalPanel("input.downloadResultsAs == '.rds'",
           downloadButton("downloadResultsRDS", label = "Download",
-                         icon = icon('download'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+                         icon = icon('download')),
         ),
         modalButton("Cancel")
       )

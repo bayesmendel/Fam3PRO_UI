@@ -891,13 +891,21 @@ validateRelNums <- function(num.rels){
 #' @param uped data.frame, the pedigree
 #' @param pedID string, the pedigree ID
 #' @param conn a database connection
+#' @param username self explanitory
 #' @returns either an error message if the pedigree could not be conformed to the 
 #' PPI format or a pedigree data.frame compatible with PPI
-checkUploadPed <- function(uped, pedID = NULL, conn){
+checkUploadPed <- function(uped, pedID = NULL, conn, username){
   
   ## pedigreeID
+  user.ped.names <- unique(dbGetQuery(conn = conn, statement = paste0("SELECT PedigreeID FROM ", username))$PedigreeID)
   if(!is.null(pedID)){
-    uped$PedigreeID <- pedID
+    
+    # check if the given name is already taken
+    if(pedID %in% user.ped.names){
+      return("This PedigreeID has already been used by another pedigree in your user account.")
+    } else {
+      uped$PedigreeID <- pedID
+    }
     
     # if a PedigreeID column already exists
   } else if("PedigreeID" %in% colnames(uped)){
@@ -907,12 +915,6 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
       return("PedigreeID column is empty.")
     }
     
-    # check if the name is unique to this user account
-    
-    
-    
-    
-    
     # check the name is uniform
     if(any(is.na(uped$PedigreeID))){
       return("PedigreeID column contains NA.")
@@ -920,12 +922,15 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
       return("PedigreeID column contains multiple IDs in the same pedigree.")
     } 
     
+    # check if the name is unique to this user account
+    if(uped$PedigreeID[1] %in% user.ped.names){
+      return("This PedigreeID has already been used by another pedigree in your user account.")
+    }
     
     # error if a pedID was not provided and no PedigreeID column exists
   } else {
     return("No pedigree ID was provided.")
   }
-  
   
   ### check for presence of columns
   ## minimum required columns (return an error is any missing)
@@ -935,15 +940,12 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
     return(paste0("Pedigree missing one of the minimum required columns: ", paste0(req.cnames, collapse = ", "),"."))
   }
   
+  # check for 1 and only 1 proband
+  if(sum(as.numeric(uped$isProband), na.rm = T) != 1){
+    return("To be compatible with PPI, there must be one and only 1 proband as indicated by the isProband column.")
+  }
+  
   ## optional columns (create dummy columns if missing)
-  # name, side, relationship
-  
-  
-  
-  
-  
-  
-  
   # race/anc/eth
   if(!"race" %in% cnames){
     uped$race <- "All_Races"
@@ -971,7 +973,8 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
   }
   
   # check for missing columns with a default value of NA
-  def.na.cols <- c(paste0("Age", PanelPRO:::CANCER_NAME_MAP$short), "cancersJSON",
+  def.na.cols <- c("name", "side", "relationship",
+                   paste0("Age", PanelPRO:::CANCER_NAME_MAP$short), "cancersJSON",
                    cbcrisk.cols,
                    PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS,
                    PanelPRO:::GENE_TYPES, "genesJSON")
@@ -987,7 +990,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
   miss.def.0.cols <- def.0.cols[which(!def.0.cols %in% cnames)]
   if(length(miss.def.0.cols) > 0){
     for(mc in miss.def.0.cols){
-      uped[[mc]] <- NA
+      uped[[mc]] <- 0
     }
   }
   
@@ -1024,26 +1027,38 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
     }
   }
   
-  
   ### check column codings
   ## PanelPRO columns - run checkFam
-  
-  
-  
-  
-  
-  
-  
+  cped <- try(PanelPRO::checkFam(uped, impute.missing.ages = F, ignore.proband.germ = T))
+  if(is.data.frame(cped$ped_list$`1`)){
+    
+    # remove unneeded columns and recode as needed
+    cped <- 
+      cped %>%
+      select(-c(ends_with("_lower"), ends_with("_upper"), famID, riskmod, interAge)) %>%
+      mutate(Sex = ifelse(Sex == "Female", 0, ifelse(Sex == "Male", 1, NA)))
+    cped[which(cped == -999)] <- NA
+    
+    # replace columns in the original pedigree with the columns returned from the checkFam function
+    uped[, colnames(cped)] <- NULL
+    uped <- cbind(cped, uped)
+    
+    # if an error occurred, tell the user
+  } else {
+    return(cped[1])
+  }
   
   ## PPI specific columns
-  # name/side/relationship
+  # name
+  # If name is blank, just name the proband and label everyone else by number
+  if(all(is.na(uped$name))){
+    uped$name <- uped$ID
+    uped$name[which(uped$isProband == 1)] <- "Proband"
+  } else if(nrow(uped) != unique(uped$name)){
+    return("Values in the name column must be unique")
+  }
   
-  
-  
-  
-  
-  
-  
+  # note: relationship and side are not required, so leave as is
   
   # NPPrace/NPPeth/NPPAJ/NPPIt
   if(!all(is.na(uped$NPPrace))){
@@ -1180,44 +1195,84 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
     }
   }
   
-  # panelNames
-  # check that all panel names are valid
-  uped$panelNames[which(is.na(uped$panelNames))] <- "none"
-  db.pans <- dbGetQuery(conn = conn, statement = "SELECT panel_name FROM panels")$panel_name
-  ped.pans <- paste0(uped$panelNames[which(uped$panelNames != "none")], collapse = ", ")
-  if(ped.pans != ""){
-    ped.pans <- str_split(ped.pans, pattern = ", ")[[1]]
-    if(any(!ped.pans %in% db.pans)){
-      return("The panelNames column contains panels which are not registered in the PPI database.")
-    }
-  }
-  
-  # check that no panelNames and genesJSON are matching
-  for(rw in 1:nrow(uped)){
-    if(xor(uped$panelNames[rw] == "none", is.na(uped$genesJSON))){
-      return("At least one relative has either a panelNames entry and no genesJSON entry or vice versa.")
-    }
-  }
-  
   # genesJSON
-  # if the column is blank, but there are PanelPRO gene results reported, 
-  # and a panelNames column with 1 and only 1 panel name
-  # then genesJSON can be created
-  if(all(is.na(uped$genesJSON)) & 
-     sum(uped[, PanelPRO:::GENE_TYPES], na.rm = T) > 0){
-    
-    
-    # there are values populated in the column
-  } else if(any(!is.na(uped$cancersJSON))){
-    
-    # check the format
-    
-    
-    # verify PanelPRO cancer columns match the JSON
-    
+  # scenarios
+  # 1: There are PanelPRO gene columns with data but the corresponding values in 
+  #    genesJSON and panelNames: panel names are missing, cannot create genesJSON 
+  #    and PPI cannot use any gene results.
+  # 2: There are PanelPRO gene columns with data but the corresponding values in 
+  #    genesJSON are empty but there is data in panelNames, however at least one 
+  #    relative in the pedigree has multiple panels in panelNames: cannot determine 
+  #    which genes were assigned to which panels therefore cannot create genesJSON 
+  #    and PPI cannot use any 
+  #    gene results.
+  # 3: There are PanelPRO gene columns with data but the corresponding values in 
+  #    genesJSON are empty but there is data in panelNames, and any relative with 
+  #    genetic testing has one and only one panel in panelNames: assume that all 
+  #    genetic testing results were from the one panel listed for that individual,
+  #    create genesJSON and PPI can use these results
+  # 4: There is data in the genesJSON column: check that this data matches the 
+  #    panelNames column and PanelPRO gene columns. If those columns are blank 
+  #    the populate them from genesJSON. If any part does not match, send an error.
+  # Conclusion: the simplest would be to inform the user to only upload a genesJSON 
+  # column which would then be used to populate the other gene columns
+  
+  # clear data from PanelPRO gene columns and panelNames
+  for(gn in PanelPRO:::GENE_TYPES){
+    uped[[gn]] <- NA
+  }
+  uped$panelNames <- "none"
+  
+  # iterate through relatives with values populated in genesJSON
+  if(any(!is.na(uped$genesJSON))){
+    has.g.data <- uped[which(!is.na(uped$genesJSON)),]
+    for(rw in 1:nrow(has.g.data)){
+      
+      # convert from JSON to data frame
+      mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", uped$genesJSON[rw])
+      gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+      gene.df <-
+        gene.df %>%
+        mutate(across(.cols = everything(), ~as.character(.))) %>%
+        mutate(rel = rl)
+      
+      # populate panelNames
+      uped$panelNames[rw] <- paste0(unique(gene.df$panel), collapse = ", ")
+      
+      # mark all tested PanelPRO genes as having a "negative" result to start
+      pp.genes <- gene.df$gene[which(gene.df$gene %in% PanelPRO:::GENE_TYPES)]
+      if(length(pp.genes) > 0){
+        uped[rw, pp.genes] <- 0
+      }
+      
+      # mark all P/LP genes as positive
+      plp.genes <- filter(gene.df, gene %in% pp.genes & result == "PLP")
+      if(nrow(plp.genes) > 0){
+        for(plp.rw in 1:nrow(plp.genes)){
+          uped[rw, plp.genes$gene[plp.rw]] <- 1
+        }
+      }
+    }
   }
   
-  
+  # # panelNames
+  # # check that all panel names are valid
+  # uped$panelNames[which(is.na(uped$panelNames))] <- "none"
+  # db.pans <- dbGetQuery(conn = conn, statement = "SELECT panel_name FROM panels")$panel_name
+  # ped.pans <- paste0(uped$panelNames[which(uped$panelNames != "none")], collapse = ", ")
+  # if(ped.pans != ""){
+  #   ped.pans <- str_split(ped.pans, pattern = ", ")[[1]]
+  #   if(any(!ped.pans %in% db.pans)){
+  #     return("The panelNames column contains panels which are not registered in the PPI database.")
+  #   }
+  # }
+  # 
+  # # check that no panelNames and genesJSON are matching
+  # for(rw in 1:nrow(uped)){
+  #   if(xor(uped$panelNames[rw] == "none", is.na(uped$genesJSON))){
+  #     return("At least one relative has either a panelNames entry and no genesJSON entry or vice versa.")
+  #   }
+  # }
   
   ## set data types and order the columns
   uped <-
@@ -1238,5 +1293,5 @@ checkUploadPed <- function(uped, pedID = NULL, conn){
                             FirstBCTumorSize, panelNames, genesJSON),
                   ~as.character(.)))
   
-  uped
+  return(uped)
 }
