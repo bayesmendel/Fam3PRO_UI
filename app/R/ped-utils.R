@@ -1295,3 +1295,101 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   
   return(uped)
 }
+
+
+#' Abbreviate display names for the pedigree
+#' 
+#' @param ped.df a pedigree data frame with a column 'name'
+abb.Relations <- function(ped.df){
+  ped.df %>%
+    mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
+    mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
+    mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
+    mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
+    mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
+    mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
+    mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
+    mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
+    mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
+    mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
+    mutate(name = gsub(pattern = " ", replacement = "", name))
+}
+
+
+#' Prepare pedigree JSON object
+#' 
+#' @param pjs.ped a pedigree data frame
+prepPedJSON <- function(pjs.ped){
+  
+  # determine founders ("top_level")
+  pjs.ped$top_level <- FALSE
+  if(any(pjs.ped$relation == "grandmother") | any(pjs.ped$relation == "grandfather")){
+    pjs.ped$top_level[which(pjs.ped$relation %in%  c("grandmother", "grandfather"))] <- TRUE
+  } else {
+    pjs.ped$top_level[which(pjs.ped$relation %in% c("mother", "father"))] <- TRUE
+  }
+  
+  # determine partners ("noparents")
+  # anyone without parents (someone who "married") must list the same parents as their partner
+  pjs.ped <- mutate(pjs.ped, noparents = ifelse(!top_level & is.na(MotherID) & is.na(FatherID), TRUE, FALSE)) 
+  marr.in <- pjs.ped$ID[which(pjs.ped$noparents)]
+  for(mi in marr.in){
+    
+    # find their partner by checking the kids they have in common (NOTE DOES NOT HANDLE LOOPS)
+    if(pjs.ped$Sex[which(pjs.ped$ID == mi)] == 0){
+      kids <- pjs.ped$ID[which(pjs.ped$MotherID == mi)]
+      partner <- pjs.ped$FatherID[which(pjs.ped$ID %in% kids)][1]
+    } else if(pjs.ped$Sex[which(pjs.ped$ID == mi)] == 1){
+      kids <- pjs.ped$ID[which(pjs.ped$FatherID == mi)]
+      partner <- pjs.ped$MotherID[which(pjs.ped$ID %in% kids)][1]
+    }
+    
+    # replace the missing parent IDs with the parent IDs of their parnter
+    pjs.ped$MotherID[which(pjs.ped$ID == mi)] <- pjs.ped$MotherID[which(pjs.ped$ID == partner)]
+    pjs.ped$FatherID[which(pjs.ped$ID == mi)] <- pjs.ped$FatherID[which(pjs.ped$ID == partner)]
+  }
+  
+  # convert FALSE values to NA to make the JSON string smaller
+  pjs.ped <- mutate(pjs.ped, across(.cols = c(top_level, noparents), ~ ifelse(!., NA, .)))
+  
+  # code cancers with unknown affection ages as age 0
+  for(rw in 1:nrow(pjs.ped)){
+    for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+      if(is.na(pjs.ped[rw, paste0("Age", cn)]) & pjs.ped[rw, paste0("isAff", cn)] == 1){
+        pjs.ped[rw, paste0("Age", cn)] <- 0
+      }
+    }
+  }
+  
+  # abbreviate display names
+  pjs.ped <- abb.Relations(pjs.ped)
+  
+  # recode and rename for compatibility with pedigreejs
+  pjs.ped <- 
+    pjs.ped %>%
+    select(ID, name, isProband, top_level, noparents, Sex, CurAge, isDead, MotherID, FatherID, starts_with("Age")) %>%
+    mutate(ID2 = ID, .after = "ID") %>%
+    mutate(across(.cols = c(ID2, Sex, isDead, MotherID, FatherID), ~as.character(.))) %>%
+    mutate(Sex = ifelse(Sex == "0", "F", ifelse(Sex == "1", "M", "U"))) %>%
+    mutate(isProband = as.logical(isProband)) %>%
+    mutate(isProband = ifelse(!isProband, NA, isProband)) %>%
+    rename_with(.fn = ~ paste0(gsub(pattern = " ", replacement = "_", 
+                                    PanelPRO:::CANCER_NAME_MAP$long[
+                                      which(PanelPRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
+                                    ]),
+                               "_cancer_diagnosis_age"
+                        ),
+                .cols = starts_with("Age")) %>%
+    rename("display_name" = "name",
+           "name" = "ID2",
+           "sex" = "Sex",
+           "proband" = "isProband",
+           "age" = "CurAge",
+           "status" = "isDead",
+           "father" = "FatherID",
+           "mother" = "MotherID")
+  
+  # convert data frame to JSON
+  pedJSON <- toJSON(pjs.ped, dataframe = "rows", na = "null", pretty = TRUE)
+  return(pedJSON)
+}

@@ -56,6 +56,16 @@ ui <- fixedPage(
   # allows shinyjs commands
   useShinyjs(),
   
+  # pedigreejs dependencies
+  tags$head(tags$meta(charset="UTF-8")),
+  tags$head(tags$meta(content="IE=edge")),
+  tags$head(tags$meta(name="viewport", content="width=device-width,maximum-scale=2")),
+  tags$head(tags$link(rel = "stylesheet", type = "text/css",
+                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
+  tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
+  tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI.js")),
+  
   # server busy spinner
   shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
   
@@ -64,7 +74,7 @@ ui <- fixedPage(
     title = 
       tagList(
         span(
-          "PPI: PanelPRO Interface",
+          app.title,
           div(class = "pull-right", 
             img(src="dana-farber-logo-small-2.PNG", height = "50px"),
             shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), 
@@ -72,7 +82,7 @@ ui <- fixedPage(
           )
         )
       ),
-    windowTitle = "PPI: PanelPRO Interface"
+    windowTitle = app.title
   ),
   
   #### UI: Log-in tabs ####
@@ -522,6 +532,16 @@ ui <- fixedPage(
               # pedigree visualization (table and tree)
               tabsetPanel(id = "pedVisualsEditor",
                           
+                # pedigreeJS
+                tabPanel(title = "Interactive",
+                  br(),
+                  bootstrapPage(
+                    # includeCSS(path="www/pedigreejs/Css.css"),
+                    includeScript(path="www/pedigreejs/JS.js"),
+                    includeHTML(path="www/pedigreejs/Html.html")
+                  )
+                ),
+                          
                 # tree
                 tabPanel(title = "Tree",
                   plotOutput("treePedEditor")
@@ -559,10 +579,12 @@ ui <- fixedPage(
               ), # end of tabsetPanel for choosing visualization
               
               # download data dictionary
-              conditionalPanel("input.pedVisualsEditor != 'Tree'",
-                p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
-                downloadButton("downloadDD2", label = "Download Data Dictionary",
-                               icon = icon('download'))
+              conditionalPanel("input.pedVisualsEditor != 'Tree' & input.pedVisualsEditor != 'Interactive'",
+                fluidRow(
+                  p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
+                  downloadButton("downloadDD2", label = "Download Data Dictionary",
+                                 icon = icon('download'))
+                )
               )
             ) # end of column for pedigree visualization
           ), # end of conditionalPanel to display pedigree visualization or not
@@ -1100,9 +1122,24 @@ ui <- fixedPage(
                 
               ) # end of number and type of rels tab
             ) # end of tabsetPanel for data entry
-          ), # end of column for data entry
-        ) # end of fluidRow for create/modify pedigree tab
-      ), # end of tab for create/modify pedigree
+          ) # end of column for data entry
+        ), # end of fluidRow for create/modify pedigree tab
+        
+        
+        
+        # FOR TESTING - SHOW PedigreeJS string at the bottom of the screen
+        fluidRow(
+          conditionalPanel(condition = "output.showPed",
+            tags$a(href="#", onclick = "getpedigree()", 
+                   class="btn btn-default action-button shiny-bound-input", 
+                   style="text-align:center;", "Get PedigreeJS string"),
+            textOutput("pedJSout") 
+          )
+        )
+        
+        
+        
+      ), # end of navbar tab for create/modify pedigree
       
       ##### UI: PanelPRO ####
       tabPanel("PanelPRO",
@@ -4367,9 +4404,18 @@ server <- function(input, output, session) {
     }
     hideTab("pedTabs", target = "Add Relatives", session = session)
     
+    # create interactive pedigeejs pedigree
+    session$sendCustomMessage("createPedJSHandler", prepPedJSON(PED()))
+    
   }, ignoreInit = TRUE)
   
   ##### Visualize Pedigree ####
+  ###### PedigreeJS ####
+  
+  # FOR TESTING - contains the pedigreeJS string
+  observeEvent(input$pedJSout,{
+    output$pedJSout <- renderText(input$pedJSout)
+  })
   
   ###### Family Tree ####
   ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs
@@ -4380,19 +4426,11 @@ server <- function(input, output, session) {
         PED() %>%
         mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
         mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
-        mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
-        mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
-        mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
-        mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
-        mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
-        mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
-        mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
-        mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
-        mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
-        mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
-        mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
         mutate(nameMother = "") %>%
-        mutate(nameFather = "") %>%
+        mutate(nameFather = "")
+      plot_fam <- abb.Relations(plot_fam)
+      plot_fam <- 
+        plot_fam %>%
         select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
       
       # replace mother and father ID numbers with names
