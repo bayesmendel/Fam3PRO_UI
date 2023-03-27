@@ -368,6 +368,79 @@ popPersonData <- function(tmp.ped,
   }
   
   # demographics
+  if(!is.null(sx)){ 
+    tmp.ped$Sex[which(tmp.ped$ID == id)] <- ifelse(sx == "Female", 0, 1)
+    
+    # check that the relationship and name are still valid, if not get the 
+    # corrected relationship
+    rela <- tmp.ped$relationship[which(tmp.ped$ID == id)]
+    if(!rela %in% c("partner", "rel.partner")){
+      name.sx.mismatch <- FALSE
+      if(sx == "Male"){
+        if(grepl(pattern = "daughter|mother|niece|sister|aunt", rela)){
+          name.sx.mismatch <- TRUE
+        }
+        if(grepl(pattern = "daughter", rela)){
+          rela <- sub(pattern = "daughter", replacement = "son", rela)
+        } else if(grepl(pattern = "mother", rela)){
+          rela <- sub(pattern = "mother", replacement = "father", rela)
+        } else if(grepl(pattern = "niece", rela)){
+          rela <- sub(pattern = "niece", replacement = "nephew", rela)
+        } else if(grepl(pattern = "sister", rela)){
+          rela <- sub(pattern = "sister", replacement = "brother", rela)
+        } else if(grepl(pattern = "aunt", rela)){
+          rela <- sub(pattern = "aunt", replacement = "uncle", rela)
+        }
+      } else if(sx == "Female"){
+        if(grepl(pattern = "son|father|nephew|brother|uncle", rela)){
+          name.sx.mismatch <- TRUE
+        }
+        if(grepl(pattern = "son", rela)){
+          rela <- sub(pattern = "son", replacement = "daughter", rela)
+        } else if(grepl(pattern = "father", rela)){
+          rela <- sub(pattern = "father", replacement = "mother", rela)
+        } else if(grepl(pattern = "nephew", rela)){
+          rela <- sub(pattern = "nephew", replacement = "niece", rela)
+        } else if(grepl(pattern = "brother", rela)){
+          rela <- sub(pattern = "brother", replacement = "sister", rela)
+        } else if(grepl(pattern = "uncle", rela)){
+          rela <- sub(pattern = "uncle", replacement = "aunt", rela)
+        }
+      }
+      
+      # if the name and sex were mismatched, get a new name label for the relative
+      if(name.sx.mismatch){
+        sd <- tmp.ped$side[which(tmp.ped$ID == id)]
+        if(is.na(sd)){
+          nm <- stringi::stri_trans_totitle(rela)
+        } else {
+          nm <- stringi::stri_trans_totitle(paste0(ifelse(sd == "m", "Mat.", 
+                                                      ifelse(sd == "p", "Pat.", "?")), " ", rela))
+        }
+        
+        # if the name is a non-unique type, add a number identifier to the end
+        # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
+        if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
+          other.rela.names <- tmp.ped$name[which(tmp.ped$relationship == rela)]
+          if(length(other.rela.names) > 0){
+            other.rela.nums <- 
+              as.numeric(
+                str_sub(other.rela.names, 
+                        start = str_locate(other.rela.names, pattern = "\\d")[1,1])
+              )
+            new.name.num <- max(other.rela.nums, na.rm = T) + 1
+          } else {
+            new.name.num <- 1
+          }
+          nm <- paste0(nm, " ", new.name.num)
+        }
+        
+        # update the pedigree
+        tmp.ped$relationship[which(tmp.ped$ID == id)] <- rela
+        tmp.ped$name[which(tmp.ped$ID == id)] <- nm
+      }
+    }
+  }
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ 
     tmp.ped$isDead[which(tmp.ped$ID == id)] <- ifelse(is.dead, 1, 0) 
@@ -1519,12 +1592,6 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   }
   
   ### determine relationship to proband and, if possible, maternal or paternal side
-  # create a copy of the pedJS pedigree with dummy parent IDs removed from relatives with noparents 
-  # if(!type %in% c("parent","partner")){
-  #   rel.ped <- pjs
-  # } else if(type %in% c("parent","partner")){
-  #   rel.ped <- pjs.full
-  # }
   if(type != "parent"){
     rel.ped <- pjs
   } else {
@@ -1547,13 +1614,6 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
            "FatherID" = "father") %>%
     mutate(across(.cols = c(ID, MotherID, FatherID), ~ as.numeric(.))) %>%
     mutate(across(.cols = c(MotherID, FatherID), ~ replace_na(., -999)))
-  
-  
-  # FOR TESTING
-  # View(rel.ped)
-  
-  
-  
   target.rel.idx <- which(pjs$name == target.rel)
   pb.name <- pjs$name[which(pjs$proband == TRUE)] # proband's name/ID
   
@@ -1649,13 +1709,6 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
           # is a grandparent, great-grandparent, etc
         } else if(type == "parent"){
           isGP <- CountGs(t.pjs = rel.ped, rl = as.numeric(target.rel))
-          
-          
-          print("isGP")
-          print(isGP)
-          
-          
-          
           if(!is.na(isGP$rela)){
             rela <- isGP$rela
             sd <- isGP$side
@@ -1717,13 +1770,6 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   
   # add a unique number if the relationship is not unique 
   # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
-  
-  
-  print("rela")
-  print(rela)
-  
-  
-  
   if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
     other.rela.names <- r.ped$name[which(r.ped$relationship == rela)]
     if(length(other.rela.names) > 0){
@@ -1739,22 +1785,9 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
     target.rel.rname <- paste0(target.rel.rname, " ", new.name.num)
   }
   
-  
-  print("target.rel.rname")
-  print(target.rel.rname)
-  
-  
-  
   # abbreviate the name and add it into the JSON
   abbName <- abb.Relations(data.frame(name = target.rel.rname))[1,1]
   pjs$display_name[which(pjs$name == target.rel)] <- abbName
-  
-  
-  
-  print("abbName")
-  print(abbName)
-  
-  
   
   # add new person to the R pedigree, format row initially as a cousin 
   # (allows manual entry of fields) then update
@@ -1778,9 +1811,6 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   r.ped$relationship[nrow(r.ped)] <- rela
   r.ped$side[nrow(r.ped)] <- sd
   r.ped$name[nrow(r.ped)] <- target.rel.rname
-  
-  View(pjs)
-  View(r.ped)
   
   return(list(pjs_updated = pjs,
               r.ped_updated = r.ped))

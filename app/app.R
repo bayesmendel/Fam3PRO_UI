@@ -3364,6 +3364,23 @@ server <- function(input, output, session) {
   })
   output$validAge <- renderText({ validAge() })
   
+  # enable sex input if the selected relative is not the proband and if the relative has children
+  observeEvent(input$relSelect, {
+    if(pedExists()){
+      if(PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))] == 0){
+        rel.kids <- PED()$ID[which(PED()$MotherID == as.numeric(input$relSelect))]
+      } else {
+        rel.kids <- PED()$ID[which(PED()$FatherID == as.numeric(input$relSelect))]
+      }
+      if(!PED()$isProband[which(PED()$ID == as.numeric(input$relSelect))] & 
+         length(rel.kids) == 0){
+        shinyjs::enable(id = "Sex")
+      } else {
+        shinyjs::disable(id = "Sex")
+      }
+    }
+  }, ignoreNULL = T, ignoreInit = T)
+  
   # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
   # also disable/enable create pedigree button based on presense/absense of minimum necessary information
   pbMinInfo <- reactiveVal(FALSE)
@@ -3493,6 +3510,7 @@ server <- function(input, output, session) {
       # populate proband's demographics data and PedigreeID
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                         cur.age = input$Age, is.dead = input$isDead,
+                        sx = input$Sex,
                         rc = input$race, et = input$eth, 
                         an.aj = input$ancAJ, an.it = input$ancIt))
       
@@ -3507,6 +3525,11 @@ server <- function(input, output, session) {
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
+      
+      # update pedigreeJS
+      if(showPed()){
+        session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+      }
       
     } # if statement to check whether the pedigree could be created based on the tab and minimum info required
     
@@ -3618,6 +3641,11 @@ server <- function(input, output, session) {
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
+      
+      # update pedigreeJS
+      if(showPed()){
+        session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+      }
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -4456,12 +4484,6 @@ server <- function(input, output, session) {
       # get the numeric ids from the pedigreeJS pedigree
       num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
       
-      
-      # # FOR TESTING
-      # View(pjs)
-      
-      
-      
       # get a copy of the R data frame master pedigree
       r.ped <- PED()
 
@@ -4536,13 +4558,6 @@ server <- function(input, output, session) {
               pjs$mother[which(pjs$mother == added.femalep)] <- as.character(new.fp.id)
               pjs$father[which(pjs$father == added.malep)] <- as.character(new.mp.id)
 
-              
-                            
-              # # FOR TESTING
-              # View(pjs)
-              
-              
-              
               # add the female parent then the male parent
               out.f <- addPJSrel(pjs = pjs[which(pjs$name != added.malep),],
                                  r.ped = r.ped,
@@ -4616,27 +4631,9 @@ server <- function(input, output, session) {
             canReactive$canNums[[as.character(tr)]] <- trackCans.rel
             geneReactive$GeneNums[[as.character(tr)]] <- relTemplate.trackGenes
           }
-
+          
           # push the updated pedigree back to pedigreeJS
-
-
-          # FOR TESTING
-          View(out$pjs_updated)
-          print("\n\nstr(out$pjs_updated)")
-          print(str(out$pjs_updated))
-
-
-
-
           pjs.json <- toJSON(out$pjs_updated, dataframe = "rows", na = "null", pretty = TRUE)
-
-
-          # FOR TESTING
-          # print("\n\npjs.json")
-          # print(pjs.json)
-
-
-
           session$sendCustomMessage("updatePedJSHandler", pjs.json)
           
         } # end of else where relatives were added
@@ -4668,8 +4665,6 @@ server <- function(input, output, session) {
           updateSelectInput(session = session, inputId = "relSelect",
                             choices = setNames(selector.names$ID, selector.names$combined_name))
         }
-        
-      
       } # end of if statement to check if pedigrees have the same number of rows
     } # end of if statement to check if pedigree has been displayed yet (showPed())
   }, ignoreInit = T, ignoreNULL = T)
@@ -4751,34 +4746,16 @@ server <- function(input, output, session) {
         relocate(name, .after = "ID") %>%
         relocate(Sex, .after = "name") %>%
         relocate(Twins, .after = "isDead")
-      # %>%
-      #   mutate(Sex = recode(Sex,
-      #                       "0" = "Female",
-      #                       "1" = "Male")) %>%
-      #   mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
-      #                 ~ ifelse(is.na(.), "Not Tested",
-      #                          ifelse(.==1, "P/LP", "Not P/LP")))) %>%
-      #   mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
-      #   mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-      #                                  PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
-      #                 ~ ifelse(is.na(.), "Not Tested",
-      #                          ifelse(.==1, "Pos", "Neg")))) %>%
-      #   mutate(across(.cols = c(Dead, AJ, Italian, 
-      #                           Mastectomy, Hysterecomy, Oophorectomy,
-      #                           AntiEstrogen, HRPreneoplasia),
-      #                 ~ ifelse(is.na(.), NA,
-      #                          ifelse(.==1, "Yes", "No")))) %>%
-      #   mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
-      #                 ~ ifelse(.==1, "Yes", "No")))
-      # colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age_or_Death_Age"
-      
-      return(DT::datatable(data = t.ped,
-                           rownames = FALSE,
-                           class = list("nowrap", "stripe", "compact", "cell-border"),
-                           extensions = "FixedColumns",
-                           options = list(pageLength = 20,
-                                          scrollX = TRUE,
-                                          fixedColumns = list(leftColumns = 2))))
+        
+      return(
+        DT::datatable(data = t.ped,
+                      rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact", "cell-border"),
+                      extensions = "FixedColumns",
+                      options = list(pageLength = 20,
+                                     scrollX = TRUE,
+                                     fixedColumns = list(leftColumns = 2)))
+      )
     } else {
       return(NULL)
     }

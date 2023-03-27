@@ -151,11 +151,10 @@ $( document ).ready(function() {
 			'font_family': 'times',
 			'DEBUG': (pedigreejs.pedigree_utils.urlParam('debug') === null ? false : true)
 		};
-
+    
 		opts.dataset = dataset;
 		opts= pedigreejs.pedigreejs.rebuild(opts);
   });
-  
 }); // end of document
 
 
