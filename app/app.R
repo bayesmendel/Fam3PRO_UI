@@ -64,7 +64,8 @@ ui <- fixedPage(
                       href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
   tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
-  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-2.js")),
+  # tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9.js")),
   
   # server busy spinner
   shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
@@ -520,12 +521,14 @@ ui <- fixedPage(
               # top row to select which relative is being edited
               fluidRow(
                 column(width = 5,
-                  h4("Select a relative to edit:")
+                  div(class = "pull-right",
+                    h4("Select a relative to edit:", style = "margin-right:-15px")
+                  )
                 ),
                 column(width = 7,
                   selectInput("relSelect", label = NULL,
                               choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
-                              width = "200px")
+                              width = "300px")
                 )
               ),
               
@@ -1131,9 +1134,10 @@ ui <- fixedPage(
         fluidRow(
           conditionalPanel(condition = "output.showPed",
             tags$a(href="#", onclick = "getpedigree()", 
+                   id = "GetPedJSButton",
                    class="btn btn-default action-button shiny-bound-input", 
-                   style="text-align:center;", "Get PedigreeJS string"),
-            textOutput("pedJSout") 
+                   style="text-align:center;", "Get PedigreeJS JSON"),
+            textOutput("pedJSJSON") 
           )
         )
         
@@ -4162,13 +4166,13 @@ server <- function(input, output, session) {
     if(onGeneTab() & input$pedTabs != "Genes" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
                         gene.results = panelSum()))
-
+      
       # save pedigree to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
     }
-
+    
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Genes"){
       onGeneTab(TRUE)
@@ -4258,6 +4262,9 @@ server <- function(input, output, session) {
         # first, add partner to pedigree
         PED(formatNewPerson(relation = "partner", tmp.ped = PED()))
         parnter.id <- PED()$ID[nrow(PED())]
+        t.ped <- PED()
+        t.ped$name[nrow(t.ped)] <- "Proband Partner 1"
+        PED(t.ped)
         
         # add daughters iteratively
         if(input$numDau > 0){
@@ -4391,9 +4398,19 @@ server <- function(input, output, session) {
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
       
+      # get names and abbreviated names
+      selector.names <- 
+        PED() %>%
+        select(ID, name) %>%
+        mutate(long_name = name)
+      selector.names <- abb.Relations(selector.names)
+      selector.names <- 
+        selector.names %>%
+        mutate(combined_name = paste0(long_name, " (", name, ")"))
+      
       # update relative selector with all relatives in the pedigree
       updateSelectInput(session = session, inputId = "relSelect", 
-                        choices = setNames(PED()$ID, PED()$name), 
+                        choices = setNames(selector.names$ID, selector.names$combined_name), 
                         selected = PED()$ID[which(PED()$isProband == 1)])
       
     } # end of if statement for confirming the pedigree is a new creation
@@ -4412,10 +4429,246 @@ server <- function(input, output, session) {
   ##### Visualize Pedigree ####
   ###### PedigreeJS ####
   
-  # FOR TESTING - contains the pedigreeJS string
-  observeEvent(input$pedJSout,{
-    output$pedJSout <- renderText(input$pedJSout)
+  # FOR TESTING - diplay the pedigreeJS JSON as a string
+  output$pedJSJSON <- renderText(input$pedJSJSON)
+  
+  # every 1 second, refresh the JSON pedigree
+  autoInvalidate <- reactiveTimer(intervalMs = 4000)
+  observe({
+    autoInvalidate()
+    shinyjs::click("GetPedJSButton")
   })
+  
+  # when the JSON pedigree updates:
+  # 1: update the R pedigree (PED()) by removing any deleted relatives and 
+  #    changing the pedigreeJS 'name' values to match the formatting of the R 
+  #    pedigree 'ID' values.
+  # 2: if any pedigreeJS 'name'/R 'ID' values were changed, pass an updated JSON
+  #    string back to pedigreeJS
+  observeEvent(input$pedJSJSON, {
+    
+    # only do this after the pedigree has been visualized
+    if(showPed()){
+      
+      # convert JSON pedigree object from pedigreeJS to data frame
+      pjs <- fromJSON(input$pedJSJSON, simplifyDataFrame = T)
+      
+      # get the numeric ids from the pedigreeJS pedigree
+      num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
+      
+      
+      # # FOR TESTING
+      # View(pjs)
+      
+      
+      
+      # get a copy of the R data frame master pedigree
+      r.ped <- PED()
+
+      # check if relatives were added or deleted
+      if(nrow(pjs) != nrow(r.ped)){
+
+        # check if there were deletions of relatives and update the pedigree in R
+        if(nrow(pjs) < nrow(r.ped)){
+          del.rel <- r.ped$ID[which(!as.character(r.ped$ID) %in% pjs$name)]
+          r.ped <- subset(r.ped, ID != del.rel)
+
+          # update master pedigree
+          PED(r.ped)
+
+          # remove relative from panel and cancer hx tracking
+          canReactive$canNums[[as.character(del.rel)]] <- NULL
+          geneReactive$GeneNums[[as.character(del.rel)]] <- NULL
+
+          # not a deletion, therefore it was an addition, so
+          # update the pedigree in R,
+          # and change the new names, display_names, and statuses in pedigreeJS
+        } else {
+
+          # check if one relative was added
+          # this means either a sibling or child, not necessarily a relative to the proband,
+          # was added in pedigreeJS
+          if(nrow(pjs) == nrow(r.ped)+1){
+            
+            # change the ID/name
+            # note that the ID column is R is equivalent to the name property in pedigreeJS
+            # and note that the name column in R is equivalend to the display_name property in pedigreeJS
+            new.id <- max(num.ids)+1
+            target.rels <- as.character(new.id)
+            pjs$name[which(!varhandle::check.numeric(pjs$name))] <- as.character(new.id)
+            
+            # updated R and pedigreeJS pedigrees
+            out <- addPJSrel(pjs = pjs,
+                             r.ped = r.ped,
+                             target.rel = target.rels,
+                             type = "sib-child")
+            
+            # check if two relatives were added
+            # (this means either a set of parents or a partner and child were added in pedigreeJS)
+          } else if(nrow(pjs) == nrow(r.ped)+2){
+            
+            # identify the two new additions
+            added.rels <- pjs$name[which(!varhandle::check.numeric(pjs$name))]
+            
+            # check if the two additions were parents
+            if((isTRUE(pjs$top_level[which(pjs$name == added.rels[1])]) &
+               isTRUE(pjs$top_level[which(pjs$name == added.rels[2])])) |
+              (isTRUE(pjs$noparents[which(pjs$name == added.rels[1])]) &
+               isTRUE(pjs$noparents[which(pjs$name == added.rels[2])]))){
+              
+              # identify the male/female parents
+              if(pjs$sex[which(pjs$name == added.rels[1])] == "M"){
+                added.malep <- added.rels[1]
+                added.femalep <- added.rels[2]
+              } else {
+                added.malep <- added.rels[2]
+                added.femalep <- added.rels[1]
+              }
+              
+              # change string ids for the new parents to numeric names/IDs
+              new.fp.id <- max(num.ids)+1
+              new.mp.id <- max(num.ids)+2
+              target.rels <- as.character(c(new.fp.id, new.mp.id))
+              pjs$name[which(pjs$name == added.femalep)] <- as.character(new.fp.id)
+              pjs$name[which(pjs$name == added.malep)] <- as.character(new.mp.id)
+              pjs$mother[which(pjs$mother == added.femalep)] <- as.character(new.fp.id)
+              pjs$father[which(pjs$father == added.malep)] <- as.character(new.mp.id)
+
+              
+                            
+              # # FOR TESTING
+              # View(pjs)
+              
+              
+              
+              # add the female parent then the male parent
+              out.f <- addPJSrel(pjs = pjs[which(pjs$name != added.malep),],
+                                 r.ped = r.ped,
+                                 target.rel = as.character(new.fp.id),
+                                 type = "parent",
+                                 pjs.full = pjs)
+              out <- addPJSrel(pjs = out.f$pjs_updated,
+                               r.ped = out.f$r.ped_updated,
+                               target.rel = as.character(new.mp.id),
+                               type = "parent",
+                               pjs.full = out.f$pjs_updated)
+            
+              # they were not parents, the two additions were a partner and a child
+            } else {
+              
+              # identify which is the partner and which is the child
+              if(isTRUE(pjs$noparents[which(pjs$name == target.rels[1])])){
+                added.partner <- target.rels[1]
+                added.child <- target.rels[2]
+              } else {
+                added.partner <- target.rels[2]
+                added.child <- target.rels[1]
+              }
+              
+              # change string ids for the new parents to numeric names/IDs
+              new.par.id <- max(num.ids)+1
+              new.child.id <- max(num.ids)+2
+              target.rels <- as.character(c(new.par.id, new.child.id))
+              pjs$name[which(pjs$name == added.partner)] <- as.character(new.par.id)
+              pjs$name[which(pjs$name == added.child)] <- as.character(new.child.id)
+              if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "F"){
+                pjs$mother[which(pjs$mother == added.partner)] <- as.character(new.par.id)
+              } else if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "M"){
+                pjs$father[which(pjs$father == added.partner)] <- as.character(new.par.id)
+              }
+              
+              # identify the partner's partner
+              partner.of <- 
+                as.character(
+                  pjs[which(pjs$name == as.character(new.child.id)), 
+                      c("mother","father")]
+                )
+              partner.of <- partner.of[which(partner.of != as.character(new.par.id))]
+              
+              # add the partner then the child
+              out.part <- addPJSrel(pjs = pjs[which(pjs$name != as.character(new.child.id)),],
+                                    r.ped = r.ped,
+                                    target.rel = as.character(new.par.id),
+                                    type = "partner",
+                                    partner.of = partner.of,
+                                    pjs.full = pjs)
+              out <- addPJSrel(pjs = out.part$pjs_updated,
+                               r.ped = out.part$r.ped_updated,
+                               target.rel = as.character(new.child.id),
+                               type = "sib-child")
+            }
+            
+            # warn if more than two relatives were added
+          } else if(nrow(pjs) > nrow(r.ped)+2){
+            base::message("More than two relatives were added between pedigreeJS pedigree JSON refreshes.")
+          }
+          
+          # update master pedigree
+          PED(out$r.ped_updated)
+          
+          # assume race/eth/ancestry and create module tracking for each new relative
+          for(tr in as.numeric(target.rels)){
+            PED(assumeBackground(PED(), id = tr))
+            canReactive$canNums[[as.character(tr)]] <- trackCans.rel
+            geneReactive$GeneNums[[as.character(tr)]] <- relTemplate.trackGenes
+          }
+
+          # push the updated pedigree back to pedigreeJS
+
+
+          # FOR TESTING
+          View(out$pjs_updated)
+          print("\n\nstr(out$pjs_updated)")
+          print(str(out$pjs_updated))
+
+
+
+
+          pjs.json <- toJSON(out$pjs_updated, dataframe = "rows", na = "null", pretty = TRUE)
+
+
+          # FOR TESTING
+          # print("\n\npjs.json")
+          # print(pjs.json)
+
+
+
+          session$sendCustomMessage("updatePedJSHandler", pjs.json)
+          
+        } # end of else where relatives were added
+        
+        # save pedigree to database
+        savePedigreeToDB(conne = conn,
+                         user = credentials()$info[["user"]],
+                         tmp_tbl = PED())
+        
+        # get names and abbreviated names
+        selector.names <- 
+          PED() %>%
+          select(ID, name) %>%
+          mutate(long_name = name)
+        selector.names <- abb.Relations(selector.names)
+        selector.names <- 
+          selector.names %>%
+          mutate(combined_name = paste0(long_name, " (", name, ")"))
+        
+        # update relative selector with all relatives in the pedigree
+        # if the selected person was deleted then make the proband the selected relativee
+        if(all(selector.names$ID != input$relSelect)){
+          updateSelectInput(session = session, inputId = "relSelect",
+                            choices = setNames(selector.names$ID, selector.names$combined_name),
+                            selected = PED()$ID[which(PED()$isProband == 1)])
+          
+          # otherwise keep the current selection
+        } else {
+          updateSelectInput(session = session, inputId = "relSelect",
+                            choices = setNames(selector.names$ID, selector.names$combined_name))
+        }
+        
+      
+      } # end of if statement to check if pedigrees have the same number of rows
+    } # end of if statement to check if pedigree has been displayed yet (showPed())
+  }, ignoreInit = T, ignoreNULL = T)
   
   ###### Family Tree ####
   ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs

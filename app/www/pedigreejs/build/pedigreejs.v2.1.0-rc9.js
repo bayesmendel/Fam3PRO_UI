@@ -285,21 +285,6 @@ var pedigreejs = (function (exports) {
 	  for (let i = 0; i < len; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
 	  return text;
 	}
-	
-	
-	// customized function for PPI which creates a new ID number, which is a unique numeric value to the Family
-  function makePPIid(ds) {
-    var PPIids = []
-    for (var i = 0; i < ds.length; i++) {
-      var object = ds[i];
-      PPIids.push(object["ID"]);
-    }
-    var newPPIid = (Math.max(...PPIids) + 1).toString();
-    return newPPIid
-  }
-	
-	
-	
 	function buildTree(opts, person, root, partnerLinks, id) {
 	  if (typeof person.children === typeof undefined) person.children = getChildren(opts.dataset, person);
 	  if (typeof partnerLinks === typeof undefined) {
@@ -2855,24 +2840,11 @@ var pedigreejs = (function (exports) {
 	    if (last_mouseover && dragging.data.name !== last_mouseover.data.name && dragging.data.sex !== last_mouseover.data.sex) {
 	      // make partners
 	      let child = {
-	        
-	        //"ID": (opts.dataset),
-	        
 	        "name": makeid(4),
 	        "sex": 'U',
 	        "mother": dragging.data.sex === 'F' ? dragging.data.name : last_mouseover.data.name,
-	        "father": dragging.data.sex === 'F' ? last_mouseover.data.name : dragging.data.name,
-	        
-	        //"motherID": dragging.data.sex === 'F' ? dragging.data.ID : last_mouseover.data.ID,
-	        //"fatherID": dragging.data.sex === 'F' ? last_mouseover.data.ID : dragging.data.ID
-	        
-	        
+	        "father": dragging.data.sex === 'F' ? last_mouseover.data.name : dragging.data.name
 	      };
-	      
-	      child.ID = (opts.dataset);
-	      child.motherID = dragging.data.sex === 'F' ? dragging.data.ID : last_mouseover.data.ID;
-	      child.fatherID = dragging.data.sex === 'F' ? last_mouseover.data.ID : dragging.data.ID;
-	      
 	      let newdataset = copy_dataset(opts.dataset);
 	      opts.dataset = newdataset;
 	      let idx = getIdxByName(opts.dataset, dragging.data.name) + 1;
@@ -3614,21 +3586,15 @@ var pedigreejs = (function (exports) {
 	  if (twin_type && $.inArray(twin_type, ["mztwin", "dztwin"]) === -1) return new Error("INVALID TWIN TYPE SET: " + twin_type);
 	  if (typeof nchild === typeof undefined) nchild = 1;
 	  let children = getAllChildren(dataset, node);
-	  let ptr_name, ptr_ID, idx;
+	  let ptr_name, idx;
 	  if (children.length === 0) {
 	    let partner = addsibling(dataset, node, node.sex === 'F' ? 'M' : 'F', node.sex === 'F');
 	    partner.noparents = true;
 	    ptr_name = partner.name;
-	    
-	    ptr_ID = partner.ID;
-	    
 	    idx = getIdxByName(dataset, node.name) + 1;
 	  } else {
 	    let c = children[0];
 	    ptr_name = c.father === node.name ? c.mother : c.father;
-	    
-	    ptr_ID = c.father === node.name ? c.motherID : c.fatherID;
-	    
 	    idx = getIdxByName(dataset, c.name);
 	  }
 	  let twin_id;
@@ -3636,23 +3602,11 @@ var pedigreejs = (function (exports) {
 	  let newchildren = [];
 	  for (let i = 0; i < nchild; i++) {
 	    let child = {
-	      
-	      //"ID": makePPIid(dataset),
-	      
 	      "name": makeid(4),
 	      "sex": sex,
 	      "mother": node.sex === 'F' ? node.name : ptr_name,
-	      "father": node.sex === 'F' ? ptr_name : node.name,
-	      
-	      
-	      //"motherID": node.sex === 'F' ? node.ID : ptr_ID,
-	      //"fatherID": node.sex === 'F' ? ptr_ID : node.ID
+	      "father": node.sex === 'F' ? ptr_name : node.name
 	    };
-	    
-	    child.ID = makePPIid(opts.dataset);
-	    child.motherID = node.sex === 'F' ? node.ID : ptr_ID;
-	    child.fatherID = node.sex === 'F' ? ptr_ID : node.ID;
-	    
 	    dataset.splice(idx, 0, child);
 	    if (twin_type) child[twin_type] = twin_id;
 	    newchildren.push(child);
@@ -3664,25 +3618,14 @@ var pedigreejs = (function (exports) {
 	function addsibling(dataset, node, sex, add_lhs, twin_type) {
 	  if (twin_type && $.inArray(twin_type, ["mztwin", "dztwin"]) === -1) return new Error("INVALID TWIN TYPE SET: " + twin_type);
 	  let newbie = {
-	    
-	    //"ID": makePPIid(dataset),
-	    
 	    "name": makeid(4),
 	    "sex": sex
 	  };
 	  if (node.top_level) {
 	    newbie.top_level = true;
-	    
-	    newbie.ID = makePPIid(dataset);
-	    
 	  } else {
 	    newbie.mother = node.mother;
 	    newbie.father = node.father;
-	    
-	    newbie.ID = makePPIid(dataset);
-	    newbie.motherID = node.motherID;
-	    newbie.fatherID = node.fatherID;
-	    
 	  }
 	  let idx = getIdxByName(dataset, node.name);
 	  if (twin_type) {
@@ -3762,13 +3705,10 @@ var pedigreejs = (function (exports) {
 	  let depth = tree_node.depth; // depth of the node in relation to the root (depth = 1 is a top_level node)
 
 	  let pid = -101;
-	  let ptr_name, ptr_ID;
+	  let ptr_name;
 	  let children = getAllChildren(dataset, node);
 	  if (children.length > 0) {
 	    ptr_name = children[0].mother == node.name ? children[0].father : children[0].mother;
-	    
-	    ptr_ID = children[0].motherID == node.ID ? children[0].fatherID : children[0].motherID;
-	    
 	    pid = getNodeByName(flat_tree, ptr_name).data.id;
 	  }
 	  let i;
@@ -3776,18 +3716,12 @@ var pedigreejs = (function (exports) {
 	    mother = {
 	      "name": makeid(4),
 	      "sex": "F",
-	      "top_level": true,
-	      
-	      "ID": makePPIid(dataset)
-	      
+	      "top_level": true
 	    };
 	    father = {
 	      "name": makeid(4),
 	      "sex": "M",
-	      "top_level": true,
-	      
-	      "ID": (Number(makePPIid(dataset)) + 1).toString()
-	      
+	      "top_level": true
 	    };
 	    dataset.splice(0, 0, mother);
 	    dataset.splice(0, 0, father);
@@ -3797,10 +3731,6 @@ var pedigreejs = (function (exports) {
 	        dataset[i].noparents = true;
 	        dataset[i].mother = mother.name;
 	        dataset[i].father = father.name;
-	        
-	        dataset[i].motherID = mother.ID;
-	        dataset[i].fatherID = father.ID;
-	        
 	      }
 	    }
 	  } else {
@@ -3840,10 +3770,6 @@ var pedigreejs = (function (exports) {
 	        let oidx = getIdxByName(dataset, orphans[i].name);
 	        dataset[oidx].mother = mother.name;
 	        dataset[oidx].father = father.name;
-	        
-	        dataset[oidx].motherID = mother.ID;
-	        dataset[oidx].fatherID = father.ID;
-	        
 	      }
 	    }
 	  }
@@ -3857,20 +3783,12 @@ var pedigreejs = (function (exports) {
 	  let idx = getIdxByName(dataset, node.name);
 	  dataset[idx].mother = mother.name;
 	  dataset[idx].father = father.name;
-	  
-	  dataset[idx].motherID = mother.ID;
-	  dataset[idx].fatherID = father.ID;
-	  
 	  delete dataset[idx].noparents;
 	  if ('parent_node' in node) {
 	    let ptr_node = dataset[getIdxByName(dataset, ptr_name)];
 	    if ('noparents' in ptr_node) {
 	      ptr_node.mother = mother.name;
 	      ptr_node.father = father.name;
-	      
-	      ptr_node.motherID = mother.ID;
-	      ptr_node.fatherID = father.ID;
-	      
 	    }
 	  }
 	}
@@ -3883,29 +3801,11 @@ var pedigreejs = (function (exports) {
 	  let partner = addsibling(dataset, tree_node.data, tree_node.data.sex === 'F' ? 'M' : 'F', tree_node.data.sex === 'F');
 	  partner.noparents = true;
 	  let child = {
-	    
-	    //"ID": makePPIid(dataset),
-	     
 	    "name": makeid(4),
 	    "sex": "M"
 	  };
 	  child.mother = tree_node.data.sex === 'F' ? tree_node.data.name : partner.name;
 	  child.father = tree_node.data.sex === 'F' ? partner.name : tree_node.data.name;
-	  
-	  // get the motherID and fatherID names for PPI
-	  let node_ID;
-	  for (var i = 0; i < dataset.length; i++) {
-      var object = dataset[i];
-      if(object.name === name){
-        node_ID = object.ID;
-        break;
-      }
-    }
-    
-    child.ID = makePPIid(dataset);
-	  child.motherID = tree_node.data.sex === 'F' ? node_ID : partner.ID;
-	  child.fatherID = tree_node.data.sex === 'F' ? partner.ID : node_ID;
-	  
 	  let idx = getIdxByName(dataset, tree_node.data.name) + 2;
 	  dataset.splice(idx, 0, child);
 	}
