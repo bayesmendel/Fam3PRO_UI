@@ -27,6 +27,9 @@ $( document ).ready(function() {
 			'height': 600,
 			'symbol_size': 35,
 			'store_type': 'array',
+			'zoomIn': 1.0,
+			'zoomOut': 1.0,
+			'zoomSrc': ['wheel','button'], 
 			'diseases': [
         {'type': 'Brain_cancer', 'colour': '#FDAC53'},
         {'type': 'Breast_cancer', 'colour': '#9BB7D4'},

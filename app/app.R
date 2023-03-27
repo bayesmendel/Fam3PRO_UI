@@ -4470,15 +4470,17 @@ server <- function(input, output, session) {
 
         # check if there were deletions of relatives and update the pedigree in R
         if(nrow(pjs) < nrow(r.ped)){
-          del.rel <- r.ped$ID[which(!as.character(r.ped$ID) %in% pjs$name)]
-          r.ped <- subset(r.ped, ID != del.rel)
-
-          # update master pedigree
-          PED(r.ped)
-
-          # remove relative from panel and cancer hx tracking
-          canReactive$canNums[[as.character(del.rel)]] <- NULL
-          geneReactive$GeneNums[[as.character(del.rel)]] <- NULL
+          del.rels <- r.ped$ID[which(!as.character(r.ped$ID) %in% pjs$name)]
+          for(dr in del.rels){
+            r.ped <- subset(r.ped, ID != dr)
+  
+            # update master pedigree
+            PED(r.ped)
+  
+            # remove relative from panel and cancer hx tracking
+            canReactive$canNums[[as.character(dr)]] <- NULL
+            geneReactive$GeneNums[[as.character(dr)]] <- NULL
+          }
 
           # not a deletion, therefore it was an addition, so
           # update the pedigree in R,
@@ -4557,12 +4559,12 @@ server <- function(input, output, session) {
             } else {
               
               # identify which is the partner and which is the child
-              if(isTRUE(pjs$noparents[which(pjs$name == target.rels[1])])){
-                added.partner <- target.rels[1]
-                added.child <- target.rels[2]
+              if(isTRUE(pjs$noparents[which(pjs$name == added.rels[1])])){
+                added.partner <- added.rels[1]
+                added.child <- added.rels[2]
               } else {
-                added.partner <- target.rels[2]
-                added.child <- target.rels[1]
+                added.partner <- added.rels[2]
+                added.child <- added.rels[1]
               }
               
               # change string ids for the new parents to numeric names/IDs
@@ -4580,18 +4582,20 @@ server <- function(input, output, session) {
               # identify the partner's partner
               partner.of <- 
                 as.character(
-                  pjs[which(pjs$name == as.character(new.child.id)), 
-                      c("mother","father")]
+                  pjs[which(pjs$name == as.character(new.child.id)), c("mother","father")]
                 )
               partner.of <- partner.of[which(partner.of != as.character(new.par.id))]
               
               # add the partner then the child
-              out.part <- addPJSrel(pjs = pjs[which(pjs$name != as.character(new.child.id)),],
+              out.part <- addPJSrel( #pjs = pjs[which(pjs$name != as.character(new.child.id)),],
+                                    pjs = pjs,
                                     r.ped = r.ped,
                                     target.rel = as.character(new.par.id),
                                     type = "partner",
-                                    partner.of = partner.of,
-                                    pjs.full = pjs)
+                                    partner.of = partner.of
+                                    # ,
+                                    # pjs.full = pjs
+                                    )
               out <- addPJSrel(pjs = out.part$pjs_updated,
                                r.ped = out.part$r.ped_updated,
                                target.rel = as.character(new.child.id),

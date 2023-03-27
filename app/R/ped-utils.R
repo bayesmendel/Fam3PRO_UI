@@ -1515,14 +1515,19 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   # default an unknown sex to male, for compatibility with PPI
   target.rel.sx <- pjs$sex[which(pjs$name == target.rel)]
   if(target.rel.sx == "U"){
-    pjs$sex[which(pjs$name == target.rel)] == "M"
+    pjs$sex[which(pjs$name == target.rel)] <- "M"
   }
   
   ### determine relationship to proband and, if possible, maternal or paternal side
   # create a copy of the pedJS pedigree with dummy parent IDs removed from relatives with noparents 
-  if(!type %in% c("parent","partner")){
+  # if(!type %in% c("parent","partner")){
+  #   rel.ped <- pjs
+  # } else if(type %in% c("parent","partner")){
+  #   rel.ped <- pjs.full
+  # }
+  if(type != "parent"){
     rel.ped <- pjs
-  } else if(type %in% c("parent","partner")){
+  } else {
     rel.ped <- pjs.full
   }
   if(any(colnames(rel.ped) == "noparents")){
@@ -1557,7 +1562,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   
   # get the mother and fathers only if the added relative was a sibling or child
   # because if parents or a partner is added in pedigreeJS they will not have parents
-  if(type %in% c("sib-child")){
+  if(type == "sib-child"){
     fa <- pjs$father[which(pjs$name == target.rel)]
     mo <- pjs$mother[which(pjs$name == target.rel)]
     fa.rela <- r.ped$relationship[which(r.ped$ID == as.numeric(fa))]
@@ -1673,7 +1678,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
         }
         
         # if a parent was added, check if they are a direct ancestor (ie great-grandparent),
-        # other assign generic label
+        # otherwise assign generic label
       } else if(type == "parent"){
         isGP <- CountGs(t.pjs = rel.ped, rl = as.numeric(target.rel))
         if(!is.na(isGP$rela)){
@@ -1695,8 +1700,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
     if(pb.name == partner.of){
       target.rel.rname <- "Proband Partner"
     } else {
-      target.rel.rname <- paste0(r.ped$name[which(r.ped$ID == as.numeric(partner.of))],
-                                 " Partner")
+      target.rel.rname <- paste0(r.ped$name[which(r.ped$ID == as.numeric(partner.of))], " Partner")
     }
     
     # not a partner
@@ -1754,7 +1758,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   
   # add new person to the R pedigree, format row initially as a cousin 
   # (allows manual entry of fields) then update
-  if(type %in% c("sib-child")){
+  if(type == "sib-child"){
     r.ped <- formatNewPerson(relation = "cousin", tmp.ped = r.ped, 
                              m.id = as.numeric(mo), f.id = as.numeric(fa), 
                              sx = ifelse(target.rel.sx == "F", 0, ifelse(target.rel.sx == "M", 1, NA)))
