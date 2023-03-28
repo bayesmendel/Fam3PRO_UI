@@ -835,6 +835,7 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
   if(inp$pedTabs == "Demographics"){
     return(popPersonData(tmp.ped = tped, id = rel, 
                          cur.age = inp$Age, is.dead = inp$isDead,
+                         sx = inp$Sex,
                          rc = inp$race, et = inp$eth, 
                          an.aj = inp$ancAJ, an.it = inp$ancIt)
     )
@@ -842,7 +843,9 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
     # cancer hx
   } else if(inp$pedTabs == "Cancer Hx"){
     can.df <- makeCancerDF(rel = rel, cr = cr, inp = inp)
-    return(popPersonData(tmp.ped = tped, id = rel, sx = sx, cancers.and.ages = can.df))
+    return(popPersonData(tmp.ped = tped, id = rel, 
+                         sx = inp$Sex, 
+                         cancers.and.ages = can.df))
     
     # cbc
   } else if(inp$pedTabs == "CBC Risk"){
@@ -1685,23 +1688,29 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
         
         # check the relationship labels of the person's parents, if a sibling or child was added
         if(type == "sib-child"){
-          if(fa.rela == "grandfather" & ma.rela == "grandmother"){
+          if(fa.rela == "grandfather" & mo.rela == "grandmother"){
             if(target.rel.sx == "M"){
               rela <- "uncle"
             } else if(target.rel.sx == "F"){
               rela <- "aunt"
             }
-          } else if(fa.rela == "brother" | ma.rela == "sister"){
+          } else if(fa.rela == "brother" | mo.rela == "sister"){
             if(target.rel.sx == "M"){
               rela <- "nephew"
             } else if(target.rel.sx == "F"){
               rela <- "neice"
             }
-          } else if(fa.rela == "son" | ma.rela == "daughter"){
+          } else if(fa.rela == "son" | mo.rela == "daughter"){
             if(target.rel.sx == "M"){
               rela <- "grandson"
             } else if(target.rel.sx == "F"){
               rela <- "granddaughter"
+            }
+          } else if(xor(fa.rela == "father", mo.rela == "mother")){
+            if(target.rel.sx == "M"){
+              rela <- "half.brother"
+            } else if(target.rel.sx == "F"){
+              rela <- "half.sister"
             }
           }
           
@@ -1724,7 +1733,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
       
       # label as a cousin or generic relative if a sibling or child was added
       if(type %in% c("sib-child")){
-        if(fa.rela == "uncle" | ma.rela == "aunt"){
+        if(fa.rela == "uncle" | mo.rela == "aunt"){
           rela <- "cousin"
         } else {
           rela <- "relative"
@@ -1808,6 +1817,17 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
     }
   }
   r.ped$ID[nrow(r.ped)] <- as.numeric(target.rel)
+  if(target.rel.sx == "F"){
+    kids <- rel.ped$ID[which(rel.ped$MotherID == target.rel)]
+    if(length(kids) > 0){
+      r.ped$MotherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
+    }
+  } else if(target.rel.sx == "M"){
+    kids <- rel.ped$ID[which(rel.ped$FatherID == target.rel)]
+    if(length(kids) > 0){
+      r.ped$FatherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
+    }
+  }
   r.ped$relationship[nrow(r.ped)] <- rela
   r.ped$side[nrow(r.ped)] <- sd
   r.ped$name[nrow(r.ped)] <- target.rel.rname

@@ -57,12 +57,12 @@ ui <- fixedPage(
   useShinyjs(),
   
   # pedigreejs dependencies
-  tags$head(tags$meta(charset="UTF-8")),
-  tags$head(tags$meta(content="IE=edge")),
-  tags$head(tags$meta(name="viewport", content="width=device-width,maximum-scale=2")),
+  # tags$head(tags$meta(charset="UTF-8")),
+  # tags$head(tags$meta(content="IE=edge")),
+  # tags$head(tags$meta(name="viewport", content="width=device-width,maximum-scale=2")),
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
                       href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
-  tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
+  # tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-2.js")),
   # tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9.js")),
@@ -78,7 +78,7 @@ ui <- fixedPage(
           app.title,
           div(class = "pull-right", 
             img(src="dana-farber-logo-small-2.PNG", height = "50px"),
-            shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), 
+            shinyauthr::logoutUI(id = "logout", 
                                  style = "color:white; background-color:red; border-color:grey; padding:5px")
           )
         )
@@ -491,7 +491,7 @@ ui <- fixedPage(
               ),
               textOutput("waitDelete"),
               actionButton("deletePeds", label = "Delete Pedigrees",
-                           icon = icon('trash'),
+                           icon = icon('trash-o', verify_fa = FALSE),
                            style = "color: white; background-color: red; border-color: grey")
             ) # end of conditionalPanel to check if there are tables to download
           ) # end of tabPanel for deleting pedigrees
@@ -507,7 +507,7 @@ ui <- fixedPage(
           # manual save button
           conditionalPanel("output.pedExists",
             div(class = "pull-right", 
-              actionButton("manualPedSave", label = "Force Save Pedigree",
+              actionButton("manualPedSave", label = "Update and Save Pedigree",
                            icon = icon('save'),
                            style = "margin-top: 0px; margin-bottom: 25px")
             )
@@ -1132,12 +1132,13 @@ ui <- fixedPage(
         
         # FOR TESTING - SHOW PedigreeJS string at the bottom of the screen
         fluidRow(
+          # conditionalPanel(condition = "output.showPed & output.admin",
           conditionalPanel(condition = "output.showPed",
-            tags$a(href="#", onclick = "getpedigree()", 
+            tags$a(href="#", onclick = "getpedigree()",
                    id = "GetPedJSButton",
-                   class="btn btn-default action-button shiny-bound-input", 
+                   class="btn btn-default action-button shiny-bound-input",
                    style="text-align:center;", "Get PedigreeJS JSON"),
-            textOutput("pedJSJSON") 
+            textOutput("pedJSJSON")
           )
         )
         
@@ -3251,7 +3252,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+                           sx = ifelse(input$relSelect == "Female", 0, 1))
       )
       
       # if tab is switched prior to pedigree being visualized, when the parent's
@@ -3271,6 +3272,9 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+      
+      # send pedigree to pedigreeJS
+      session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
     }
   }, ignoreInit = TRUE)
   
@@ -3458,6 +3462,15 @@ server <- function(input, output, session) {
   observeEvent(PED(), {
     if(!is.null(PED())){
       pedExists(TRUE)
+      
+      
+      
+      # FOR TESTING
+      View(PED())
+      
+      
+      
+      
     } else {
       pedExists(FALSE)
     }
@@ -4460,8 +4473,8 @@ server <- function(input, output, session) {
   # FOR TESTING - diplay the pedigreeJS JSON as a string
   output$pedJSJSON <- renderText(input$pedJSJSON)
   
-  # every 1 second, refresh the JSON pedigree
-  autoInvalidate <- reactiveTimer(intervalMs = 4000)
+  # at a specified time interval, refresh the JSON pedigree
+  autoInvalidate <- reactiveTimer(intervalMs = 3000)
   observe({
     autoInvalidate()
     shinyjs::click("GetPedJSButton")
@@ -4602,15 +4615,11 @@ server <- function(input, output, session) {
               partner.of <- partner.of[which(partner.of != as.character(new.par.id))]
               
               # add the partner then the child
-              out.part <- addPJSrel( #pjs = pjs[which(pjs$name != as.character(new.child.id)),],
-                                    pjs = pjs,
+              out.part <- addPJSrel(pjs = pjs,
                                     r.ped = r.ped,
                                     target.rel = as.character(new.par.id),
                                     type = "partner",
-                                    partner.of = partner.of
-                                    # ,
-                                    # pjs.full = pjs
-                                    )
+                                    partner.of = partner.of)
               out <- addPJSrel(pjs = out.part$pjs_updated,
                                r.ped = out.part$r.ped_updated,
                                target.rel = as.character(new.child.id),
@@ -4942,7 +4951,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+                           sx = ifelse(input$relSelect == "Female", 0, 1))
       )
       
       # if tab is switched prior to pedigree being visualized, when the parent's
@@ -5125,7 +5134,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+                           sx = ifelse(input$relSelect == "Female", 0, 1))
       )
       
       # if tab is switched prior to pedigree being visualized, when the parent's

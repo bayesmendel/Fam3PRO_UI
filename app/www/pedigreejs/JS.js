@@ -29,7 +29,7 @@ $( document ).ready(function() {
 			'store_type': 'array',
 			'zoomIn': 1.0,
 			'zoomOut': 1.0,
-			'zoomSrc': ['wheel','button'], 
+			'zoomSrc': [], 
 			'diseases': [
         {'type': 'Brain_cancer', 'colour': '#FDAC53'},
         {'type': 'Breast_cancer', 'colour': '#9BB7D4'},
