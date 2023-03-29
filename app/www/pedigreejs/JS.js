@@ -27,9 +27,9 @@ $( document ).ready(function() {
 			'height': 600,
 			'symbol_size': 35,
 			'store_type': 'array',
-			'zoomIn': 1.0,
-			'zoomOut': 1.0,
-			'zoomSrc': [], 
+			'zoomIn': 3.0,
+			'zoomOut': 3.0,
+			'zoomSrc': ['button'], 
 			'diseases': [
         {'type': 'Brain_cancer', 'colour': '#FDAC53'},
         {'type': 'Breast_cancer', 'colour': '#9BB7D4'},
@@ -55,7 +55,7 @@ $( document ).ready(function() {
       'labels': ['age'],
 			'font_size': '1.1em',
 			'font_family': 'times',
-			'DEBUG': (pedigreejs.pedigree_utils.urlParam('debug') === null ? false : true)
+			'DEBUG': false
 		};
 		
 		// code to include as shown here: https://ccge-boadicea.github.io/pedigreejs/
@@ -71,39 +71,6 @@ $( document ).ready(function() {
 		getpedigree = function(){
 		  Shiny.setInputValue("pedJSJSON", JSON.stringify(pedigreejs.pedcache.current(opts)));
 		};
-		
-		
-		// BELOW: previous attempts/code chunk examples to trigger pedigree push to 
-		// R server when a widget button is clicked in JavaScript
-		//function alertme(){
-    //  var name = prompt("Who are you?");
-    //  alert("Hello " + name + "! Welcome to my app");
-    //  Shiny.setInputValue("username", name)
-    //}
-		
-		//$(function(){ 
-    //  // Waiting for `{shiny}` to be connected
-    //  $(document).on('shiny:connected', function(event) {
-    //    alertme();
-    //  });
-    //  
-    //  $(".shiny-plot-output").on("click", function(){
-    //    /* Calling the alertme function with the id 
-    //    of the clicked plot. 
-    //    The `this` object here refers to the clicked element*/
-    //    Shiny.setInputValue("last_plot_clicked", this.id);
-    //  });
-    //});
-		
-		//$(.addchild).on("click", function () {
-		//  Shiny.setInputValue("pedJSout", JSON.stringify(pedigreejs.pedcache.current(opts)));
-		//})
-		
-		//getPedOnClick = 
-		//d3.selectAll(".addchild, .addpartner, .addparents, .delete").on("click", function () {
-		//d3.selectAll(".addchild, .addpartner, .addparents, .delete").on("click", function () {
-		//  Shiny.setInputValue("pedJSout", JSON.stringify(pedigreejs.pedcache.current(opts)));
-		//});
 		
   }); // end of Shiny.addCustomMessageHandler
   
@@ -121,9 +88,9 @@ $( document ).ready(function() {
 			'height': 600,
 			'symbol_size': 35,
 			'store_type': 'array',
-			'zoomIn': 2.0,
-			'zoomOut': 2.0,
-			'zoomSrc': ['wheel','button'], 
+			'zoomIn': 3.0,
+			'zoomOut': 3.0,
+			'zoomSrc': ['button'], 
 			'diseases': [
         {'type': 'Brain_cancer', 'colour': '#FDAC53'},
         {'type': 'Breast_cancer', 'colour': '#9BB7D4'},
@@ -149,7 +116,7 @@ $( document ).ready(function() {
       'labels': ['age'],
 			'font_size': '1.1em',
 			'font_family': 'times',
-			'DEBUG': (pedigreejs.pedigree_utils.urlParam('debug') === null ? false : true)
+			'DEBUG': false
 		};
     
 		opts.dataset = dataset;
