@@ -346,7 +346,8 @@ ui <- fixedPage(
                         
               # tree
               tabPanel(title = "Tree",
-                plotOutput("treePedViewer", width = "750px")
+                plotOutput("treePedViewer", width = "750px"),
+                h5("Note: the image above will only display a maximum of 4 cancer types.")
               ),
               
               # table
@@ -539,10 +540,29 @@ ui <- fixedPage(
                 tabPanel(title = "Tree",
                   br(),
                   bootstrapPage(
-                    # includeCSS(path="www/pedigreejs/Css.css"),
                     includeScript(path="www/pedigreejs/JS.js"),
                     includeHTML(path="www/pedigreejs/Html.html")
-                  )
+                  ),
+                  h5("Note: the tree above can only display PanelPRO cancers. 
+                     It will display any unknown cancer ages as 0."),
+                  
+                  # create a hidden button to retrieve pedigreeJS pedigree in JSON format
+                  # the server needs to simulate a click on this buttons at the 
+                  # set interval to sync the master pedigree with pedigreeJS and 
+                  # vice-versa
+                  br(), br(), br(), br(),
+                  tags$a(href="#", onclick = "getpedigree()",
+                         id = "GetPedJSButton",
+                         class="btn btn-default action-button shiny-bound-input",
+                         style="text-align:center;background-color:white;border-color:white;", 
+                         label = "")
+                  
+                  
+                  # # FOR TESTING
+                  # textOutput("pedJSJSON")
+                  
+                  
+                  
                 ),
                           
                 # table
@@ -1122,28 +1142,7 @@ ui <- fixedPage(
               ) # end of number and type of rels tab
             ) # end of tabsetPanel for data entry
           ) # end of column for data entry
-        ), # end of fluidRow for create/modify pedigree tab
-        
-        
-        
-        # show the pedigreeJS string conditionally
-        # this button is required in the UI, even if the output is not shown
-        # so that a click can be simulated and the JSON will be sent to the server
-        fluidRow(
-          
-          # FOR TESTING - SHOW PedigreeJS string at the bottom of the screen
-          # conditionalPanel(condition = "output.showPed & output.admin",
-          conditionalPanel(condition = "output.showPed",
-            tags$a(href="#", onclick = "getpedigree()",
-                   id = "GetPedJSButton",
-                   class="btn btn-default action-button shiny-bound-input",
-                   style="text-align:center;", "Get PedigreeJS JSON"),
-            textOutput("pedJSJSON")
-          )
-        )
-        
-        
-        
+        ) # end of fluidRow for create/modify pedigree tab
       ), # end of navbar tab for create/modify pedigree
       
       ##### UI: PanelPRO ####
@@ -3019,12 +3018,34 @@ server <- function(input, output, session) {
       write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      
+      # include a png if 1 and only 1 pedigree is being downloaded
+      if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
+        
+        # check if there are any cancers which determines if the legend should be included
+        cans <- select(downloadPedsTable(), starts_with("isAff"))
+        
+        # create the png image
+        png(filename = "download-pedigrees/pedigree-image.png")
+        print(plot(
+          kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
+        ))
+        if(sum(cans) > 0){
+          print(
+            pedigree.legend(kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))], 
+                            location = "bottomright", radius=0.1)
+          )
+        }
+        dev.off()
+      }
+      
       new.files <- c(
         "download-pedigrees/pedigrees.csv",
         "download-pedigrees/cancer-details.csv",
         "download-pedigrees/panel-details.csv",
         "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
+        "data-dictionary/panelpro-gene-list.csv",
+        "download-pedigrees/pedigree-image.png"
       )
       
       tmp.zip <- 
@@ -3058,13 +3079,36 @@ server <- function(input, output, session) {
               file = "data-dictionary/columns-and-codings-dictionary.rds")
       saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
       saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      
+      # include a png if 1 and only 1 pedigree is being downloaded
+      if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
+        
+        # check if there are any cancers which determines if the legend should be included
+        cans <- select(downloadPedsTable(), starts_with("isAff"))
+        
+        # create the png image
+        png(filename = "download-pedigrees/pedigree-image.png")
+        print(plot(
+          kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
+        ))
+        if(sum(cans) > 0){
+          print(
+            pedigree.legend(kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))], 
+                            location = "bottomright", radius=0.1)
+          )
+        }
+        dev.off()
+      }
+      
+      # filenames of all the temporary files
       new.files <- c(
         "download-pedigrees/pedigrees.rds",
         "download-pedigrees/cancer-details.rds",
         "download-pedigrees/panel-details.rds",
         "data-dictionary/columns-and-codings-dictionary.rds",
         "data-dictionary/panelpro-cancer-abbreviations.rds",
-        "data-dictionary/panelpro-gene-list.rds"
+        "data-dictionary/panelpro-gene-list.rds",
+        "download-pedigrees/pedigree-image.png"
       )
       
       tmp.zip <- 
@@ -4481,8 +4525,14 @@ server <- function(input, output, session) {
   ##### Visualize Pedigree ####
   ###### PedigreeJS ####
   
-  # FOR TESTING - diplay the pedigreeJS JSON as a string
-  output$pedJSJSON <- renderText(input$pedJSJSON)
+  
+  
+  
+  # # FOR TESTING - diplay the pedigreeJS JSON as a string
+  # output$pedJSJSON <- renderText(input$pedJSJSON)
+  
+  
+  
   
   # at a specified time interval, refresh the JSON pedigree
   autoInvalidate <- reactiveTimer(intervalMs = 1000)
@@ -4696,64 +4746,7 @@ server <- function(input, output, session) {
   # prepare the data
   treePed <- reactive({
     if(!is.null(PED())){
-      plot_fam <-
-        PED() %>%
-        mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
-        mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
-        mutate(nameMother = "") %>%
-        mutate(nameFather = "")
-      plot_fam <- abb.Relations(plot_fam)
-      plot_fam <- 
-        plot_fam %>%
-        select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
-      
-      # replace mother and father ID numbers with names
-      for(uid in unique(plot_fam$MotherID)){
-        if(uid != 0){
-          pname <- plot_fam$name[which(plot_fam$ID == uid)]
-          plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
-        }
-      }
-      for(uid in unique(plot_fam$FatherID)){
-        if(uid != 0){
-          pname <- plot_fam$name[which(plot_fam$ID == uid)]
-          plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
-        }
-      }
-      
-      # cancer affection status
-      can_aff <- 
-        PED() %>%
-        select(starts_with("isAff")) %>%
-        rename_with(.cols = everything(), 
-                    .fn = ~ sub(pattern = "isAff", replacement = "", .))
-      non.zero.cols <- apply(can_aff, 2, sum, simplify = F)
-      non.zero.cols <- non.zero.cols[which(non.zero.cols > 0)]
-      
-      # create pedigree object, based on number of affected cancer in the family
-      if(length(non.zero.cols) == 0){
-        kped <- pedigree(id = plot_fam$name,
-                         momid = plot_fam$nameMother,
-                         dadid = plot_fam$nameFather,
-                         sex = plot_fam$Sex,
-                         famid = plot_fam$PedigreeID,
-                         status = PED()$isDead)
-      } else {
-        if(length(non.zero.cols) <= 4){
-          can_aff <- select(can_aff, all_of(names(non.zero.cols)))
-        } else {
-          can_aff <- select(can_aff, all_of(names(non.zero.cols[1:4])))
-        }
-        can_aff <- as.matrix(can_aff)
-        kped <- pedigree(id = plot_fam$name,
-                         momid = plot_fam$nameMother,
-                         dadid = plot_fam$nameFather,
-                         sex = plot_fam$Sex,
-                         famid = plot_fam$PedigreeID,
-                         affected = can_aff,
-                         status = PED()$isDead)
-      }
-      return(kped)
+      return(kinship2.ped(PED()))
     } else {
       return(NULL)
     }
@@ -4764,7 +4757,15 @@ server <- function(input, output, session) {
     shiny::validate(
       need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
+    
+    # check if there are any cancers which determines if the legend should be included
+    cans <- select(PED(), starts_with("isAff"))
+    
+    # plot
     plot(treePed()[paste0(input$pedID)])
+    if(sum(cans) > 0){
+      pedigree.legend(treePed()[paste0(input$pedID)], location = "bottomright", radius=0.1)
+    }
   })
   
   ###### Pedigree Table ####
@@ -5895,6 +5896,20 @@ server <- function(input, output, session) {
       write.csv(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".csv"), row.names = F)
       write.csv(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".csv"), row.names = F)
       
+      # create the png image
+      cans <- select(PED(), starts_with("isAff"))
+      png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
+      print(plot(
+        kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
+      ))
+      if(sum(cans) > 0){
+        print(
+          pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
+                          location = "bottomright", radius=0.1)
+        )
+      }
+      dev.off()
+      
       # run settings table
       write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
       
@@ -5944,6 +5959,7 @@ server <- function(input, output, session) {
         paste0("download-results/pedigree-", pedID, ".csv"),
         paste0("download-results/cancer-details-", pedID, ".csv"),
         paste0("download-results/panel-details-", pedID, ".csv"),
+        paste0("download-results/pedigree-image-", pedID,".png"),
         paste0("download-results/run-settings-", pedID, ".csv")
       )
       if(!is.null(ppReactive$cpTblDF)){
@@ -6011,6 +6027,20 @@ server <- function(input, output, session) {
       saveRDS(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".rds"))
       saveRDS(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".rds"))
       
+      # create the png image
+      cans <- select(PED(), starts_with("isAff"))
+      png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
+      print(plot(
+        kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
+      ))
+      if(sum(cans) > 0){
+        print(
+          pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
+                          location = "bottomright", radius=0.1)
+        )
+      }
+      dev.off()
+      
       # run settings table
       saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
       
@@ -6061,6 +6091,7 @@ server <- function(input, output, session) {
         paste0("download-results/pedigree-", pedID, ".rds"),
         paste0("download-results/cancer-details-", pedID, ".rds"),
         paste0("download-results/panel-details-", pedID, ".rds"),
+        paste0("download-results/pedigree-image-", pedID,".png"),
         paste0("download-results/run-settings-", pedID, ".rds")
       )
       if(!is.null(ppReactive$cpTblDF)){

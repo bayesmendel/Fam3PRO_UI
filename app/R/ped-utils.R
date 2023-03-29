@@ -1835,3 +1835,66 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   return(list(pjs_updated = pjs,
               r.ped_updated = r.ped))
 }
+
+
+#' Create kinship2 pedigree
+kinship2.ped <- function(ped){
+  plot_fam <-
+    ped %>%
+    mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
+    mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
+    mutate(nameMother = "") %>%
+    mutate(nameFather = "")
+  plot_fam <- abb.Relations(plot_fam)
+  plot_fam <- 
+    plot_fam %>%
+    select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+  
+  # replace mother and father ID numbers with names
+  for(uid in unique(plot_fam$MotherID)){
+    if(uid != 0){
+      pname <- plot_fam$name[which(plot_fam$ID == uid)]
+      plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+    }
+  }
+  for(uid in unique(plot_fam$FatherID)){
+    if(uid != 0){
+      pname <- plot_fam$name[which(plot_fam$ID == uid)]
+      plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+    }
+  }
+  
+  # cancer affection status
+  can_aff <- 
+    ped %>%
+    select(starts_with("isAff")) %>%
+    rename_with(.cols = everything(), 
+                .fn = ~ sub(pattern = "isAff", replacement = "", .))
+  non.zero.cols <- apply(can_aff, 2, sum, simplify = F)
+  non.zero.cols <- non.zero.cols[which(non.zero.cols > 0)]
+  
+  # create pedigree object, based on number of affected cancer in the family
+  if(length(non.zero.cols) == 0){
+    kped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID,
+                     status = ped$isDead)
+  } else {
+    if(length(non.zero.cols) <= 4){
+      can_aff <- select(can_aff, all_of(names(non.zero.cols)))
+    } else {
+      can_aff <- select(can_aff, all_of(names(non.zero.cols[1:4])))
+    }
+    can_aff <- as.matrix(can_aff)
+    kped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID,
+                     affected = can_aff,
+                     status = ped$isDead)
+  }
+  return(kped)
+}
