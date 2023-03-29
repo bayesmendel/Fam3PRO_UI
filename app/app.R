@@ -64,7 +64,7 @@ ui <- fixedPage(
                       href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
   # tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
-  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-2.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   # tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9.js")),
   
   # server busy spinner
@@ -546,10 +546,9 @@ ui <- fixedPage(
                   h5("Note: the tree above can only display PanelPRO cancers. 
                      It will display any unknown cancer ages as 0."),
                   
-                  # create a hidden button to retrieve pedigreeJS pedigree in JSON format
-                  # the server needs to simulate a click on this buttons at the 
-                  # set interval to sync the master pedigree with pedigreeJS and 
-                  # vice-versa
+                  # Create a hidden button to retrieve pedigreeJS pedigree in JSON format.
+                  # The server needs to simulate a click on this buttons at a 
+                  # set interval to sync the master pedigree with pedigreeJS
                   br(), br(), br(), br(),
                   tags$a(href="#", onclick = "getpedigree()",
                          id = "GetPedJSButton",
@@ -564,7 +563,7 @@ ui <- fixedPage(
                   
                   
                 ),
-                          
+                
                 # table
                 tabPanel(title = "Table",
                   fluidRow(
@@ -4555,8 +4554,6 @@ server <- function(input, output, session) {
       # convert JSON pedigree object from pedigreeJS to data frame
       pjs <- fromJSON(input$pedJSJSON, simplifyDataFrame = T)
       
-      View(pjs)
-      
       # get the numeric ids from the pedigreeJS pedigree
       num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
       
@@ -4612,9 +4609,9 @@ server <- function(input, output, session) {
             
             # check if the two additions were parents
             if((isTRUE(pjs$top_level[which(pjs$name == added.rels[1])]) &
-               isTRUE(pjs$top_level[which(pjs$name == added.rels[2])])) |
-              (isTRUE(pjs$noparents[which(pjs$name == added.rels[1])]) &
-               isTRUE(pjs$noparents[which(pjs$name == added.rels[2])]))){
+                isTRUE(pjs$top_level[which(pjs$name == added.rels[2])])) |
+               (isTRUE(pjs$noparents[which(pjs$name == added.rels[1])]) &
+                isTRUE(pjs$noparents[which(pjs$name == added.rels[2])]))){
               
               # identify the male/female parents
               if(pjs$sex[which(pjs$name == added.rels[1])] == "M"){
@@ -4633,7 +4630,7 @@ server <- function(input, output, session) {
               pjs$name[which(pjs$name == added.malep)] <- as.character(new.mp.id)
               pjs$mother[which(pjs$mother == added.femalep)] <- as.character(new.fp.id)
               pjs$father[which(pjs$father == added.malep)] <- as.character(new.mp.id)
-
+              
               # add the female parent then the male parent
               out.f <- addPJSrel(pjs = pjs[which(pjs$name != added.malep),],
                                  r.ped = r.ped,
@@ -4645,7 +4642,7 @@ server <- function(input, output, session) {
                                target.rel = as.character(new.mp.id),
                                type = "parent",
                                pjs.full = out.f$pjs_updated)
-            
+              
               # they were not parents, the two additions were a partner and a child
             } else {
               

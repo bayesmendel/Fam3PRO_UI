@@ -984,6 +984,9 @@ var pedigreejs = (function (exports) {
 	    // defaults
 	    btn_target: 'pedigree_history'
 	  }, options);
+	  
+	  // remove undo/redo/repeat buttons for PPI
+	  /*
 	  let btns = [{
 	    "fa": "fa-undo pull-left",
 	    "title": "undo"
@@ -998,6 +1001,13 @@ var pedigreejs = (function (exports) {
 	    "fa": "fa-crosshairs pull-right",
 	    "title": "scale-to-fit"
 	  });
+	  */
+	  let btns = [{
+	    "fa": "fa-crosshairs pull-right",
+	    "title": "scale-to-fit"
+	  }];
+	  
+	  
 	  if (opts.zoomSrc && opts.zoomSrc.indexOf('button') > -1) {
 	    if (opts.zoomOut != 1) btns.push({
 	      "fa": "fa-minus-circle pull-right",
@@ -1008,14 +1018,16 @@ var pedigreejs = (function (exports) {
 	      "title": "zoom-in"
 	    });
 	  }
+	  
 	  btns.push({
-	    "fa": "fa-arrows-alt pull-right",
+	    "fa": "fa-arrows pull-right",
 	    "title": "fullscreen"
 	  });
+	  
 	  let lis = "";
 	  for (let i = 0; i < btns.length; i++) {
 	    lis += '<span>';
-	    lis += '&nbsp;<i class="fa fa-lg ' + btns[i].fa + '" ' + (btns[i].fa == "fa-arrows-alt pull-right" ? 'id="fullscreen" ' : '') + ' aria-hidden="true" title="' + btns[i].title + '"></i>';
+	    lis += '&nbsp;<i class="fa fa-lg ' + btns[i].fa + '" ' + (btns[i].fa == "fa-arrows pull-right" ? 'id="fullscreen" ' : '') + ' aria-hidden="true" title="' + btns[i].title + '"></i>';
 	    lis += '</span>';
 	  }
 	  $("#" + opts.btn_target).append(lis);
@@ -1075,7 +1087,7 @@ var pedigreejs = (function (exports) {
 	  }).on('mouseup mouseleave', function () {
 	    clearInterval(timeoutId);
 	  });
-
+    
 	  // undo/redo/reset
 	  $("#" + opts.btn_target).on("click", function (e) {
 	    e.stopPropagation();
@@ -1325,8 +1337,7 @@ var pedigreejs = (function (exports) {
 	  if (current > 1) $(id + " .fa-undo").removeClass('disabled');else $(id + " .fa-undo").addClass('disabled');
 	  
 	  // disable buttons
-	  //$(id + " .fa-repeat").addClass('disabled');
-	  //$(id + " .fa-undo").addClass('disabled');
+	  //$(id + " .fa-fullscreen").addClass('disabled');
 	  
 	}
 
