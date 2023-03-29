@@ -346,7 +346,7 @@ ui <- fixedPage(
                         
               # tree
               tabPanel(title = "Tree",
-                plotOutput("treePedViewer")
+                plotOutput("treePedViewer", width = "750px")
               ),
               
               # table
@@ -535,8 +535,8 @@ ui <- fixedPage(
               # pedigree visualization (table and tree)
               tabsetPanel(id = "pedVisualsEditor",
                           
-                # pedigreeJS
-                tabPanel(title = "Interactive",
+                # pedigreeJS tree
+                tabPanel(title = "Tree",
                   br(),
                   bootstrapPage(
                     # includeCSS(path="www/pedigreejs/Css.css"),
@@ -545,11 +545,6 @@ ui <- fixedPage(
                   )
                 ),
                           
-                # tree
-                tabPanel(title = "Tree",
-                  plotOutput("treePedEditor")
-                ),
-                
                 # table
                 tabPanel(title = "Table",
                   fluidRow(
@@ -584,7 +579,8 @@ ui <- fixedPage(
               # download data dictionary
               conditionalPanel("input.pedVisualsEditor != 'Tree' & input.pedVisualsEditor != 'Interactive'",
                 fluidRow(
-                  p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
+                  p("If you are unfamiliar with PanelPRO formatted pedigree tables, 
+                    download the data dictionary below to assist you."),
                   downloadButton("downloadDD2", label = "Download Data Dictionary",
                                  icon = icon('download'))
                 )
@@ -4475,7 +4471,6 @@ server <- function(input, output, session) {
     
     # create interactive pedigeejs pedigree if a any pedigree, even a different family,
     # has not been displayed yet, otherwise update pedigreeJS instead
-    
     if(showPedButtonCnt() == 1){
       session$sendCustomMessage("createPedJSHandler", prepPedJSON(PED()))
     } else if(showPedButtonCnt() > 1) {
@@ -4490,7 +4485,7 @@ server <- function(input, output, session) {
   output$pedJSJSON <- renderText(input$pedJSJSON)
   
   # at a specified time interval, refresh the JSON pedigree
-  autoInvalidate <- reactiveTimer(intervalMs = 3000)
+  autoInvalidate <- reactiveTimer(intervalMs = 1000)
   observe({
     autoInvalidate()
     shinyjs::click("GetPedJSButton")
@@ -4696,8 +4691,8 @@ server <- function(input, output, session) {
     } # end of if statement to check if pedigree has been displayed yet (showPed())
   }, ignoreInit = T, ignoreNULL = T)
   
-  ###### Family Tree ####
-  ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs
+  ###### kinship2 Tree ####
+  ## draw pedigree static image using kinship2
   # prepare the data
   treePed <- reactive({
     if(!is.null(PED())){
@@ -4726,23 +4721,42 @@ server <- function(input, output, session) {
         }
       }
       
-      # create pedigree object
-      return(pedigree(id = plot_fam$name,
-                      momid = plot_fam$nameMother,
-                      dadid = plot_fam$nameFather,
-                      sex = plot_fam$Sex,
-                      famid = plot_fam$PedigreeID))
+      # cancer affection status
+      can_aff <- 
+        PED() %>%
+        select(starts_with("isAff")) %>%
+        rename_with(.cols = everything(), 
+                    .fn = ~ sub(pattern = "isAff", replacement = "", .))
+      non.zero.cols <- apply(can_aff, 2, sum, simplify = F)
+      non.zero.cols <- non.zero.cols[which(non.zero.cols > 0)]
+      
+      # create pedigree object, based on number of affected cancer in the family
+      if(length(non.zero.cols) == 0){
+        kped <- pedigree(id = plot_fam$name,
+                         momid = plot_fam$nameMother,
+                         dadid = plot_fam$nameFather,
+                         sex = plot_fam$Sex,
+                         famid = plot_fam$PedigreeID,
+                         status = PED()$isDead)
+      } else {
+        if(length(non.zero.cols) <= 4){
+          can_aff <- select(can_aff, all_of(names(non.zero.cols)))
+        } else {
+          can_aff <- select(can_aff, all_of(names(non.zero.cols[1:4])))
+        }
+        can_aff <- as.matrix(can_aff)
+        kped <- pedigree(id = plot_fam$name,
+                         momid = plot_fam$nameMother,
+                         dadid = plot_fam$nameFather,
+                         sex = plot_fam$Sex,
+                         famid = plot_fam$PedigreeID,
+                         affected = can_aff,
+                         status = PED()$isDead)
+      }
+      return(kped)
     } else {
       return(NULL)
     }
-  })
-  
-  # display in the pedigree editor
-  output$treePedEditor <- renderPlot({
-    shiny::validate(
-      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
-    )
-    plot(treePed()[paste0(input$pedID)])
   })
   
   # display in the pedigree viewer
