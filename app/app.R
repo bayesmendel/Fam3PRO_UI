@@ -64,8 +64,8 @@ ui <- fixedPage(
                       href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
   # tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
-  # tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
-  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-2.js")),
+  # tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9.js")),
   
   # server busy spinner
   shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
@@ -2150,7 +2150,6 @@ server <- function(input, output, session) {
                       choices = c("No pedigree selected", userPeds()))
   }, ignoreInit = T, ignoreNULL = T)
   
-  origWorkingPed <- reactiveVal(TRUE)
   newOrLoadFlag <- reactiveVal("new")
   observeEvent(input$goNewOrLoad, {
     if(input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected"){
@@ -2467,12 +2466,6 @@ server <- function(input, output, session) {
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("showPedButton")
-      
-      # now that a pedigree has been created, any future ones will not be the 
-      # original pedigree created during a session, this allows the reactive 
-      # that responds to showPedButton to know whether to create a new pedigreeJS
-      # window or update the existing one
-      origWorkingPed(FALSE)
       
       # reset the pedigree loading selector
       shinyjs::reset("existingPed")
@@ -3522,12 +3515,6 @@ server <- function(input, output, session) {
     userPedsForDelete(updated.peds)
     userPedsForCopyFrom(updated.peds)
     userPedsForCopyTo(updated.peds)
-    
-    # now that a pedigree has been created, any future ones will not be the 
-    # original pedigree created during a session, this allows the reactive 
-    # that responds to showPedButton to know whether to create a new pedigreeJS
-    # window or update the existing one
-    origWorkingPed(FALSE)
   })
   
   # populate the age, race, ethnicity, and ancestry values in the pedigree whenever the user leaves the demographics tab
@@ -4303,6 +4290,7 @@ server <- function(input, output, session) {
   
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
+  showPedButtonCnt <- reactiveVal(0)
   showPed <- reactiveVal(FALSE)
   output$showPed <- reactive({ showPed() })
   outputOptions(output, 'showPed', suspendWhenHidden = FALSE)
@@ -4310,6 +4298,12 @@ server <- function(input, output, session) {
     
     # update reactive value which triggers showing/hiding the visualized pedigree
     showPed(TRUE)
+    
+    # keep track of the 1st time a pedigree is shown that pedigreeJS can be either 
+    # updated or created from scratch
+    if(showPedButtonCnt() < 2){
+      showPedButtonCnt(showPedButtonCnt()+1)
+    }
     
     # only add family members if this is a new pedigree
     if(newOrLoadFlag() == "new"){
@@ -4481,9 +4475,10 @@ server <- function(input, output, session) {
     
     # create interactive pedigeejs pedigree if a any pedigree, even a different family,
     # has not been displayed yet, otherwise update pedigreeJS instead
-    if(origWorkingPed()){
+    
+    if(showPedButtonCnt() == 1){
       session$sendCustomMessage("createPedJSHandler", prepPedJSON(PED()))
-    } else {
+    } else if(showPedButtonCnt() > 1) {
       session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
     }
   }, ignoreInit = TRUE)
@@ -4509,14 +4504,8 @@ server <- function(input, output, session) {
   #    string back to pedigreeJS
   observeEvent(input$pedJSJSON, {
     
-    
-    print("HERE")
-    
-    
     # only do this after the pedigree has been visualized
     if(showPed()){
-      
-      print(1)
       
       # convert JSON pedigree object from pedigreeJS to data frame
       pjs <- fromJSON(input$pedJSJSON, simplifyDataFrame = T)
@@ -4531,10 +4520,6 @@ server <- function(input, output, session) {
 
       # check if relatives were added or deleted
       if(nrow(pjs) != nrow(r.ped)){
-        
-        
-        print(2)
-        
 
         # check if there were deletions of relatives and update the pedigree in R
         if(nrow(pjs) < nrow(r.ped)){

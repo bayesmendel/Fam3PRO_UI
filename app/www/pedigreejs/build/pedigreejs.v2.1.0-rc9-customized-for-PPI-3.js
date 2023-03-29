@@ -984,9 +984,6 @@ var pedigreejs = (function (exports) {
 	    // defaults
 	    btn_target: 'pedigree_history'
 	  }, options);
-	  
-	  // remove the undo, redo, and reset buttons for PPI
-	  
 	  let btns = [{
 	    "fa": "fa-undo pull-left",
 	    "title": "undo"
@@ -1001,15 +998,6 @@ var pedigreejs = (function (exports) {
 	    "fa": "fa-crosshairs pull-right",
 	    "title": "scale-to-fit"
 	  });
-	  
-	  /*
-	  let btns = [{
-	    "fa": "fa-crosshairs pull-right",
-	    "title": "scale-to-fit"
-	  }]
-	  */
-	  
-	  
 	  if (opts.zoomSrc && opts.zoomSrc.indexOf('button') > -1) {
 	    if (opts.zoomOut != 1) btns.push({
 	      "fa": "fa-minus-circle pull-right",
@@ -1020,15 +1008,10 @@ var pedigreejs = (function (exports) {
 	      "title": "zoom-in"
 	    });
 	  }
-	  
-	  // remove full screen mode for PPI
-	  
 	  btns.push({
 	    "fa": "fa-arrows-alt pull-right",
 	    "title": "fullscreen"
 	  });
-	  
-	  
 	  let lis = "";
 	  for (let i = 0; i < btns.length; i++) {
 	    lis += '<span>';
@@ -2793,11 +2776,6 @@ var pedigreejs = (function (exports) {
 	      opts.dataset = newdataset;
 	      rebuild(opts);
 	    }
-	    
-	    
-	    // set pedigree back to R
-	    //Shiny.setInputValue("pedJSout2", JSON.stringify(opts.dataset));
-	    
 	    
 	    // trigger fhChange event
 	    $(document).trigger('fhChange', [opts]);
