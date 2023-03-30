@@ -208,7 +208,8 @@ ui <- fixedPage(
           is a multi-cancer/multi-gene risk prediction model which utilizes family history
           to estimate the probability that a patient has a pathogenic or likely
           pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and,
-          estimates a patient's future risk of cancer for up to 18 different cancer types.
+          estimates a patient's future risk of cancer for up to ",length(PanelPRO:::CANCER_NAME_MAP$long)-1,
+          " different cancer types.
           PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users
           have the ability to create customized models focused on specific cancers and genes.
           The PanelPRO software package was written in the statistical
@@ -219,28 +220,30 @@ ui <- fixedPage(
         br(),br(),
         
         h4("What is PPI?"),
-        p("This website is named the PanelPRO Interface (PPI) because it allows clinicians and researchers to 
-          utilize PanelPRO without having to use R or know how write code in R. 
-          PPI allows users to create pedigrees formatted for PanelPRO and then run 
-          the PanelPRO model, or one of its sub-models, on those pedigrees to obtain 
-          carrier probabilities and future cancer risk estimates for their patients or study samples. 
-          Users can also save pedigrees they created on this site to their account which can be 
-          viewed, updated, downloaded, and (re)analyzed by PanelPRO."),
-        br(),
-        
-        h4("Which cancers and genes does PanelPRO consider?"),
-        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
-          paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), 
-          ". Contralateral Breast Cancer (CBC) is also analyzed."),
-        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(PanelPRO:::GENE_TYPES, collapse = ", ")),
-        p("Users can customize their analysis by running a model with a subset of these cancers 
-          and genes."),
+        p("This website is named the PanelPRO Interface (PPI) because it allows 
+          clinicians and researchers to utilize PanelPRO without having to use or 
+          write code in R. PPI allows users to create pedigrees 
+          formatted for PanelPRO in a user friendly, interactive manner and then 
+          run the PanelPRO model, or one of its sub-models, on those pedigrees to 
+          obtain carrier probabilities and future cancer risk estimates for their 
+          patients or study samples. Users can also save pedigrees they created 
+          to their account which can be viewed, updated, downloaded, and (re)analyzed 
+          by PanelPRO."),
         br(),
         
         h4("Beta Version"),
         p("This website is a beta version that is still in development. If you 
           run into bugs or have suggestions to improve PPI, please contact us 
           using the email address at the bottom of the page."),
+        br(),
+        
+        h4("Which cancers and genes does PanelPRO consider?"),
+        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
+          paste0(paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
+          "Contralateral Breast Cancer (CBC) is also analyzed."),
+        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(paste0(PanelPRO:::GENE_TYPES, collapse = ", "), ".")),
+        p("Users can customize their analysis by running a model with a subset of these cancers 
+          and genes."),
         br(),
         
         h4("How to Use PPI"),
@@ -255,10 +258,10 @@ ui <- fixedPage(
           save button in the top right corner of the editor (be sure to do this 
           before you log-out)."),
         p("When your working pedigree is complete, use the 'PanelPRO' tab to run 
-          the analysis where you can custimze the model settings. After your 
-          analysis has run, you can download the results which include tables 
+          the analysis where you can customize the model settings. After your 
+          analysis has run, you can download the results which includes tables 
           and graphs of the proband's carrier probabilities and future cancer 
-          risks."),
+          risks along with the pedigree table and tree."),
         br(),
         
         h4("Privacy"),
@@ -558,6 +561,7 @@ ui <- fixedPage(
                      Unknown cancer ages will show as 0. Gene tests, surgical 
                      history, and tumor markers are not displayed."),
                   uiOutput("canColorKeyUI"),
+                  br(),
                   conditionalPanel(condition = "output.atLeastOnePPCancer",
                     downloadButton("downloadCanColorKey", 
                                    label = "Download Cancer Legend",
