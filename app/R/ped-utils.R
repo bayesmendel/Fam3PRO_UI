@@ -1453,7 +1453,8 @@ prepPedJSON <- function(pjs.ped){
   # recode and rename for compatibility with pedigreejs
   pjs.ped <- 
     pjs.ped %>%
-    select(ID, name, isProband, top_level, noparents, Sex, CurAge, isDead, MotherID, FatherID, starts_with("Age")) %>%
+    select(ID, name, isProband, top_level, noparents, Sex, CurAge, isDead, MotherID, FatherID, 
+           starts_with("Age")) %>%
     mutate(across(.cols = c(ID, ID, Sex, isDead, MotherID, FatherID), ~as.character(.))) %>%
     mutate(Sex = ifelse(Sex == "0", "F", ifelse(Sex == "1", "M", "U"))) %>%
     mutate(isProband = as.logical(isProband)) %>%
