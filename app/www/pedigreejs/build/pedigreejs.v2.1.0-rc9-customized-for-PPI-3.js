@@ -1335,10 +1335,6 @@ var pedigreejs = (function (exports) {
 	  let id = "#" + opts.btn_target;
 	  if (nstore$1 <= current) $(id + " .fa-repeat").addClass('disabled');else $(id + " .fa-repeat").removeClass('disabled');
 	  if (current > 1) $(id + " .fa-undo").removeClass('disabled');else $(id + " .fa-undo").addClass('disabled');
-	  
-	  // disable buttons
-	  //$(id + " .fa-fullscreen").addClass('disabled');
-	  
 	}
 
 	/**
