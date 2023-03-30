@@ -25,6 +25,7 @@ library(tidyverse)
 library(rlang)
 library(jsonlite)   # convert to/from JSON strings to R data frames
 library(stringi)    # convert to title case function: stri_trans_totitle()
+library(varhandle)  # check if a character or factor can be safely converted to a number
 
 # html
 library(htmltools)  # formatting text
@@ -49,17 +50,17 @@ ui <- fixedPage(
   # Google analytics
   tags$head(includeHTML(("google-analytics.html"))),
   
+  # style sheet
+  tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")),
+  
   # allows shinyjs commands
   useShinyjs(),
   
-  # adjust all tab's padding for all tabSetPanels
-  tags$style(HTML(".tabbable > .nav > li > a {padding:5px;}")),
-  
-  # ensure modal dialog box expands to fit all content
-  tags$style(
-    type = 'text/css',
-    '.modal-dialog { width: fit-content !important; }'
-  ),
+  # pedigreejs dependencies
+  tags$head(tags$link(rel = "stylesheet", type = "text/css",
+                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
+  tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   
   # server busy spinner
   shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
@@ -69,14 +70,15 @@ ui <- fixedPage(
     title = 
       tagList(
         span(
-          "PPI: PanelPRO Interface",
+          app.title,
           div(class = "pull-right", 
             img(src="dana-farber-logo-small-2.PNG", height = "50px"),
-            shinyauthr::logoutUI(id = "logout", icon = icon('door-open'), style = "padding:5px")
+            shinyauthr::logoutUI(id = "logout", 
+                                 style = "color:white; background-color:red; border-color:grey; padding:5px")
           )
         )
       ),
-    windowTitle = "PPI: PanelPRO Interface"
+    windowTitle = app.title
   ),
   
   #### UI: Log-in tabs ####
@@ -91,12 +93,13 @@ ui <- fixedPage(
             shiny::tagList(fluidRow(br()),
                            fluidRow(
                              actionButton(inputId = "signUp",
-                                          label = "Sign up")),
+                                          label = "Sign up",
+                                          style = "color: black; background-color: white; border-color:grey")),
                            fluidRow(br()),
                            fluidRow(
                              actionButton(inputId = "forgotUnPw",
                                           label = "Forgot Username or Password",
-                                          style = "padding:4px; font-size:80%"))
+                                          style = "color: black; background-color: white; border-color:grey; padding:4px; font-size:80%"))
           )
         )
       ), # end log-in tab
@@ -200,13 +203,13 @@ ui <- fixedPage(
       ##### UI: Home ####
       tabPanel(title = "Home",
         h3("Home"),
-        
-        h4("What are PanelPRO and PPI?"),
+        h4("What is PanelPRO?"),
         p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute,
           is a multi-cancer/multi-gene risk prediction model which utilizes family history
           to estimate the probability that a patient has a pathogenic or likely
           pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and,
-          estimates a patient's future risk of cancer for up to 18 different cancer types.
+          estimates a patient's future risk of cancer for up to ",length(PanelPRO:::CANCER_NAME_MAP$long)-1,
+          " different cancer types.
           PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users
           have the ability to create customized models focused on specific cancers and genes.
           The PanelPRO software package was written in the statistical
@@ -215,32 +218,50 @@ ui <- fixedPage(
         tags$a(tags$img(src = "bm-lab-logo.PNG", height = "150px"), 
                href = "https://projects.iq.harvard.edu/bayesmendel/about"),
         br(),br(),
-        p("This website is named the PanelPRO Interface (PPI) because it allows clinicians and researchers to 
-          utilize PanelPRO without having to use R or know how write code in R. 
-          PPI allows users to create pedigrees formatted for PanelPRO and then run 
-          the PanelPRO model, or one of its sub-models, on those pedigrees to obtain 
-          carrier probabilities and future cancer risk estimates for their patients or study samples. 
-          Users can also save pedigrees they created on this site to their account which can be 
-          viewed, updated, downloaded, and (re)analyzed by PanelPRO."),
+        
+        h4("What is PPI?"),
+        p("This website is named the PanelPRO Interface (PPI) because it allows 
+          clinicians and researchers to utilize PanelPRO without having to use or 
+          write code in R. PPI allows users to create pedigrees 
+          formatted for PanelPRO in a user friendly, interactive manner and then 
+          run the PanelPRO model, or one of its sub-models, on those pedigrees to 
+          obtain carrier probabilities and future cancer risk estimates for their 
+          patients or study samples. Users can also save pedigrees they created 
+          to their account which can be viewed, updated, downloaded, and (re)analyzed 
+          by PanelPRO."),
         br(),
         
         h4("Beta Version"),
-        p("This website is a beta version that is still in development and we are working towards adding more 
-          features. If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
-          at the bottom of the page."),
+        p("This website is a beta version that is still in development. If you 
+          run into bugs or have suggestions to improve PPI, please contact us 
+          using the email address at the bottom of the page."),
+        br(),
+        
+        h4("Which cancers and genes does PanelPRO consider?"),
+        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
+          paste0(paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
+          "Contralateral Breast Cancer (CBC) is also analyzed."),
+        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(paste0(PanelPRO:::GENE_TYPES, collapse = ", "), ".")),
+        p("Users can customize their analysis by running a model with a subset of these cancers 
+          and genes."),
         br(),
         
         h4("How to Use PPI"),
-        p("First, navigate to the 'Manage Pedigrees' tab at the top of the page where you can 
-          create a new pedigree, load a pedigree you created previously on this site, or 
-          download one or more pedigrees in .csv or .rds format."),
-        p("To run PanelPRO, you will first either need to create a new pedigree or load an 
-          existing one which you previously saved to your account. Once you do either of these 
-          actions you will have access to the 'Create/Modify Pedigree' and the 'PanelPRO' pages."),
-        p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
-        p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
-          to your user account and you can come back at any time to modify your saved pedigrees 
-          and run/re-run them through PanelPRO."),
+        p("First, navigate to the 'Manage Pedigrees' tab at the top of the page 
+          where you can create a new pedigree or load a pedigree you created 
+          previously on this site."),
+        p("Once you have made your selection, you can create or edit your pedigree 
+          using the 'Create/Edit Pedigree' tab. When creating a new pedigree, 
+          see the privacy section below for rules on naming your pedigrees. 
+          Everytime you modify your working pedigree, it will automatically save 
+          to your user account or you can manually save it at any time using the 
+          save button in the top right corner of the editor (be sure to do this 
+          before you log-out)."),
+        p("When your working pedigree is complete, use the 'PanelPRO' tab to run 
+          the analysis where you can customize the model settings. After your 
+          analysis has run, you can download the results which includes tables 
+          and graphs of the proband's carrier probabilities and future cancer 
+          risks along with the pedigree table and tree."),
         br(),
         
         h4("Privacy"),
@@ -272,7 +293,7 @@ ui <- fixedPage(
         div(style = "margin-left:5px",
           actionButton("terms", label = "Terms and Conditions",
                        icon = icon('book'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B;margin-top:5px")
+                       style = "margin-top:5px")
         )
       ), # end of tab
       
@@ -323,10 +344,8 @@ ui <- fixedPage(
                 p("Clicking the button below will load your selected pedigree and will take you to the create/edit pedigree screen to view and/or edit your pedigree."),
               ),
               textOutput("waitLoad"),
-              tags$head(tags$style("#waitLoad{color: blue;}")),
               actionButton("goNewOrLoad", label = "Get Started",
-                           icon = icon('play'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B")
+                           icon = icon('play'))
             )
           ), # end of tab for loading/creating new pedigree
           
@@ -341,7 +360,8 @@ ui <- fixedPage(
                         
               # tree
               tabPanel(title = "Tree",
-                plotOutput("treePedViewer")
+                plotOutput("treePedViewer", width = "750px"),
+                h5("Note: the image above will only display a maximum of 4 cancer types.")
               ),
               
               # table
@@ -368,8 +388,7 @@ ui <- fixedPage(
               br(),
               p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
               downloadButton("downloadDD1", label = "Download Data Dictionary",
-                             icon = icon('download'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B")
+                             icon = icon('download'))
             )
           ),
           
@@ -406,12 +425,10 @@ ui <- fixedPage(
                 h5("Privacy note: the new pedigree name cannot contain identifying information.", 
                    style = "color:blue"),
                 textOutput("validPedID"),
-                tags$head(tags$style("#validPedID{color: red;}")),
                 textOutput("waitCopy"),
-                tags$head(tags$style("#waitCopy{color: blue;}")),
                 actionButton("copyPed", label = "Copy Pedigree",
                              icon = icon('copy'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+                             style = "margin-top:20px")
               )
             ) # end of conditionalPanel to check if there are tables to download
           ),
@@ -448,20 +465,17 @@ ui <- fixedPage(
                            choices = c(".csv", ".rds"),
                            selected = ".csv"),
               textOutput("waitDownload"),
-              tags$head(tags$style("#waitDownload{color: blue;}")),
                                
               # CSV download button
               conditionalPanel("input.downloadAs1 == '.csv'",
                 downloadButton("downloadPedsCSV", label = "Download",
-                               icon = icon('download'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+                               icon = icon('download'))
               ),
               
               # RDS download button
               conditionalPanel("input.downloadAs1 == '.rds'",
                 downloadButton("downloadPedsRDS", label = "Download",
-                               icon = icon('download'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+                               icon = icon('download'))
               )
             ) # end of conditionalPanel to check if there are tables to download
           ), # end of download tab
@@ -491,10 +505,9 @@ ui <- fixedPage(
                   checkboxInput("selectAllPedsDelete", label = "Select all pedigrees"), 
               ),
               textOutput("waitDelete"),
-              tags$head(tags$style("#waitDelete{color: blue;}")),
               actionButton("deletePeds", label = "Delete Pedigrees",
-                           icon = icon('trash'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B")
+                           icon = icon('trash-o', verify_fa = FALSE),
+                           style = "color: white; background-color: red; border-color: grey")
             ) # end of conditionalPanel to check if there are tables to download
           ) # end of tabPanel for deleting pedigrees
         ) # end of tabsetPanels for manage pedigrees
@@ -509,9 +522,9 @@ ui <- fixedPage(
           # manual save button
           conditionalPanel("output.pedExists",
             div(class = "pull-right", 
-              actionButton("manualPedSave", label = "Force Save Pedigree",
+              actionButton("manualPedSave", label = "Update and Save Pedigree",
                            icon = icon('save'),
-                           style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom: 25px")
+                           style = "margin-top: 0px; margin-bottom: 25px")
             )
           ),
           
@@ -523,21 +536,54 @@ ui <- fixedPage(
               # top row to select which relative is being edited
               fluidRow(
                 column(width = 5,
-                  h4("Select a relative to edit:")
+                  div(class = "pull-right",
+                    h4("Select a relative to edit:", style = "margin-right:-15px")
+                  )
                 ),
                 column(width = 7,
                   selectInput("relSelect", label = NULL,
                               choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
-                              width = "200px")
+                              width = "300px")
                 )
               ),
               
               # pedigree visualization (table and tree)
               tabsetPanel(id = "pedVisualsEditor",
                           
-                # tree
+                # pedigreeJS tree
                 tabPanel(title = "Tree",
-                  plotOutput("treePedEditor")
+                  br(),
+                  bootstrapPage(
+                    includeScript(path="www/pedigreejs/JS.js"),
+                    includeHTML(path="www/pedigreejs/Html.html")
+                  ),
+                  h5("Note: the tree above only displays PanelPRO cancers. 
+                     Unknown cancer ages will show as 0. Gene tests, surgical 
+                     history, and tumor markers are not displayed."),
+                  uiOutput("canColorKeyUI"),
+                  br(),
+                  conditionalPanel(condition = "output.atLeastOnePPCancer",
+                    downloadButton("downloadCanColorKey", 
+                                   label = "Download Cancer Legend",
+                                   icon = icon('download'))
+                  ),
+                    
+                  # Create a hidden button to retrieve pedigreeJS pedigree in JSON format.
+                  # The server needs to simulate a click on this buttons at a 
+                  # set interval to sync the master pedigree with pedigreeJS
+                  br(), br(), br(), br(),
+                  tags$a(href="#", onclick = "getpedigree()",
+                         id = "GetPedJSButton",
+                         class="btn btn-default action-button shiny-bound-input",
+                         style="text-align:center;background-color:white;border-color:white;", 
+                         label = "")
+                  
+                  
+                  # # FOR TESTING
+                  # textOutput("pedJSJSON")
+                  
+                  
+                  
                 ),
                 
                 # table
@@ -572,11 +618,13 @@ ui <- fixedPage(
               ), # end of tabsetPanel for choosing visualization
               
               # download data dictionary
-              conditionalPanel("input.pedVisualsEditor != 'Tree'",
-                p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
-                downloadButton("downloadDD2", label = "Download Data Dictionary",
-                               icon = icon('download'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B")
+              conditionalPanel("input.pedVisualsEditor != 'Tree' & input.pedVisualsEditor != 'Interactive'",
+                fluidRow(
+                  p("If you are unfamiliar with PanelPRO formatted pedigree tables, 
+                    download the data dictionary below to assist you."),
+                  downloadButton("downloadDD2", label = "Download Data Dictionary",
+                                 icon = icon('download'))
+                )
               )
             ) # end of column for pedigree visualization
           ), # end of conditionalPanel to display pedigree visualization or not
@@ -623,13 +671,12 @@ ui <- fixedPage(
                              value = NA, min = min.age, max = max.age, step = 1,
                              width = "150px"),
                 textOutput("validAge"),
-                tags$head(tags$style("#validAge{color: red;}")),
                 
                 # is pedigree does not exist yet, show a create pedigree button
                 conditionalPanel("!output.pedExists",
                   actionButton("createPed", label = "Create Pedigree",
                                icon = icon('file'),
-                               style = "color: white; background-color: #10699B; border-color: #10699B; margin-top:20px")
+                               style = "margin-top:20px")
                 ),
                 
                 # once a pedigree exists, show other demographic options
@@ -665,7 +712,7 @@ ui <- fixedPage(
                 ),
                 actionButton("addCan", label = "Add Cancer",
                              icon = icon('plus'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 20px")
+                             style = "margin-top: 20px")
               ), # end of cancers tab
               
               ###### UI: CBC Risk ####
@@ -794,8 +841,7 @@ ui <- fixedPage(
                                        label = h5("Age at Mastectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
                                        width = "150px"),
-                          textOutput("validMastAge"),
-                          tags$head(tags$style("#validMastAge{color: red;}"))
+                          textOutput("validMastAge")
                         )
                       )
                     )
@@ -814,8 +860,7 @@ ui <- fixedPage(
                                        label = h5("Age at Hysterectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
                                        width = "150px"),
-                          textOutput("validHystAge"),
-                          tags$head(tags$style("#validHystAge{color: red;}"))
+                          textOutput("validHystAge")
                         )
                       )
                     )
@@ -834,8 +879,7 @@ ui <- fixedPage(
                                        label = h5("Age at Oophorectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
                                        width = "150px"),
-                          textOutput("validOophAge"),
-                          tags$head(tags$style("#validOophAge{color: red;}"))
+                          textOutput("validOophAge")
                         )
                       )
                     )
@@ -883,7 +927,7 @@ ui <- fixedPage(
                                   choices = c("No panel selected", "Create new"),
                                   width = "300px"),
                       actionButton("addPanel", label = "Add Panel",
-                                   style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px"),
+                                   style = "margin-top: 0px; margin-bottom:15px"),
                       
                       # create new panel
                       conditionalPanel("input.existingPanels == 'Create new'",
@@ -893,16 +937,14 @@ ui <- fixedPage(
                           'Create Panel' button. You will still need to add the panel above after its created."),
                         textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
                         textOutput("validPanelName"),
-                        tags$head(tags$style("#validPanelName{color: red;}")),
                         selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
                                        choices = all.genes, 
                                        multiple = TRUE, 
                                        options = list(create = TRUE),
                                        width = "500px"),
                         textOutput("waitNewPanel"),
-                        tags$head(tags$style("#waitNewPanel{color: blue;}")),
                         actionButton("createPanel", label = "Create Panel",
-                                     style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom:15px")
+                                     style = "margin-top: 0px; margin-bottom:15px")
                       )
                     ))
                   ),
@@ -948,7 +990,7 @@ ui <- fixedPage(
                                 # add a new PLP gene module to the UI
                                 actionButton("addPLP", label = "Add P/LP Gene Variant",
                                              icon = icon('plus'),
-                                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                                             style = "margin-top: 10px")
                               )
                             ),
                           
@@ -967,7 +1009,7 @@ ui <- fixedPage(
                                 # add a new VUS gene module to the UI
                                 actionButton("addVUS", label = "Add VUS Gene Variant",
                                              icon = icon('plus'),
-                                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px"),
+                                             style = "margin-top: 10px"),
                               )
                             ),
                           
@@ -986,7 +1028,7 @@ ui <- fixedPage(
                                 # add a new BLB gene module
                                 actionButton("addBLB", label = "Add B/LB Gene Variant",
                                              icon = icon('plus'),
-                                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 10px")
+                                             style = "margin-top: 10px")
                               )
                             )
                           ) # end of tabsetPanel for gene results by type
@@ -1042,7 +1084,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validDauQty"),
-                      tags$head(tags$style("#validDauQty{color: red;}")),
                       
                       numericInput("numSon",
                                    label = h5("Sons:"),
@@ -1050,8 +1091,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validSonQty"),
-                      tags$head(tags$style("#validSonQty{color: red;}"))
+                      textOutput("validSonQty")
                     ),
                     
                     wellPanel(
@@ -1063,7 +1103,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validSisQty"),
-                      tags$head(tags$style("#validSisQty{color: red;}")),
                       
                       numericInput("numBro",
                                    label = h5("Brothers:"),
@@ -1071,8 +1110,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validBroQty"),
-                      tags$head(tags$style("#validBroQty{color: red;}"))
+                      textOutput("validBroQty")
                     )
                   ), # end of column for siblings and children
                   
@@ -1086,7 +1124,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validMAuntQty"),
-                      tags$head(tags$style("#validMAuntQty{color: red;}")),
                       
                       numericInput("numMUnc",
                                    label = h5("Maternal Uncles:"),
@@ -1094,8 +1131,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validMUncQty"),
-                      tags$head(tags$style("#validMUncQty{color: red;}"))
+                      textOutput("validMUncQty")
                     ),
                     
                     wellPanel(
@@ -1107,7 +1143,6 @@ ui <- fixedPage(
                                    step = 1, 
                                    width = "125px"),
                       textOutput("validPAuntQty"),
-                      tags$head(tags$style("#validPAuntQty{color: red;}")),
                       
                       numericInput("numPUnc",
                                    label = h5("Paternal Uncles:"),
@@ -1115,8 +1150,7 @@ ui <- fixedPage(
                                    min = 0,
                                    step = 1, 
                                    width = "125px"),
-                      textOutput("validPUncQty"),
-                      tags$head(tags$style("#validPUncQty{color: red;}"))
+                      textOutput("validPUncQty")
                     )
                   ) # end of column for aunts and uncles
                 ), # end of fluidRow for the entire num/type rel tab
@@ -1124,14 +1158,13 @@ ui <- fixedPage(
                 # button to create visual pedigree
                 h4("To Continue"),
                 h5("Press the button below to display the proband's pedigree."),
-                actionButton("showPedButton", label = "Display Pedigree", icon = icon('tv'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B")
+                actionButton("showPedButton", label = "Display Pedigree", icon = icon('tv'))
                 
               ) # end of number and type of rels tab
             ) # end of tabsetPanel for data entry
-          ), # end of column for data entry
+          ) # end of column for data entry
         ) # end of fluidRow for create/modify pedigree tab
-      ), # end of tab for create/modify pedigree
+      ), # end of navbar tab for create/modify pedigree
       
       ##### UI: PanelPRO ####
       tabPanel("PanelPRO",
@@ -1157,7 +1190,7 @@ ui <- fixedPage(
             # show panelpro doc string
             actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
                          icon = icon('book'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px"),
+                         style = "margin-bottom:25px"),
             
             # basic settings
             h4("Basic Settings"),
@@ -1222,7 +1255,6 @@ ui <- fixedPage(
                          value = formals(PanelPRO::PanelPRO)$age.by,
                          width = "150px"),
             textOutput("validYearInterval"),
-            tags$head(tags$style("#validYearInterval{color: red;}")),
             br(),
             
             # advanced settings
@@ -1296,15 +1328,14 @@ ui <- fixedPage(
                 h5("Reset all settings to PanelPRO default values"),
                 actionButton("resetPanelPROInputs", label = "Reset to Defaults",
                              icon = icon('undo'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-bottom:25px")
+                             style = "margin-bottom:25px")
               )
             ),
             
             # RUN MODEL
             br(),
             actionButton("runPP", label = "Run PanelPRO",
-                         icon = icon('play'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B")
+                         icon = icon('play'))
             
           ), # end of "Run" tab for PanelPRO
           
@@ -1319,7 +1350,7 @@ ui <- fixedPage(
               column(width = 4, align = "right",
                 actionButton("downloadResults1", label = "Download Results",
                              icon = icon('download'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px")
+                             style = "margin-top: 0px")
               )
             )),
             
@@ -1377,8 +1408,7 @@ ui <- fixedPage(
                   the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
                 tableOutput("ppRunSettings"),
                 actionButton("showPPDocString2", label = "Show PanelPRO Documentation",
-                             icon = icon('book'),
-                             style = "color: white; background-color: #10699B; border-color: #10699B")
+                             icon = icon('book'))
               ),
               
               ## Console Output
@@ -1431,7 +1461,7 @@ ui <- fixedPage(
           ),
           actionButton("addManagersButton", label = "Add Selected Managers",
                        icon = icon('plus'),
-                       style = "color: white; background-color: #10699B; border-color: #10699B; margin-top: 0px; margin-bottom: 25px")
+                       style = "margin-top: 0px; margin-bottom: 25px")
         ),
         br(),
         
@@ -1457,26 +1487,12 @@ ui <- fixedPage(
   
   #### UI: Footer ####
   br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
-  
-  #### UI: Tab Switching Tags #####
-  # automatically go to top of tab when selecting a tab
-  tags$script(" $(document).ready(function () {
-         $('#navbarTabs a[data-toggle=\"tab\"]').on('click', function (e) {
-          window.scrollTo(0, 0)
-               });
-               });"
-  ),
-  # automatically go to top of tab when selecting a tab
-  tags$script(" $(document).ready(function () {
-         $('#pedTabs a[data-toggle=\"tab\"]').on('click', function (e) {
-          window.scrollTo(0, 0)
-               });
-               });"
-  )
+
 ) # end of UI
 
 
 server <- function(input, output, session) {
+  
   #### Connect/Disconnect Database ####
   conn <- dbConnect(drv = RMariaDB::MariaDB(),
                     username = Sys.getenv('maria.un'),
@@ -3023,18 +3039,41 @@ server <- function(input, output, session) {
       write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
       write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
       write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      
+      # include a png if 1 and only 1 pedigree is being downloaded
+      if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
+        
+        # check if there are any cancers which determines if the legend should be included
+        cans <- select(downloadPedsTable(), starts_with("isAff"))
+        
+        # create the png image
+        png(filename = "download-pedigrees/pedigree-image.png")
+        print(plot(
+          kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
+        ))
+        if(sum(cans) > 0){
+          print(
+            pedigree.legend(kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))], 
+                            location = "bottomright", radius=0.1)
+          )
+        }
+        dev.off()
+      }
+      
       new.files <- c(
         "download-pedigrees/pedigrees.csv",
         "download-pedigrees/cancer-details.csv",
         "download-pedigrees/panel-details.csv",
         "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
+        "data-dictionary/panelpro-gene-list.csv",
+        "download-pedigrees/pedigree-image.png"
       )
       
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            "download-pedigrees/README.md",
                            new.files))
       
@@ -3062,19 +3101,43 @@ server <- function(input, output, session) {
               file = "data-dictionary/columns-and-codings-dictionary.rds")
       saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
       saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      
+      # include a png if 1 and only 1 pedigree is being downloaded
+      if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
+        
+        # check if there are any cancers which determines if the legend should be included
+        cans <- select(downloadPedsTable(), starts_with("isAff"))
+        
+        # create the png image
+        png(filename = "download-pedigrees/pedigree-image.png")
+        print(plot(
+          kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
+        ))
+        if(sum(cans) > 0){
+          print(
+            pedigree.legend(kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))], 
+                            location = "bottomright", radius=0.1)
+          )
+        }
+        dev.off()
+      }
+      
+      # filenames of all the temporary files
       new.files <- c(
         "download-pedigrees/pedigrees.rds",
         "download-pedigrees/cancer-details.rds",
         "download-pedigrees/panel-details.rds",
         "data-dictionary/columns-and-codings-dictionary.rds",
         "data-dictionary/panelpro-cancer-abbreviations.rds",
-        "data-dictionary/panelpro-gene-list.rds"
+        "data-dictionary/panelpro-gene-list.rds",
+        "download-pedigrees/pedigree-image.png"
       )
       
       tmp.zip <- 
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/README.md",
                            "download-pedigrees/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -3256,7 +3319,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+                           sx = ifelse(input$relSelect == "Female", 0, 1))
       )
       
       # if tab is switched prior to pedigree being visualized, when the parent's
@@ -3276,6 +3339,9 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+      
+      # send pedigree to pedigreeJS
+      session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
     }
   }, ignoreInit = TRUE)
   
@@ -3369,6 +3435,23 @@ server <- function(input, output, session) {
   })
   output$validAge <- renderText({ validAge() })
   
+  # enable sex input if the selected relative is not the proband and if the relative has children
+  observeEvent(input$relSelect, {
+    if(pedExists()){
+      if(PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))] == 0){
+        rel.kids <- PED()$ID[which(PED()$MotherID == as.numeric(input$relSelect))]
+      } else {
+        rel.kids <- PED()$ID[which(PED()$FatherID == as.numeric(input$relSelect))]
+      }
+      if(!PED()$isProband[which(PED()$ID == as.numeric(input$relSelect))] & 
+         length(rel.kids) == 0){
+        shinyjs::enable(id = "Sex")
+      } else {
+        shinyjs::disable(id = "Sex")
+      }
+    }
+  }, ignoreNULL = T, ignoreInit = T)
+  
   # do not allow user to move to other pedTabs if there is not enough information to make the pedigree
   # also disable/enable create pedigree button based on presense/absense of minimum necessary information
   pbMinInfo <- reactiveVal(FALSE)
@@ -3446,6 +3529,15 @@ server <- function(input, output, session) {
   observeEvent(PED(), {
     if(!is.null(PED())){
       pedExists(TRUE)
+      
+      
+      
+      # # FOR TESTING
+      # View(PED())
+      
+      
+      
+      
     } else {
       pedExists(FALSE)
     }
@@ -3498,6 +3590,7 @@ server <- function(input, output, session) {
       # populate proband's demographics data and PedigreeID
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, 
                         cur.age = input$Age, is.dead = input$isDead,
+                        sx = input$Sex,
                         rc = input$race, et = input$eth, 
                         an.aj = input$ancAJ, an.it = input$ancIt))
       
@@ -3512,6 +3605,11 @@ server <- function(input, output, session) {
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
+      
+      # update pedigreeJS
+      if(showPed()){
+        session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+      }
       
     } # if statement to check whether the pedigree could be created based on the tab and minimum info required
     
@@ -3623,6 +3721,11 @@ server <- function(input, output, session) {
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
+      
+      # update pedigreeJS
+      if(showPed()){
+        session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+      }
     }
     
     # update the reactive value to detect if the current tab is the target tab
@@ -4171,13 +4274,13 @@ server <- function(input, output, session) {
     if(onGeneTab() & input$pedTabs != "Genes" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect,
                         gene.results = panelSum()))
-
+      
       # save pedigree to database
       savePedigreeToDB(conne = conn,
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
     }
-
+    
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Genes"){
       onGeneTab(TRUE)
@@ -4250,6 +4353,7 @@ server <- function(input, output, session) {
   
   # add relatives to the pedigree when the user click the button at bottom of screen
   # populate assumed races and ancestries based on proband's mother and father info
+  showPedButtonCnt <- reactiveVal(0)
   showPed <- reactiveVal(FALSE)
   output$showPed <- reactive({ showPed() })
   outputOptions(output, 'showPed', suspendWhenHidden = FALSE)
@@ -4257,6 +4361,12 @@ server <- function(input, output, session) {
     
     # update reactive value which triggers showing/hiding the visualized pedigree
     showPed(TRUE)
+    
+    # keep track of the 1st time a pedigree is shown that pedigreeJS can be either 
+    # updated or created from scratch
+    if(showPedButtonCnt() < 2){
+      showPedButtonCnt(showPedButtonCnt()+1)
+    }
     
     # only add family members if this is a new pedigree
     if(newOrLoadFlag() == "new"){
@@ -4267,6 +4377,9 @@ server <- function(input, output, session) {
         # first, add partner to pedigree
         PED(formatNewPerson(relation = "partner", tmp.ped = PED()))
         parnter.id <- PED()$ID[nrow(PED())]
+        t.ped <- PED()
+        t.ped$name[nrow(t.ped)] <- "Proband Partner 1"
+        PED(t.ped)
         
         # add daughters iteratively
         if(input$numDau > 0){
@@ -4400,9 +4513,19 @@ server <- function(input, output, session) {
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
       
+      # get names and abbreviated names
+      selector.names <- 
+        PED() %>%
+        select(ID, name) %>%
+        mutate(long_name = name)
+      selector.names <- abb.Relations(selector.names)
+      selector.names <- 
+        selector.names %>%
+        mutate(combined_name = paste0(long_name, " (", name, ")"))
+      
       # update relative selector with all relatives in the pedigree
       updateSelectInput(session = session, inputId = "relSelect", 
-                        choices = setNames(PED()$ID, PED()$name), 
+                        choices = setNames(selector.names$ID, selector.names$combined_name), 
                         selected = PED()$ID[which(PED()$isProband == 1)])
       
     } # end of if statement for confirming the pedigree is a new creation
@@ -4413,65 +4536,310 @@ server <- function(input, output, session) {
     }
     hideTab("pedTabs", target = "Add Relatives", session = session)
     
+    # create interactive pedigeejs pedigree if a any pedigree, even a different family,
+    # has not been displayed yet, otherwise update pedigreeJS instead
+    if(showPedButtonCnt() == 1){
+      session$sendCustomMessage("createPedJSHandler", prepPedJSON(PED()))
+    } else if(showPedButtonCnt() > 1) {
+      session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+    }
   }, ignoreInit = TRUE)
   
   ##### Visualize Pedigree ####
+  ###### PedigreeJS ####
   
-  ###### Family Tree ####
-  ## temporarily: draw pedigree in kinship2 and eventually replace with pedigreejs
-  # prepare the data
-  treePed <- reactive({
-    if(!is.null(PED())){
-      plot_fam <-
-        PED() %>%
-        mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
-        mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
-        mutate(name = sub(pattern = "Daughter", replacement = "Dau", name)) %>%
-        mutate(name = sub(pattern = "Sister", replacement = "Sis", name)) %>%
-        mutate(name = sub(pattern = "Brother", replacement = "Bro", name)) %>%
-        mutate(name = sub(pattern = "Uncle", replacement = "Unc", name)) %>%
-        mutate(name = sub(pattern = "Grandmother", replacement = "GMom", name)) %>%
-        mutate(name = sub(pattern = "Grandfather", replacement = "GDad", name)) %>%
-        mutate(name = sub(pattern = "Mother", replacement = "Mom", name)) %>%
-        mutate(name = sub(pattern = "Father", replacement = "Dad", name)) %>%
-        mutate(name = sub(pattern = "Mat. ", replacement = "M", name)) %>%
-        mutate(name = sub(pattern = "Pat. ", replacement = "P", name)) %>%
-        mutate(name = gsub(pattern = " ", replacement = "", name)) %>%
-        mutate(nameMother = "") %>%
-        mutate(nameFather = "") %>%
-        select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+  
+  
+  
+  # # FOR TESTING - diplay the pedigreeJS JSON as a string
+  # output$pedJSJSON <- renderText(input$pedJSJSON)
+  
+  
+  
+  
+  # at a specified time interval, refresh the JSON pedigree
+  autoInvalidate <- reactiveTimer(intervalMs = 1000)
+  observe({
+    autoInvalidate()
+    shinyjs::click("GetPedJSButton")
+  })
+  
+  # when the JSON pedigree updates:
+  # 1: update the R pedigree (PED()) by removing any deleted relatives and 
+  #    changing the pedigreeJS 'name' values to match the formatting of the R 
+  #    pedigree 'ID' values.
+  # 2: if any pedigreeJS 'name'/R 'ID' values were changed, pass an updated JSON
+  #    string back to pedigreeJS
+  observeEvent(input$pedJSJSON, {
+    
+    # only do this after the pedigree has been visualized
+    if(showPed()){
       
-      # replace mother and father ID numbers with names
-      for(uid in unique(plot_fam$MotherID)){
-        if(uid != 0){
-          pname <- plot_fam$name[which(plot_fam$ID == uid)]
-          plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
-        }
-      }
-      for(uid in unique(plot_fam$FatherID)){
-        if(uid != 0){
-          pname <- plot_fam$name[which(plot_fam$ID == uid)]
-          plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
-        }
-      }
+      # convert JSON pedigree object from pedigreeJS to data frame
+      pjs <- fromJSON(input$pedJSJSON, simplifyDataFrame = T)
       
-      # create pedigree object
-      return(pedigree(id = plot_fam$name,
-                      momid = plot_fam$nameMother,
-                      dadid = plot_fam$nameFather,
-                      sex = plot_fam$Sex,
-                      famid = plot_fam$PedigreeID))
+      # check that the proband was not deleted
+      if(sum(pjs$proband, na.rm = T) != 0){
+      
+        # get the numeric ids from the pedigreeJS pedigree
+        num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
+        
+        # get a copy of the R data frame master pedigree
+        r.ped <- PED()
+  
+        # check if relatives were added or deleted
+        if(nrow(pjs) != nrow(r.ped)){
+  
+          # check if there were deletions of relatives and update the pedigree in R
+          if(nrow(pjs) < nrow(r.ped)){
+            del.rels <- r.ped$ID[which(!as.character(r.ped$ID) %in% pjs$name)]
+            for(dr in del.rels){
+              r.ped <- subset(r.ped, ID != dr)
+    
+              # update master pedigree
+              PED(r.ped)
+    
+              # remove relative from panel and cancer hx tracking
+              canReactive$canNums[[as.character(dr)]] <- NULL
+              geneReactive$GeneNums[[as.character(dr)]] <- NULL
+            }
+  
+            # not a deletion, therefore it was an addition, so
+            # update the pedigree in R,
+            # and change the new names, display_names, and statuses in pedigreeJS
+          } else {
+  
+            # check if one relative was added
+            # this means either a sibling or child, not necessarily a relative to the proband,
+            # was added in pedigreeJS
+            if(nrow(pjs) == nrow(r.ped)+1){
+              
+              # change the ID/name
+              # note that the ID column is R is equivalent to the name property in pedigreeJS
+              # and note that the name column in R is equivalend to the display_name property in pedigreeJS
+              new.id <- max(num.ids)+1
+              target.rels <- as.character(new.id)
+              pjs$name[which(!varhandle::check.numeric(pjs$name))] <- as.character(new.id)
+              
+              # updated R and pedigreeJS pedigrees
+              out <- addPJSrel(pjs = pjs,
+                               r.ped = r.ped,
+                               target.rel = target.rels,
+                               type = "sib-child")
+              
+              # check if two relatives were added
+              # (this means either a set of parents or a partner and child were added in pedigreeJS)
+            } else if(nrow(pjs) == nrow(r.ped)+2){
+              
+              # identify the two new additions
+              added.rels <- pjs$name[which(!varhandle::check.numeric(pjs$name))]
+              
+              # check if the two additions were parents
+              if((isTRUE(pjs$top_level[which(pjs$name == added.rels[1])]) &
+                  isTRUE(pjs$top_level[which(pjs$name == added.rels[2])])) |
+                 (isTRUE(pjs$noparents[which(pjs$name == added.rels[1])]) &
+                  isTRUE(pjs$noparents[which(pjs$name == added.rels[2])]))){
+                
+                # identify the male/female parents
+                if(pjs$sex[which(pjs$name == added.rels[1])] == "M"){
+                  added.malep <- added.rels[1]
+                  added.femalep <- added.rels[2]
+                } else {
+                  added.malep <- added.rels[2]
+                  added.femalep <- added.rels[1]
+                }
+                
+                # change string ids for the new parents to numeric names/IDs
+                new.fp.id <- max(num.ids)+1
+                new.mp.id <- max(num.ids)+2
+                target.rels <- as.character(c(new.fp.id, new.mp.id))
+                pjs$name[which(pjs$name == added.femalep)] <- as.character(new.fp.id)
+                pjs$name[which(pjs$name == added.malep)] <- as.character(new.mp.id)
+                pjs$mother[which(pjs$mother == added.femalep)] <- as.character(new.fp.id)
+                pjs$father[which(pjs$father == added.malep)] <- as.character(new.mp.id)
+                
+                # add the female parent then the male parent
+                out.f <- addPJSrel(pjs = pjs[which(pjs$name != added.malep),],
+                                   r.ped = r.ped,
+                                   target.rel = as.character(new.fp.id),
+                                   type = "parent",
+                                   pjs.full = pjs)
+                out <- addPJSrel(pjs = out.f$pjs_updated,
+                                 r.ped = out.f$r.ped_updated,
+                                 target.rel = as.character(new.mp.id),
+                                 type = "parent",
+                                 pjs.full = out.f$pjs_updated)
+                
+                # they were not parents, the two additions were a partner and a child
+              } else {
+                
+                # identify which is the partner and which is the child
+                if(isTRUE(pjs$noparents[which(pjs$name == added.rels[1])])){
+                  added.partner <- added.rels[1]
+                  added.child <- added.rels[2]
+                } else {
+                  added.partner <- added.rels[2]
+                  added.child <- added.rels[1]
+                }
+                
+                # change string ids for the new parents to numeric names/IDs
+                new.par.id <- max(num.ids)+1
+                new.child.id <- max(num.ids)+2
+                target.rels <- as.character(c(new.par.id, new.child.id))
+                pjs$name[which(pjs$name == added.partner)] <- as.character(new.par.id)
+                pjs$name[which(pjs$name == added.child)] <- as.character(new.child.id)
+                if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "F"){
+                  pjs$mother[which(pjs$mother == added.partner)] <- as.character(new.par.id)
+                } else if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "M"){
+                  pjs$father[which(pjs$father == added.partner)] <- as.character(new.par.id)
+                }
+                
+                # identify the partner's partner
+                partner.of <- 
+                  as.character(
+                    pjs[which(pjs$name == as.character(new.child.id)), c("mother","father")]
+                  )
+                partner.of <- partner.of[which(partner.of != as.character(new.par.id))]
+                
+                # add the partner then the child
+                out.part <- addPJSrel(pjs = pjs,
+                                      r.ped = r.ped,
+                                      target.rel = as.character(new.par.id),
+                                      type = "partner",
+                                      partner.of = partner.of)
+                out <- addPJSrel(pjs = out.part$pjs_updated,
+                                 r.ped = out.part$r.ped_updated,
+                                 target.rel = as.character(new.child.id),
+                                 type = "sib-child")
+              }
+              
+              # warn if more than two relatives were added
+            } else if(nrow(pjs) > nrow(r.ped)+2){
+              base::message("More than two relatives were added between pedigreeJS pedigree JSON refreshes.")
+            }
+            
+            # update master pedigree
+            PED(out$r.ped_updated)
+            
+            # assume race/eth/ancestry and create module tracking for each new relative
+            for(tr in as.numeric(target.rels)){
+              PED(assumeBackground(PED(), id = tr))
+              canReactive$canNums[[as.character(tr)]] <- trackCans.rel
+              geneReactive$GeneNums[[as.character(tr)]] <- relTemplate.trackGenes
+            }
+            
+            # push the updated pedigree back to pedigreeJS
+            pjs.json <- toJSON(out$pjs_updated, dataframe = "rows", na = "null", pretty = TRUE)
+            session$sendCustomMessage("updatePedJSHandler", pjs.json)
+            
+          } # end of else where relatives were added
+          
+          # save pedigree to database
+          savePedigreeToDB(conne = conn,
+                           user = credentials()$info[["user"]],
+                           tmp_tbl = PED())
+          
+          # get names and abbreviated names
+          selector.names <- 
+            PED() %>%
+            select(ID, name) %>%
+            mutate(long_name = name)
+          selector.names <- abb.Relations(selector.names)
+          selector.names <- 
+            selector.names %>%
+            mutate(combined_name = paste0(long_name, " (", name, ")"))
+          
+          # update relative selector with all relatives in the pedigree
+          # if the selected person was deleted then make the proband the selected relativee
+          if(all(selector.names$ID != input$relSelect)){
+            updateSelectInput(session = session, inputId = "relSelect",
+                              choices = setNames(selector.names$ID, selector.names$combined_name),
+                              selected = PED()$ID[which(PED()$isProband == 1)])
+            
+            # otherwise keep the current selection
+          } else {
+            updateSelectInput(session = session, inputId = "relSelect",
+                              choices = setNames(selector.names$ID, selector.names$combined_name))
+          }
+        } # end of if statement to check if pedigrees have the same number of rows
+        
+        # if the proband was deleted, ignore it and feed the master pedigree back
+        # to pedigreeJS
+      } else {
+        session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+      }
+    } # end of if statement to check if pedigree has been displayed yet (showPed())
+  }, ignoreInit = T, ignoreNULL = T)
+  
+  ## cancer color legend plot
+  # check if there is at least one PanelPRO cancer in the pedigree 
+  # which triggers whether to make the plot or not
+  atLeastOnePPCancer <- reactiveVal(FALSE)
+  output$atLeastOnePPCancer <- reactive({atLeastOnePPCancer()})
+  outputOptions(output, 'atLeastOnePPCancer', suspendWhenHidden = FALSE)
+  observeEvent(PED(), {
+    ctable <- cancersTbl()
+    if(nrow(ctable) > 0){
+      cans.used <- setdiff(unique(ctable$Cancer), "Other")
+      if(length(cans.used) > 0){
+        atLeastOnePPCancer(TRUE)
+      } else {
+        atLeastOnePPCancer(FALSE)
+      }
+    } else {
+      atLeastOnePPCancer(FALSE)
+    }
+  }, ignoreNULL = T, ignoreInit = T)
+  
+  # create the plot object
+  output$canColorKey <- renderPlot({
+    if(atLeastOnePPCancer()){
+      ctable <- cancersTbl()
+      cans.used <- setdiff(unique(ctable$Cancer), "Other")
+      return(PJS_can_colors(cans.used))
     } else {
       return(NULL)
     }
   })
   
-  # display in the pedigree editor
-  output$treePedEditor <- renderPlot({
-    shiny::validate(
-      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
-    )
-    plot(treePed()[paste0(input$pedID)])
+  # set the plot height
+  canColorKeyHeight <- reactive({
+    if(atLeastOnePPCancer()){
+      ctable <- cancersTbl()
+      ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
+      ht <- ifelse(ht < 60, 60, ht)
+      return(ht)
+    } else {
+      return(NULL)
+    }
+  })
+  
+  # sent the plot to the UI with dynamic height
+  output$canColorKeyUI <- renderUI({
+    plotOutput("canColorKey", width = "300px", height = canColorKeyHeight())
+  })
+  
+  # download cancer color key individually
+  output$downloadCanColorKey <- shiny::downloadHandler(
+    filename = function(){
+      paste0("cancer-color-key-ped-", unique(PED()$PedigreeID), "-" , Sys.Date(), ".png")
+    },
+    content = function(file){
+      ggsave(plot = output$canColorKey, 
+             filename = file)
+    }
+  )
+  
+  
+  ###### kinship2 Tree ####
+  ## draw pedigree static image using kinship2
+  # prepare the data
+  treePed <- reactive({
+    if(!is.null(PED())){
+      return(kinship2.ped(PED()))
+    } else {
+      return(NULL)
+    }
   })
   
   # display in the pedigree viewer
@@ -4479,13 +4847,20 @@ server <- function(input, output, session) {
     shiny::validate(
       need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
+    
+    # check if there are any cancers which determines if the legend should be included
+    cans <- select(PED(), starts_with("isAff"))
+    
+    # plot
     plot(treePed()[paste0(input$pedID)])
+    if(sum(cans) > 0){
+      pedigree.legend(treePed()[paste0(input$pedID)], location = "bottomright", radius=0.1)
+    }
   })
   
   ###### Pedigree Table ####
   # prepare the data frame
   tablePed <- reactive({
-    
     if(!is.null(PED())){
       t.ped <- 
         PED() %>% 
@@ -4502,34 +4877,15 @@ server <- function(input, output, session) {
         relocate(name, .after = "ID") %>%
         relocate(Sex, .after = "name") %>%
         relocate(Twins, .after = "isDead")
-      # %>%
-      #   mutate(Sex = recode(Sex,
-      #                       "0" = "Female",
-      #                       "1" = "Male")) %>%
-      #   mutate(across(.cols = any_of(PanelPRO:::GENE_TYPES), 
-      #                 ~ ifelse(is.na(.), "Not Tested",
-      #                          ifelse(.==1, "P/LP", "Not P/LP")))) %>%
-      #   mutate(Twin_Set = na_if(Twin_Set, 0)) %>%
-      #   mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-      #                                  PanelPRO:::MARKER_TESTING$COL$MARKERS)), 
-      #                 ~ ifelse(is.na(.), "Not Tested",
-      #                          ifelse(.==1, "Pos", "Neg")))) %>%
-      #   mutate(across(.cols = c(Dead, AJ, Italian, 
-      #                           Mastectomy, Hysterecomy, Oophorectomy,
-      #                           AntiEstrogen, HRPreneoplasia),
-      #                 ~ ifelse(is.na(.), NA,
-      #                          ifelse(.==1, "Yes", "No")))) %>%
-      #   mutate(across(.cols = any_of(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)),
-      #                 ~ ifelse(.==1, "Yes", "No")))
-      # colnames(t.ped)[which(colnames(t.ped) == "CurAge")] <- "Age_or_Death_Age"
-      
-      return(DT::datatable(data = t.ped,
-                           rownames = FALSE,
-                           class = list("nowrap", "stripe", "compact", "cell-border"),
-                           extensions = "FixedColumns",
-                           options = list(pageLength = 20,
-                                          scrollX = TRUE,
-                                          fixedColumns = list(leftColumns = 2))))
+      return(
+        DT::datatable(data = t.ped,
+                      rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact", "cell-border"),
+                      extensions = "FixedColumns",
+                      options = list(pageLength = 20,
+                                     scrollX = TRUE,
+                                     fixedColumns = list(leftColumns = 2)))
+      )
     } else {
       return(NULL)
     }
@@ -4670,6 +5026,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -4698,6 +5055,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -4716,7 +5074,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+                           sx = ifelse(input$relSelect == "Female", 0, 1))
       )
       
       # if tab is switched prior to pedigree being visualized, when the parent's
@@ -4899,7 +5257,7 @@ server <- function(input, output, session) {
                            sr = surgReactive$lst,
                            gr = geneReactive$GeneNums,
                            dupResultGene = dupResultGene(),
-                           sx = PED()$Sex[which(PED()$ID == as.numeric(input$relSelect))])
+                           sx = ifelse(input$relSelect == "Female", 0, 1))
       )
       
       # if tab is switched prior to pedigree being visualized, when the parent's
@@ -5591,13 +5949,11 @@ server <- function(input, output, session) {
       footer = tagList(
         conditionalPanel("input.downloadResultsAs == '.csv'",
           downloadButton("downloadResultsCSV", label = "Download",
-                         icon = icon('download'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+                         icon = icon('download')),
         ),
         conditionalPanel("input.downloadResultsAs == '.rds'",
           downloadButton("downloadResultsRDS", label = "Download",
-                         icon = icon('download'),
-                         style = "color: white; background-color: #10699B; border-color: #10699B"),
+                         icon = icon('download')),
         ),
         modalButton("Cancel")
       )
@@ -5629,6 +5985,20 @@ server <- function(input, output, session) {
       write.csv(PED(), file = paste0("download-results/pedigree-", pedID, ".csv"), row.names = F)
       write.csv(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".csv"), row.names = F)
       write.csv(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".csv"), row.names = F)
+      
+      # create the png image
+      cans <- select(PED(), starts_with("isAff"))
+      png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
+      print(plot(
+        kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
+      ))
+      if(sum(cans) > 0){
+        print(
+          pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
+                          location = "bottomright", radius=0.1)
+        )
+      }
+      dev.off()
       
       # run settings table
       write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
@@ -5679,6 +6049,7 @@ server <- function(input, output, session) {
         paste0("download-results/pedigree-", pedID, ".csv"),
         paste0("download-results/cancer-details-", pedID, ".csv"),
         paste0("download-results/panel-details-", pedID, ".csv"),
+        paste0("download-results/pedigree-image-", pedID,".png"),
         paste0("download-results/run-settings-", pedID, ".csv")
       )
       if(!is.null(ppReactive$cpTblDF)){
@@ -5708,6 +6079,7 @@ server <- function(input, output, session) {
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
                            "download-results/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -5745,6 +6117,20 @@ server <- function(input, output, session) {
       saveRDS(PED(), file = paste0("download-results/pedigree-", pedID, ".rds"))
       saveRDS(canJSONToDF(), file = paste0("download-results/cancer-details-", pedID, ".rds"))
       saveRDS(genesJSONToDF(), file = paste0("download-results/panel-details-", pedID, ".rds"))
+      
+      # create the png image
+      cans <- select(PED(), starts_with("isAff"))
+      png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
+      print(plot(
+        kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
+      ))
+      if(sum(cans) > 0){
+        print(
+          pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
+                          location = "bottomright", radius=0.1)
+        )
+      }
+      dev.off()
       
       # run settings table
       saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
@@ -5796,6 +6182,7 @@ server <- function(input, output, session) {
         paste0("download-results/pedigree-", pedID, ".rds"),
         paste0("download-results/cancer-details-", pedID, ".rds"),
         paste0("download-results/panel-details-", pedID, ".rds"),
+        paste0("download-results/pedigree-image-", pedID,".png"),
         paste0("download-results/run-settings-", pedID, ".rds")
       )
       if(!is.null(ppReactive$cpTblDF)){
@@ -5824,6 +6211,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/README.md",
                            "download-results/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files

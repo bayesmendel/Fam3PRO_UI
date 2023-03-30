@@ -308,7 +308,7 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
   
   # credentials: get token using service account method
   token <- gargle::credentials_service_account(
-    scopes = c("https://www.googleapis.com/auth/gmail.send"), 
+    scopes = c("https://mail.google.com/"), 
     path = Sys.getenv("gmail.json.path"), 
     subject = Sys.getenv("gmail.email") # Allow service account to act on behalf of this subject
   )
@@ -322,7 +322,11 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
     gm_from(Sys.getenv("gmail.noreply.email")) %>%
     gm_subject(subject) %>%
     gm_text_body(body)
-  gm_send_message(email_message)
+  sent_id <- gm_send_message(email_message)$id
+  
+  # permanently delete message for privacy, but wait a few seconds to allow send to finish
+  Sys.sleep(5)
+  gm_delete_message(id = sent_id)
 }
 
 #' Save table to selected user's master table

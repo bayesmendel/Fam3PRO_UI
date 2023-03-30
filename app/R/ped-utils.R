@@ -119,9 +119,9 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     if(is.null(m.id) | is.null(f.id)){
       stop("For 'niece', 'nephew' and 'cousin', provide non-NULL values for 'tmp.ped', 'm.id' and 'f.id' only")
     } else if(relation != "cousin" & 
-              (!is.null(c.ids) | !is.null(m.or.p.side) | !is.null(partner.of) | !is.null(sx))){
+              (!is.null(m.or.p.side) | !is.null(partner.of) | !is.null(sx))){
       stop("For 'niece' and 'nephew', provide non-NULL values for 'tmp.ped', 'm.id', and 'f.id' only")
-    } else if(relation == "cousin" & (is.null(sx) | !is.null(c.ids) | !is.null(m.or.p.side) | !is.null(partner.of))){
+    } else if(relation == "cousin" & (is.null(sx) | !is.null(m.or.p.side) | !is.null(partner.of))){
       stop("For 'cousin', provide non-NULL values for 'tmp.ped', 'm.id', 'f.id', and 'sx' only")
     }
     
@@ -148,11 +148,17 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     tmp.id <- 1
   }
   
-  # assign side if needed but not specified and can be implied by relation
+  # assign side if needed but if not specified and can be implied by relation the do it
   if(relation == "rel.partner"){
     tmp.side <- tmp.ped$side[tmp.ped$ID == partner.of]
   } else if(relation %in% c("niece","nephew","cousin")){
-    tmp.side <- tmp.ped$side[which(tmp.ped$ID == m.id)]
+    if(!is.na(m.id)){
+      tmp.side <- tmp.ped$side[which(tmp.ped$ID == m.id)]
+    } else if(!is.na(f.id)){
+      tmp.side <- tmp.ped$side[which(tmp.ped$ID == f.id)]
+    } else {
+      tmp.side <- NA
+    }
   }
   
   # create and format a 1 row data frame with default values
@@ -166,8 +172,8 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
                   ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
     mutate(ID = tmp.id) %>%
-    mutate(relationship = ifelse(relation == "rel.partner", paste0("partner.of.",partner.of), relation)) %>%
-    mutate(side = ifelse(grepl(pattern = "partner.of", relationship) | relationship %in% c("niece","nephew","cousin"), tmp.side, 
+    mutate(relationship = relation) %>%
+    mutate(side = ifelse(grepl(pattern = "rel.partner", relationship) | relationship %in% c("niece","nephew","cousin"), tmp.side, 
                          ifelse(!is.null(m.or.p.side), m.or.p.side, side))) %>%
     mutate(race = "All_Races") %>%
     mutate(Ancestry = "nonAJ") %>%
@@ -362,6 +368,79 @@ popPersonData <- function(tmp.ped,
   }
   
   # demographics
+  if(!is.null(sx)){ 
+    tmp.ped$Sex[which(tmp.ped$ID == id)] <- ifelse(sx == "Female", 0, 1)
+    
+    # check that the relationship and name are still valid, if not get the 
+    # corrected relationship
+    rela <- tmp.ped$relationship[which(tmp.ped$ID == id)]
+    if(!rela %in% c("partner", "rel.partner")){
+      name.sx.mismatch <- FALSE
+      if(sx == "Male"){
+        if(grepl(pattern = "daughter|mother|niece|sister|aunt", rela)){
+          name.sx.mismatch <- TRUE
+        }
+        if(grepl(pattern = "daughter", rela)){
+          rela <- sub(pattern = "daughter", replacement = "son", rela)
+        } else if(grepl(pattern = "mother", rela)){
+          rela <- sub(pattern = "mother", replacement = "father", rela)
+        } else if(grepl(pattern = "niece", rela)){
+          rela <- sub(pattern = "niece", replacement = "nephew", rela)
+        } else if(grepl(pattern = "sister", rela)){
+          rela <- sub(pattern = "sister", replacement = "brother", rela)
+        } else if(grepl(pattern = "aunt", rela)){
+          rela <- sub(pattern = "aunt", replacement = "uncle", rela)
+        }
+      } else if(sx == "Female"){
+        if(grepl(pattern = "son|father|nephew|brother|uncle", rela)){
+          name.sx.mismatch <- TRUE
+        }
+        if(grepl(pattern = "son", rela)){
+          rela <- sub(pattern = "son", replacement = "daughter", rela)
+        } else if(grepl(pattern = "father", rela)){
+          rela <- sub(pattern = "father", replacement = "mother", rela)
+        } else if(grepl(pattern = "nephew", rela)){
+          rela <- sub(pattern = "nephew", replacement = "niece", rela)
+        } else if(grepl(pattern = "brother", rela)){
+          rela <- sub(pattern = "brother", replacement = "sister", rela)
+        } else if(grepl(pattern = "uncle", rela)){
+          rela <- sub(pattern = "uncle", replacement = "aunt", rela)
+        }
+      }
+      
+      # if the name and sex were mismatched, get a new name label for the relative
+      if(name.sx.mismatch){
+        sd <- tmp.ped$side[which(tmp.ped$ID == id)]
+        if(is.na(sd)){
+          nm <- stringi::stri_trans_totitle(rela)
+        } else {
+          nm <- stringi::stri_trans_totitle(paste0(ifelse(sd == "m", "Mat.", 
+                                                      ifelse(sd == "p", "Pat.", "?")), " ", rela))
+        }
+        
+        # if the name is a non-unique type, add a number identifier to the end
+        # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
+        if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
+          other.rela.names <- tmp.ped$name[which(tmp.ped$relationship == rela)]
+          if(length(other.rela.names) > 0){
+            other.rela.nums <- 
+              as.numeric(
+                str_sub(other.rela.names, 
+                        start = str_locate(other.rela.names, pattern = "\\d")[1,1])
+              )
+            new.name.num <- max(other.rela.nums, na.rm = T) + 1
+          } else {
+            new.name.num <- 1
+          }
+          nm <- paste0(nm, " ", new.name.num)
+        }
+        
+        # update the pedigree
+        tmp.ped$relationship[which(tmp.ped$ID == id)] <- rela
+        tmp.ped$name[which(tmp.ped$ID == id)] <- nm
+      }
+    }
+  }
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ 
     tmp.ped$isDead[which(tmp.ped$ID == id)] <- ifelse(is.dead, 1, 0) 
@@ -606,7 +685,7 @@ popPersonData <- function(tmp.ped,
     } # end of if statement for if a panel was selected
   } # end of section for adding gene information to the pedigree
   
-  # ensure numeric column data types are correct
+  # ensure column data types are correct
   tmp.ped <-
     tmp.ped %>%
     mutate(across(.cols = c(ID, Twins, Sex, MotherID, FatherID,
@@ -618,7 +697,11 @@ popPersonData <- function(tmp.ped,
     mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
                                    PanelPRO:::MARKER_TESTING$COL$MARKERS,
                                    PanelPRO:::GENE_TYPES)),
-                  ~as.numeric(.)))
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = c(PedigreeID, name, side, relationship, race, Ancestry, 
+                            NPPrace, NPPeth, cancersJSON, FirstBCType, BreastDensity, 
+                            FirstBCTumorSize, panelNames, genesJSON),
+                  ~as.character(.)))
   
   return(tmp.ped)
 }
@@ -752,6 +835,7 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
   if(inp$pedTabs == "Demographics"){
     return(popPersonData(tmp.ped = tped, id = rel, 
                          cur.age = inp$Age, is.dead = inp$isDead,
+                         sx = inp$Sex,
                          rc = inp$race, et = inp$eth, 
                          an.aj = inp$ancAJ, an.it = inp$ancIt)
     )
@@ -759,7 +843,9 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
     # cancer hx
   } else if(inp$pedTabs == "Cancer Hx"){
     can.df <- makeCancerDF(rel = rel, cr = cr, inp = inp)
-    return(popPersonData(tmp.ped = tped, id = rel, sx = sx, cancers.and.ages = can.df))
+    return(popPersonData(tmp.ped = tped, id = rel, 
+                         sx = inp$Sex, 
+                         cancers.and.ages = can.df))
     
     # cbc
   } else if(inp$pedTabs == "CBC Risk"){
@@ -880,4 +966,936 @@ validateRelNums <- function(num.rels){
       need(isNum, "Quantity must be numeric.")
     }
   }
+}
+
+#' Check and Modify a Pedigree for Upload
+#' 
+#' @param uped data.frame, the pedigree
+#' @param pedID string, the pedigree ID
+#' @param conn a database connection
+#' @param username self explanitory
+#' @returns either an error message if the pedigree could not be conformed to the 
+#' PPI format or a pedigree data.frame compatible with PPI
+checkUploadPed <- function(uped, pedID = NULL, conn, username){
+  
+  ## pedigreeID
+  user.ped.names <- unique(dbGetQuery(conn = conn, statement = paste0("SELECT PedigreeID FROM ", username))$PedigreeID)
+  if(!is.null(pedID)){
+    
+    # check if the given name is already taken
+    if(pedID %in% user.ped.names){
+      return("This PedigreeID has already been used by another pedigree in your user account.")
+    } else {
+      uped$PedigreeID <- pedID
+    }
+    
+    # if a PedigreeID column already exists
+  } else if("PedigreeID" %in% colnames(uped)){
+    
+    # error if the column is empty
+    if(all(is.na(uped$PedigreeID))){ 
+      return("PedigreeID column is empty.")
+    }
+    
+    # check the name is uniform
+    if(any(is.na(uped$PedigreeID))){
+      return("PedigreeID column contains NA.")
+    } else if(any(uped$PedigreeID != uped$PedigreeID[1])){
+      return("PedigreeID column contains multiple IDs in the same pedigree.")
+    } 
+    
+    # check if the name is unique to this user account
+    if(uped$PedigreeID[1] %in% user.ped.names){
+      return("This PedigreeID has already been used by another pedigree in your user account.")
+    }
+    
+    # error if a pedID was not provided and no PedigreeID column exists
+  } else {
+    return("No pedigree ID was provided.")
+  }
+  
+  ### check for presence of columns
+  ## minimum required columns (return an error is any missing)
+  cnames <- colnames(uped)
+  req.cnames <- c("ID", "Twins", "Sex", "MotherID", "FatherID", "isProband", "CurAge", "isDead")
+  if(any(!req.cnames %in% cnames)){
+    return(paste0("Pedigree missing one of the minimum required columns: ", paste0(req.cnames, collapse = ", "),"."))
+  }
+  
+  # check for 1 and only 1 proband
+  if(sum(as.numeric(uped$isProband), na.rm = T) != 1){
+    return("To be compatible with PPI, there must be one and only 1 proband as indicated by the isProband column.")
+  }
+  
+  ## optional columns (create dummy columns if missing)
+  # race/anc/eth
+  if(!"race" %in% cnames){
+    uped$race <- "All_Races"
+  }
+  if(!"Ancestry" %in% cnames){
+    uped$Ancestry <- "nonAJ"
+  }
+  if(!"NPPeth" %in% cnames){
+    uped <- mutate(uped, NPPeth = ifelse(race == "Hispanic" | race == "WH", 
+                                         "Hispanic", "Non-Hispanic"))
+  }
+  if(!"NPPrace" %in% cnames){
+    uped <- mutate(uped, NPPrace = ifelse(is.na(race), "All_Races",
+                                          ifelse(race == "Hispanic", "All_Races", 
+                                                 ifelse(race == "WH" | race == "WNH", "White", 
+                                                        race))))
+  }
+  if(!"NPPAJ" %in% cnames){
+    uped <- mutate(uped, NPPAJ = ifelse(is.na(Ancestry), 0,
+                                        ifelse(Ancestry == "AJ", 1, 0)))
+  }
+  if(!"NPPIt" %in% cnames){
+    uped <- mutate(uped, NPPIt = ifelse(is.na(Ancestry), 0,
+                                        ifelse(Ancestry == "Italian", 1, 0)))
+  }
+  
+  # check for missing columns with a default value of NA
+  def.na.cols <- c("name", "side", "relationship",
+                   paste0("Age", PanelPRO:::CANCER_NAME_MAP$short), "cancersJSON",
+                   cbcrisk.cols,
+                   PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS,
+                   PanelPRO:::GENE_TYPES, "genesJSON")
+  miss.def.na.cols <- def.na.cols[which(!def.na.cols %in% cnames)]
+  if(length(miss.def.na.cols) > 0){
+    for(mc in miss.def.na.cols){
+      uped[[mc]] <- NA
+    }
+  }
+  
+  # check for missing columns with a default value of 0
+  def.0.cols <- c(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short))
+  miss.def.0.cols <- def.0.cols[which(!def.0.cols %in% cnames)]
+  if(length(miss.def.0.cols) > 0){
+    for(mc in miss.def.0.cols){
+      uped[[mc]] <- 0
+    }
+  }
+  
+  # panelNames
+  if(!"panelNames" %in% cnames){
+    uped$panelNames <- "none"
+  }
+  
+  # surgical hx columns
+  # check if surgeries are listed in the original PanelPRO version format with just two columns vs 
+  # the newer six column format
+  old.surg.cols <- c("riskmod", "interAge")
+  surgs <- c("Mast", "Hyst", "Ooph")
+  new.surg.cols <- paste0("riskmod", surgs)
+  new.surg.age.cols <- paste0("interAge", surgs)
+  old.surg.format <- all(old.surg.cols %in% cnames)
+  new.surg.format <- (new.surg.cols[1] %in% cnames & new.surg.age.cols[1] %in% cnames) |
+                     (new.surg.cols[2] %in% cnames & new.surg.age.cols[2] %in% cnames) |
+                     (new.surg.cols[3] %in% cnames & new.surg.age.cols[3] %in% cnames)
+  if(old.surg.format & new.surg.format){
+    return("Pedigree contains the old and new PanelPRO formatting for prophylactic surgery columns.")
+  } else if(!old.surg.format){
+    miss.new.surg.cols <- new.surg.cols[!new.surg.cols %in% cnames]
+    if(length(miss.new.surg.cols) > 0){
+      for(mnsc in miss.new.surg.cols){
+        uped[[mnsc]] <- 0
+      }
+    }
+    miss.new.surg.age.cols <- new.surg.age.cols[!new.surg.age.cols %in% cnames]
+    if(length(miss.new.surg.age.cols) > 0){
+      for(mnsac in miss.new.surg.age.cols){
+        uped[[mnsac]] <- NA
+      }
+    }
+  }
+  
+  ### check column codings
+  ## PanelPRO columns - run checkFam
+  cped <- try(PanelPRO::checkFam(uped, impute.missing.ages = F, ignore.proband.germ = T))
+  if(is.data.frame(cped$ped_list$`1`)){
+    
+    # remove unneeded columns and recode as needed
+    cped <- 
+      cped %>%
+      select(-c(ends_with("_lower"), ends_with("_upper"), famID, riskmod, interAge)) %>%
+      mutate(Sex = ifelse(Sex == "Female", 0, ifelse(Sex == "Male", 1, NA)))
+    cped[which(cped == -999)] <- NA
+    
+    # replace columns in the original pedigree with the columns returned from the checkFam function
+    uped[, colnames(cped)] <- NULL
+    uped <- cbind(cped, uped)
+    
+    # if an error occurred, tell the user
+  } else {
+    return(cped[1])
+  }
+  
+  ## PPI specific columns
+  # name
+  # If name is blank, just name the proband and label everyone else by number
+  if(all(is.na(uped$name))){
+    uped$name <- uped$ID
+    uped$name[which(uped$isProband == 1)] <- "Proband"
+  } else if(nrow(uped) != unique(uped$name)){
+    return("Values in the name column must be unique")
+  }
+  
+  # note: relationship and side are not required, so leave as is
+  
+  # NPPrace/NPPeth/NPPAJ/NPPIt
+  if(!all(is.na(uped$NPPrace))){
+    if(any(!uped$NPPrace %in% rc.choices)){
+      return(paste0("At least one value in the NPPrace columns is not valid. Valid choices are: ", paste0(rc.choices, collapse = ", ")))
+    }
+  }
+  if(!all(is.na(uped$NPPeth))){
+    if(any(!uped$NPPeth %in% et.choices)){
+      return(paste0("At least one value in the NPPeth columns is not valid. Valid choices are: ", paste0(et.choices, collapse = ", ")))
+    }
+  }
+  
+  # cancersJSON
+  # if the column is blank, but there are PanelPRO cancers reported
+  if(all(is.na(uped$cancersJSON)) & 
+     sum(uped[, paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)]) > 0){
+    
+    # create the JSON from the PanelPRO cancer columns
+    cJSON <- NULL
+    for(rw in 1:nrow(uped)){
+      for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+        if(uped[rw, paste0("isAff", cn)] == 1){
+          c.long.name <- PanelPRO:::CANCER_NAME_MAP$long[which(PanelPRO:::CANCER_NAME_MAP$short == cn)]
+          c.age <- uped[rw, paste0("Age", cn)]
+          if(is.null(cJSON)){
+            cJSON <- data.frame(cancer = c.long.name, age = c.age, other = "UnkType", ID = uped$ID[rw])
+          } else {
+            cJSON <- rbind(cJSON, 
+                           data.frame(cancer = c.long.name, age = c.age, other = "UnkType", ID = uped$ID[rw]))
+          }
+        }
+      }
+      if(!is.null(cJSON)){
+        cJSON <- 
+          cJSON %>%
+          mutate(String = paste0("{'cancer':'", cancer, "','age':'", age,"','other':'", other, "'}"))
+        
+        # ensure CBC is after BC
+        if(any(cJSON$cancer == "Breast") & any(cJSON$cancer == "Contralateral")){
+          cbc.row <- which(cJSON$cancer == "Contralateral")
+          other.rows <- seq(1, nrow(cJSON))[which(seq(1, nrow(cJSON)) != cbc.row)]
+          cJSON <- cJSON[c(other.rows, cbc.row),]
+        }
+        cJSON <- paste0("[", paste0(cJSON$String, collapse = ","), "]")
+        uped$cancersJSON[rw] <- cJSON
+        cJSON <- NULL
+      }
+    }
+    
+    # there are values populated in the cancersJSON column that need to be checked
+  } else if(any(!is.na(uped$cancersJSON))){
+    all.can.df <- NULL
+    
+    # check the format
+    for(rl in uped$ID[which(!is.na(uped$cancersJSON))]){
+      mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", uped$cancersJSON[which(uped$ID == rl)])
+      can.df <- try(fromJSON(mod.can.JSON, simplifyDataFrame = T))
+      can.df$ID <- rl
+      if(is.data.frame(can.df)){
+        if(is.null(all.can.df)){
+          all.can.df <- can.df
+        } else {
+          all.can.df <- rbind(all.can.df, can.df)
+        }
+      } else {
+        return("At least one entry in the cancersJSON column is improperly formatted.")
+      }
+    }
+    
+    # check column names are correct
+    if(!identical(colnames(all.can.df), c("cancer", "age", "other", "ID"))){
+      return("The cancerJSON column is improperly formatted.")
+    }
+    
+    # check PanelPRO cancer names
+    if(any(!all.can.df$cancer %in% c(PanelPRO:::CANCER_NAME_MAP$long, "Other"))){
+      return("The are cancers names in the 'cancer' field of the cancersJSON column which are not either a PanelPRO cancer or the word 'Other'.")
+    }
+    
+    # check cancer ages
+    if(all(varhandle::check.numeric(all.can.df$age))){
+      all.can.df$age <- round(as.numeric(all.can.df$age), 0)
+    } else {
+      return("The cancersJSON column contains age values which cannot be converted to numeric values.")
+    }
+    if(any(all.can.df$age > 89)){
+      return("The cancersJSON column contains ages above 89. The PPI privacy policy does not allow this. Please make all ages above 89, 89.")
+    }
+    if(any(all.can.df$age < 1)){
+      return("The cancerJSON columns contains ages below 1.")
+    }
+    
+    # check other cancer names
+    if(any(!all.can.df$other %in% c("UnkType", non.pp.cancers))){
+      return("The cancersJSON column contains cancer names in the 'other' field which are not recognized by PPI.")
+    }
+    
+    # verify PanelPRO cancer columns match the JSON
+    all.pp.can.df <- filter(all.can.df, cancer %in% PanelPRO:::CANCER_NAME_MAP$long)
+    if(nrow(all.pp.can.df) > 0){
+      
+      # check all PanelPRO cancer data in the JSON are in the PanelPRO cancer columns
+      for(rw in 1:nrow(all.pp.can.df)){
+        short.c.name <- PanelPRO:::CANCER_NAME_MAP$short[which(PanelPRO:::CANCER_NAME_MAP$long == all.pp.can.df$cancer[rw])]
+        if(uped[which(uped$ID == all.pp.can.df$ID[rw]), paste0("isAff", short.c.name)] != 1){
+          return("The cancersJSON column data from the 'cancer' field of the JSON does not match the data in the PanelPRO cancer 'isAffX' columns.")
+        }
+        if(uped[which(uped$ID == all.pp.can.df$ID[rw]), paste0("Age", short.c.name)] != all.pp.can.df$age[rw]){
+          return("The cancersJSON column data from the 'age' field of the JSON does not match the data in the PanelPRO cancer 'AgeX' columns.")
+        }
+      }
+      
+      # check that all PanelPRO cancer columns data are in the JSON
+      all.pp.can.df <- 
+        mutate(all.pp.can.df, 
+               cancer = PanelPRO:::CANCER_NAME_MAP$short[which(PanelPRO:::CANCER_NAME_MAP$long == cancer)])
+      for(rw in 1:nrow(uped)){
+        if(sum(uped[, paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)]) > 0){
+          for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+            num.cn.matches <- nrow(all.pp.can.df[which(all.pp.can.df$ID == uped$ID[rw] & 
+                                                         all.pp.can.df$cancer == cn), ])
+            if(uped[rw, paste0("isAff", cn)] == 1 & num.cn.matches != 1){
+              return("The PanelPRO 'isAffX' cancer columns do not match the data in the cancersJSON column.")
+            } else {
+              if(uped[rw, paste0("Age", cn)] != all.pp.can.df$age[which(all.pp.can.df$ID == uped$ID[rw] & 
+                                                                        all.pp.can.df$cancer == cn)]){
+                return("The PanelPRO 'AgeX' cancer columns do not match the data in the cancersJSON column.")
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  # genesJSON
+  # scenarios
+  # 1: There are PanelPRO gene columns with data but the corresponding values in 
+  #    genesJSON and panelNames: panel names are missing, cannot create genesJSON 
+  #    and PPI cannot use any gene results.
+  # 2: There are PanelPRO gene columns with data but the corresponding values in 
+  #    genesJSON are empty but there is data in panelNames, however at least one 
+  #    relative in the pedigree has multiple panels in panelNames: cannot determine 
+  #    which genes were assigned to which panels therefore cannot create genesJSON 
+  #    and PPI cannot use any 
+  #    gene results.
+  # 3: There are PanelPRO gene columns with data but the corresponding values in 
+  #    genesJSON are empty but there is data in panelNames, and any relative with 
+  #    genetic testing has one and only one panel in panelNames: assume that all 
+  #    genetic testing results were from the one panel listed for that individual,
+  #    create genesJSON and PPI can use these results
+  # 4: There is data in the genesJSON column: check that this data matches the 
+  #    panelNames column and PanelPRO gene columns. If those columns are blank 
+  #    the populate them from genesJSON. If any part does not match, send an error.
+  # Conclusion: the simplest would be to inform the user to only upload a genesJSON 
+  # column which would then be used to populate the other gene columns
+  
+  # clear data from PanelPRO gene columns and panelNames
+  for(gn in PanelPRO:::GENE_TYPES){
+    uped[[gn]] <- NA
+  }
+  uped$panelNames <- "none"
+  
+  # iterate through relatives with values populated in genesJSON
+  if(any(!is.na(uped$genesJSON))){
+    has.g.data <- uped[which(!is.na(uped$genesJSON)),]
+    for(rw in 1:nrow(has.g.data)){
+      
+      # convert from JSON to data frame
+      mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", uped$genesJSON[rw])
+      gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
+      gene.df <-
+        gene.df %>%
+        mutate(across(.cols = everything(), ~as.character(.))) %>%
+        mutate(rel = rl)
+      
+      # populate panelNames
+      uped$panelNames[rw] <- paste0(unique(gene.df$panel), collapse = ", ")
+      
+      # mark all tested PanelPRO genes as having a "negative" result to start
+      pp.genes <- gene.df$gene[which(gene.df$gene %in% PanelPRO:::GENE_TYPES)]
+      if(length(pp.genes) > 0){
+        uped[rw, pp.genes] <- 0
+      }
+      
+      # mark all P/LP genes as positive
+      plp.genes <- filter(gene.df, gene %in% pp.genes & result == "PLP")
+      if(nrow(plp.genes) > 0){
+        for(plp.rw in 1:nrow(plp.genes)){
+          uped[rw, plp.genes$gene[plp.rw]] <- 1
+        }
+      }
+    }
+  }
+  
+  # # panelNames
+  # # check that all panel names are valid
+  # uped$panelNames[which(is.na(uped$panelNames))] <- "none"
+  # db.pans <- dbGetQuery(conn = conn, statement = "SELECT panel_name FROM panels")$panel_name
+  # ped.pans <- paste0(uped$panelNames[which(uped$panelNames != "none")], collapse = ", ")
+  # if(ped.pans != ""){
+  #   ped.pans <- str_split(ped.pans, pattern = ", ")[[1]]
+  #   if(any(!ped.pans %in% db.pans)){
+  #     return("The panelNames column contains panels which are not registered in the PPI database.")
+  #   }
+  # }
+  # 
+  # # check that no panelNames and genesJSON are matching
+  # for(rw in 1:nrow(uped)){
+  #   if(xor(uped$panelNames[rw] == "none", is.na(uped$genesJSON))){
+  #     return("At least one relative has either a panelNames entry and no genesJSON entry or vice versa.")
+  #   }
+  # }
+  
+  ## set data types and order the columns
+  uped <-
+    uped %>%
+    select(all_of(ped.cols)) %>%
+    mutate(across(.cols = c(ID, Twins, Sex, MotherID, FatherID,
+                            isProband, CurAge, isDead, NPPAJ, NPPIt,
+                            starts_with("riskmod"), starts_with("interAge"),
+                            starts_with("isAff"), starts_with("Age"),
+                            AntiEstrogen, HRPreneoplasia), 
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
+                                   PanelPRO:::MARKER_TESTING$COL$MARKERS,
+                                   PanelPRO:::GENE_TYPES)),
+                  ~as.numeric(.))) %>%
+    mutate(across(.cols = c(PedigreeID, name, side, relationship, race, Ancestry, 
+                            NPPrace, NPPeth, cancersJSON, FirstBCType, BreastDensity, 
+                            FirstBCTumorSize, panelNames, genesJSON),
+                  ~as.character(.)))
+  
+  return(uped)
+}
+
+
+#' Abbreviate display names for the pedigree
+#' 
+#' @param ped.df a pedigree data frame with a column 'name'
+abb.Relations <- function(ped.df){
+  ped.df %>%
+    mutate(name = sub(pattern = "G\\.|g\\.", replacement = "G", name)) %>%
+    mutate(name = sub(pattern = "Daughter|daughter", replacement = "Dau", name)) %>%
+    mutate(name = sub(pattern = "Sister|sister", replacement = "Sis", name)) %>%
+    mutate(name = sub(pattern = "Brother|brother", replacement = "Bro", name)) %>%
+    mutate(name = sub(pattern = "Uncle|uncle", replacement = "Unc", name)) %>%
+    mutate(name = sub(pattern = "Grandmother|grandmother", replacement = "GMom", name)) %>%
+    mutate(name = sub(pattern = "Grandfather|grandfather", replacement = "GDad", name)) %>%
+    mutate(name = sub(pattern = "Mother|mother", replacement = "Mom", name)) %>%
+    mutate(name = sub(pattern = "Father|father", replacement = "Dad", name)) %>%
+    mutate(name = sub(pattern = "Proband Partner|proband partner|Proband partner", replacement = "ProbPart", name)) %>%
+    mutate(name = sub(pattern = "Partner|partner", replacement = "Part", name)) %>%
+    mutate(name = sub(pattern = "Mat\\. |mat\\. ", replacement = "M", name)) %>%
+    mutate(name = sub(pattern = "Pat\\. |pat\\. ", replacement = "P", name)) %>%
+    mutate(name = sub(pattern = "Relative|relative", replacement = "Rel", name)) %>%
+    mutate(name = gsub(pattern = " ", replacement = "", name))
+}
+
+
+#' Prepare pedigree JSON object
+#' 
+#' @param pjs.ped a pedigree data frame
+prepPedJSON <- function(pjs.ped){
+  
+  # determine founders ("top_level = TRUE")
+  pjs.ped$top_level <- FALSE
+  if(any(pjs.ped$relation == "grandmother") | any(pjs.ped$relation == "grandfather")){
+    pjs.ped$top_level[which(pjs.ped$relation %in%  c("grandmother", "grandfather"))] <- TRUE
+  } else {
+    pjs.ped$top_level[which(pjs.ped$relation %in% c("mother", "father"))] <- TRUE
+  }
+  
+  # determine partners ("noparents = TRUE")
+  # anyone without parents (someone who "married") must list the same parents as their partner
+  pjs.ped <- mutate(pjs.ped, noparents = ifelse(!top_level & is.na(MotherID) & is.na(FatherID), TRUE, FALSE)) 
+  marr.in <- pjs.ped$ID[which(pjs.ped$noparents)]
+  for(mi in marr.in){
+    
+    # find their partner by checking the kids they have in common (NOTE DOES NOT HANDLE LOOPS)
+    if(pjs.ped$Sex[which(pjs.ped$ID == mi)] == 0){
+      kids <- pjs.ped$ID[which(pjs.ped$MotherID == mi)]
+      partner <- pjs.ped$FatherID[which(pjs.ped$ID %in% kids)][1]
+    } else if(pjs.ped$Sex[which(pjs.ped$ID == mi)] == 1){
+      kids <- pjs.ped$ID[which(pjs.ped$FatherID == mi)]
+      partner <- pjs.ped$MotherID[which(pjs.ped$ID %in% kids)][1]
+    }
+    
+    # replace the missing parent IDs with the parent IDs of their parnter
+    pjs.ped$MotherID[which(pjs.ped$ID == mi)] <- pjs.ped$MotherID[which(pjs.ped$ID == partner)]
+    pjs.ped$FatherID[which(pjs.ped$ID == mi)] <- pjs.ped$FatherID[which(pjs.ped$ID == partner)]
+  }
+  
+  # convert FALSE values to NA to make the JSON string smaller and so that PedigreeJS will accept it
+  pjs.ped <- mutate(pjs.ped, across(.cols = c(top_level, noparents), ~ ifelse(!., NA, .)))
+  
+  # code cancers with unknown affection ages as age 0
+  for(rw in 1:nrow(pjs.ped)){
+    for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+      if(is.na(pjs.ped[rw, paste0("Age", cn)]) & pjs.ped[rw, paste0("isAff", cn)] == 1){
+        pjs.ped[rw, paste0("Age", cn)] <- 0
+      }
+    }
+  }
+  
+  # abbreviate display names
+  pjs.ped <- abb.Relations(pjs.ped)
+  
+  # recode and rename for compatibility with pedigreejs
+  pjs.ped <- 
+    pjs.ped %>%
+    select(ID, name, isProband, top_level, noparents, Sex, CurAge, isDead, MotherID, FatherID, 
+           starts_with("Age")) %>%
+    mutate(across(.cols = c(ID, ID, Sex, isDead, MotherID, FatherID), ~as.character(.))) %>%
+    mutate(Sex = ifelse(Sex == "0", "F", ifelse(Sex == "1", "M", "U"))) %>%
+    mutate(isProband = as.logical(isProband)) %>%
+    mutate(isProband = ifelse(!isProband, NA, isProband)) %>%
+    rename_with(.fn = ~ paste0(gsub(pattern = " ", replacement = "_", 
+                                     PanelPRO:::CANCER_NAME_MAP$long[
+                                       which(PanelPRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
+                                       ]),
+                               "_cancer_diagnosis_age"
+                        ),
+                .cols = starts_with("Age")) %>%
+    rename("display_name" = "name",
+           "name" = "ID",
+           "sex" = "Sex",
+           "proband" = "isProband",
+           "age" = "CurAge",
+           "status" = "isDead",
+           "father" = "FatherID",
+           "mother" = "MotherID")
+
+  # convert data frame to JSON
+  pedJSON <- toJSON(pjs.ped, dataframe = "rows", na = "null", pretty = TRUE)
+  return(pedJSON)
+}
+
+#' Determine if a relative is a direct ancestor (great-grand, etc) of the proband
+#' 
+#' A recursive function that counts the number of recursions
+#' @param t.pjs a data frame containing the the pedigree columns ID, MotherID, FatherID, sex, and proband.
+#' Where ID, MotherID, FatherID are numeric and sex is one of `c("M","F")` and where 
+#' proband is one of TRUE or NA
+#' @param rl a number with the unique ID number (R) / name (pedigreeJS) of the relative
+#' @returns if not a direct ancestor, returns `NA`, otherwise returns the relationship name.
+#' all greats and abbreviated as just "g.".
+CountGs <- function(t.pjs, rl){
+  isGrandP <- function(t.pjs, rl, cnt = 0, mo, fa, side){
+    
+    # find the person's children
+    sx <- t.pjs$sex[which(t.pjs$ID == rl)]
+    if(sx == 'M'){
+      rel.children <- t.pjs$ID[which(t.pjs$FatherID == rl)]
+    } else {
+      rel.children <- t.pjs$ID[which(t.pjs$MotherID == rl)]
+    }
+    if(length(rel.children) > 0){
+      
+      # if any of their children were the mother or father of the proband then 
+      # the side of the family is known
+      if(is.na(side) & mo %in% rel.children){
+        side <- "m"
+      } else if(is.na(side) & fa %in% rel.children){
+        side <- "p"
+      }
+      
+      # if any of the children were the proband then return the number of generations 
+      # above the proband the relative was and the side of the family
+      if(any(rel.children == t.pjs$ID[which(t.pjs$proband == TRUE)])){
+        return(list(cnt = cnt+1,
+                    side = side))
+        
+        # if the children did not include the proband, recursively move one generation down 
+        # the family tree until either the proband if found in the direct path or not
+      } else {
+        for(rc in rel.children){
+          return(isGrandP(t.pjs = t.pjs, rl = rc, cnt = cnt+1, mo = mo, fa = fa, side = side))
+        }
+      }
+      
+      # the person did not have children and the proband has not been found to 
+      # be in their line, therefore they are not a direct ancestor
+    } else {
+      return(list(cnt = 0,
+                  side = NA))
+    }
+  }
+  
+  # used to identify the side of the family a direct ancestor is on
+  pb.mo <- t.pjs$MotherID[which(t.pjs$proband == TRUE)]
+  pb.fa <- t.pjs$FatherID[which(t.pjs$proband == TRUE)]
+  
+  # call recursive function
+  Gcount <- isGrandP(t.pjs = t.pjs, rl = rl, mo = pb.mo, fa = pb.fa, side = NA)
+  if(Gcount$cnt == 0){ # not in the direct line of the proband
+    return(list(rela = NA,
+                side = NA))
+  } else if(Gcount$cnt > 0){
+    sx <- t.pjs$sex[which(t.pjs$ID == rl)]
+    if(sx == 'M'){
+      rel.root <- "father"
+    } else if(sx == 'F'){
+      rel.root <- "mother"
+    }
+    if(Gcount$cnt == 1){ # proband's parents, 
+      return(list(rela = rel.root,
+                  side = Gcount$side))
+    } else if(Gcount$cnt == 2){ # proband's grandparents
+      return(list(rela = paste0("grand", rel.root),
+                  side = Gcount$side))
+    } else if(Gcount$cnt > 2){
+      return(list(rela = paste0(strrep("g.", Gcount$cnt-2), "grand", rel.root),
+                  side = Gcount$side))
+    }
+  }
+}
+
+#' Add a relative to the pedigree based on change in pedigreejs
+#' 
+#' @param pjs a pedigree data frame extracted from pedigreeJS which has the new relative. 
+#' If `type = "parent"` or `type = "partner"` and the `target.rel` is the first 
+#' in the set of two people that will be added to the master pedigree, then 
+#' this pedigree should not contain the 2nd person who has not been added yet. If 
+#' this is the case then also specify the `pjs.full` argument.
+#' @param r.ped a pedigree data frame from R which does not have the new relative
+#' @param target.rel a string, the name assigned to the new relative by pedigreejs in the 'name' field
+#' @param type the type of relative pedigreejs addition, one of 
+#' `c("sib-child", "parent", "partner")` 
+#' @param partner.of only specified when `type = "partner"`, a string containing the 
+#' name/ID of the person with who the partner has children in common.
+#' @param pjs.full only specified when `type = "parent"` and the first parent is 
+#' being added to the pedigree but the 2nd has not been added or if `type = "partner"` 
+#' and the partner is being added but the child has not been added yet. This is 
+#' the version of the pjs pedigree data frame which contains the either both new 
+#' parents or both the partner and the child and is required for the 
+#' function `PanelPRO:::.secondDegreeRelatives()` to work properly.
+#' @returns a list of length two:
+#' - `pjs_updated`: an updated copy of the pedigree data frame from pedigreeJS with 
+#' modified values `name`, `display_name`, `status` for the new relative
+#' - `r.ped_updated`: an updated copy of the pedigree data frame for R with the 
+#' new relative added.
+addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full = NULL){
+  
+  # replace missing death status with alive code (0)
+  pjs$status[which(pjs$name == target.rel)] <- as.character(0)
+  
+  # default an unknown sex to male, for compatibility with PPI
+  target.rel.sx <- pjs$sex[which(pjs$name == target.rel)]
+  if(target.rel.sx == "U"){
+    pjs$sex[which(pjs$name == target.rel)] <- "M"
+  }
+  
+  ### determine relationship to proband and, if possible, maternal or paternal side
+  if(type != "parent"){
+    rel.ped <- pjs
+  } else {
+    rel.ped <- pjs.full
+  }
+  if(any(colnames(rel.ped) == "noparents")){
+    rel.ped <-
+      rel.ped %>%
+      select(name, mother, father, sex, proband, noparents, top_level) %>%
+      mutate(across(.cols = c(mother, father), ~ ifelse(is.na(noparents), ., ifelse(noparents == TRUE, NA, .))))
+  } else {
+    rel.ped <-
+      rel.ped %>%
+      select(name, mother, father, sex, proband, top_level)
+  }
+  rel.ped <- 
+    rel.ped %>%
+    rename("ID" = "name",
+           "MotherID" = "mother",
+           "FatherID" = "father") %>%
+    mutate(across(.cols = c(ID, MotherID, FatherID), ~ as.numeric(.))) %>%
+    mutate(across(.cols = c(MotherID, FatherID), ~ replace_na(., -999)))
+  target.rel.idx <- which(pjs$name == target.rel)
+  pb.name <- pjs$name[which(pjs$proband == TRUE)] # proband's name/ID
+  
+  # initialize paternal or maternal side variable
+  sd <- NA 
+  
+  # get the mother and fathers only if the added relative was a sibling or child
+  # because if parents or a partner is added in pedigreeJS they will not have parents
+  if(type == "sib-child"){
+    fa <- pjs$father[which(pjs$name == target.rel)]
+    mo <- pjs$mother[which(pjs$name == target.rel)]
+    fa.rela <- r.ped$relationship[which(r.ped$ID == as.numeric(fa))]
+    mo.rela <- r.ped$relationship[which(r.ped$ID == as.numeric(mo))]
+  }
+  
+  # first check if the person is married/partnered in
+  if(type == "partner"){
+    if(pb.name == partner.of){
+      rela <- "partner"
+    } else {
+      rela <- "rel.partner"
+      sd <- r.ped$side[which(r.ped$ID == as.numeric(partner.of))]
+    }
+    
+    # if not a partner, use PanelPRO functions to check if the person is a 1st or 2nd degree relative
+  } else {
+    fdr.idxs <- PanelPRO:::.firstDegreeRelative(rel.ped, which(pjs$proband == TRUE))
+    sdr.idxs <- PanelPRO:::.secondDegreeRelative(rel.ped, which(pjs$proband == TRUE))
+    
+    is1degree <- FALSE
+    if(target.rel.idx %in% fdr.idxs$index){ # first degree (FDR)
+      is1degree <- TRUE
+      lineage <- fdr.idxs$lineage[which(fdr.idxs$index == target.rel.idx)]
+      if(lineage == "F"){
+        rela <- "father"
+        sd <- "p"
+      } else if(lineage == "M"){
+        rela <- "mother"
+        sd <- "m"
+      } else if(lineage == "C"){
+        if(target.rel.sx == "M"){
+          rela <- "son"
+        } else if(target.rel.sx == "F"){
+          rela <- "daughter"
+        }
+      } else if(lineage == "S"){
+        if(target.rel.sx == "M"){
+          rela <- "brother"
+        } else if(target.rel.sx == "F"){
+          rela <- "sister"
+        }
+      }
+    } 
+    
+    # check if they are a SDR
+    is2degree <- FALSE
+    if(!is1degree & !is.null(sdr.idxs)){
+      if(target.rel.idx %in% sdr.idxs$index){
+        is2degree <- TRUE
+        
+        # in this case, lineage just tells whether the 2nd degree rel is related 
+        # to the proband through the mother, father, sibling, or child
+        lineage <- sdr.idxs$lineage[which(sdr.idxs$index == target.rel.idx)]
+        if(lineage == "M"){
+          sd <- "m"
+        } else if(lineage == "F"){
+          sd <- "p"
+        }
+        
+        # check the relationship labels of the person's parents, if a sibling or child was added
+        if(type == "sib-child"){
+          if(fa.rela == "grandfather" & mo.rela == "grandmother"){
+            if(target.rel.sx == "M"){
+              rela <- "uncle"
+            } else if(target.rel.sx == "F"){
+              rela <- "aunt"
+            }
+          } else if(fa.rela == "brother" | mo.rela == "sister"){
+            if(target.rel.sx == "M"){
+              rela <- "nephew"
+            } else if(target.rel.sx == "F"){
+              rela <- "neice"
+            }
+          } else if(fa.rela == "son" | mo.rela == "daughter"){
+            if(target.rel.sx == "M"){
+              rela <- "grandson"
+            } else if(target.rel.sx == "F"){
+              rela <- "granddaughter"
+            }
+          } else if(xor(fa.rela == "father", mo.rela == "mother")){
+            if(target.rel.sx == "M"){
+              rela <- "half.brother"
+            } else if(target.rel.sx == "F"){
+              rela <- "half.sister"
+            }
+          }
+          
+          # if a parent is being added, it is either for someone who "partnered" into the family or 
+          # is a grandparent, great-grandparent, etc
+        } else if(type == "parent"){
+          isGP <- CountGs(t.pjs = rel.ped, rl = as.numeric(target.rel))
+          if(!is.na(isGP$rela)){
+            rela <- isGP$rela
+            sd <- isGP$side
+          } else {
+            rela <- "relative"
+          }
+        }
+      } # end of check for if the target relative is a 2nd degree relative
+    } # end of check for presense of 2nd degree relatives in the pedigree
+    
+    # create a cousin, great-grandparent or generic label for more distant relatives
+    if(!is1degree & !is2degree){
+      
+      # label as a cousin or generic relative if a sibling or child was added
+      if(type %in% c("sib-child")){
+        if(fa.rela == "uncle" | mo.rela == "aunt"){
+          rela <- "cousin"
+        } else {
+          rela <- "relative"
+        }
+        
+        # if a parent was added, check if they are a direct ancestor (ie great-grandparent),
+        # otherwise assign generic label
+      } else if(type == "parent"){
+        isGP <- CountGs(t.pjs = rel.ped, rl = as.numeric(target.rel))
+        if(!is.na(isGP$rela)){
+          rela <- isGP$rela
+          sd <- isGP$side
+        } else {
+          rela <- "relative"
+        }
+      }
+    }
+  } # end of else statement for finding the relation for non-partners
+  
+  ## create a name for the relative ('name' as used in the R pedigree, not pedigreejs)
+  # note that the ID column is R is equivalent to the name property in pedigreeJS
+  # and note that the name column in R is equivalent to the display_name property in pedigreeJS
+  num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
+  target.rel.rname <- gsub(pattern = "\\.", replacement = " ", rela)
+  if(type == "partner"){
+    if(pb.name == partner.of){
+      target.rel.rname <- "Proband Partner"
+    } else {
+      target.rel.rname <- paste0(r.ped$name[which(r.ped$ID == as.numeric(partner.of))], " Partner")
+    }
+    
+    # not a partner
+  } else {
+    if(is.na(sd)){
+      target.rel.rname <- stringi::stri_trans_totitle(target.rel.rname)
+    } else {
+      target.rel.rname <- 
+        stringi::stri_trans_totitle(paste0(ifelse(sd == "m", "Mat.", 
+                                                  ifelse(sd == "p", "Pat.", "?")), 
+                                           " ", target.rel.rname))
+    }
+  }
+  
+  # add a unique number if the relationship is not unique 
+  # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
+  if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
+    other.rela.names <- r.ped$name[which(r.ped$relationship == rela)]
+    if(length(other.rela.names) > 0){
+      other.rela.nums <- 
+        as.numeric(
+          str_sub(other.rela.names, 
+                  start = str_locate(other.rela.names, pattern = "\\d")[1,1])
+        )
+      new.name.num <- max(other.rela.nums, na.rm = T) + 1
+    } else {
+      new.name.num <- 1
+    }
+    target.rel.rname <- paste0(target.rel.rname, " ", new.name.num)
+  }
+  
+  # abbreviate the name and add it into the JSON
+  abbName <- abb.Relations(data.frame(name = target.rel.rname))[1,1]
+  pjs$display_name[which(pjs$name == target.rel)] <- abbName
+  
+  # add new person to the R pedigree, format row initially as a cousin 
+  # (allows manual entry of fields) then update
+  if(type == "sib-child"){
+    r.ped <- formatNewPerson(relation = "cousin", tmp.ped = r.ped, 
+                             m.id = as.numeric(mo), f.id = as.numeric(fa), 
+                             sx = ifelse(target.rel.sx == "F", 0, ifelse(target.rel.sx == "M", 1, NA)))
+  } else if(type == "parent"){
+    r.ped <- formatNewPerson(relation = "cousin", tmp.ped = r.ped, 
+                             m.id = as.numeric(NA), f.id = as.numeric(NA), 
+                             sx = ifelse(target.rel.sx == "F", 0, ifelse(target.rel.sx == "M", 1, NA)))
+  } else if(type == "partner"){
+    if(pb.name == partner.of){
+      r.ped <- formatNewPerson(relation = "partner", tmp.ped = r.ped)
+    } else {
+      r.ped <- formatNewPerson(relation = "rel.partner", tmp.ped = r.ped, 
+                               partner.of = as.numeric(partner.of))
+    }
+  }
+  r.ped$ID[nrow(r.ped)] <- as.numeric(target.rel)
+  if(target.rel.sx == "F"){
+    kids <- rel.ped$ID[which(rel.ped$MotherID == target.rel)]
+    if(length(kids) > 0){
+      r.ped$MotherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
+    }
+  } else if(target.rel.sx == "M"){
+    kids <- rel.ped$ID[which(rel.ped$FatherID == target.rel)]
+    if(length(kids) > 0){
+      r.ped$FatherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
+    }
+  }
+  r.ped$relationship[nrow(r.ped)] <- rela
+  r.ped$side[nrow(r.ped)] <- sd
+  r.ped$name[nrow(r.ped)] <- target.rel.rname
+  
+  return(list(pjs_updated = pjs,
+              r.ped_updated = r.ped))
+}
+
+
+#' Create kinship2 pedigree
+kinship2.ped <- function(ped){
+  plot_fam <-
+    ped %>%
+    mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
+    mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
+    mutate(nameMother = "") %>%
+    mutate(nameFather = "")
+  plot_fam <- abb.Relations(plot_fam)
+  plot_fam <- 
+    plot_fam %>%
+    select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+  
+  # replace mother and father ID numbers with names
+  for(uid in unique(plot_fam$MotherID)){
+    if(uid != 0){
+      pname <- plot_fam$name[which(plot_fam$ID == uid)]
+      plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+    }
+  }
+  for(uid in unique(plot_fam$FatherID)){
+    if(uid != 0){
+      pname <- plot_fam$name[which(plot_fam$ID == uid)]
+      plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+    }
+  }
+  
+  # cancer affection status
+  can_aff <- 
+    ped %>%
+    select(starts_with("isAff")) %>%
+    rename_with(.cols = everything(), 
+                .fn = ~ sub(pattern = "isAff", replacement = "", .))
+  non.zero.cols <- apply(can_aff, 2, sum, simplify = F)
+  non.zero.cols <- non.zero.cols[which(non.zero.cols > 0)]
+  
+  # create pedigree object, based on number of affected cancer in the family
+  if(length(non.zero.cols) == 0){
+    kped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID,
+                     status = ped$isDead)
+  } else {
+    if(length(non.zero.cols) <= 4){
+      can_aff <- select(can_aff, all_of(names(non.zero.cols)))
+    } else {
+      can_aff <- select(can_aff, all_of(names(non.zero.cols[1:4])))
+    }
+    can_aff <- as.matrix(can_aff)
+    kped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID,
+                     affected = can_aff,
+                     status = ped$isDead)
+  }
+  return(kped)
 }

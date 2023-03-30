@@ -3,6 +3,8 @@
 # https://www.dana-farber.org/for-patients-and-families/care-and-treatment/cancer-types/
 non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 
+app.title <- "PPI: PanelPRO Interface"
+
 # set universal delay execution time in milliseconds
 delay_load_ms <- delay_copy_ms <- 4000
 delay_download_ms <- delay_delete_ms <- delay_insert_ms <- 2000
@@ -76,7 +78,7 @@ min.age <- 1
 min.parent.child.age.diff <- 10
 
 # sex choices
-sex.choices <- c(" "=" ","Female"="Female","Male"="Male")
+sex.choices <- c(" "=" ", "Female"="Female", "Male"="Male")
 
 # race choices (different from PanelPRO's race choices)
 rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",
@@ -102,7 +104,7 @@ FEMALE.CANCERS <- c("Endometrial", "Ovarian", "Cervical", "Vaginal", "Vulvar")
 OTHER.CANCER.CHOICES <- c("Unknown/Not Listed", non.pp.cancers)
 
 # template data frame for storing cancer history
-cancer.inputs.store <- as.data.frame(matrix(, nrow = 0, ncol = 3))
+cancer.inputs.store <- as.data.frame(matrix(NA, nrow = 0, ncol = 3))
 colnames(cancer.inputs.store) <- c("Cancer","Age","Other")
 
 # template list for storing cancer module numbers / number of cancers by subject
