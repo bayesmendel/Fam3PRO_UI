@@ -558,7 +558,12 @@ ui <- fixedPage(
                      Unknown cancer ages will show as 0. Gene tests, surgical 
                      history, and tumor markers are not displayed."),
                   uiOutput("canColorKeyUI"),
-                  
+                  conditionalPanel(condition = "output.atLeastOnePPCancer",
+                    downloadButton("downloadCanColorKey", 
+                                   label = "Download Cancer Legend",
+                                   icon = icon('download'))
+                  ),
+                    
                   # Create a hidden button to retrieve pedigreeJS pedigree in JSON format.
                   # The server needs to simulate a click on this buttons at a 
                   # set interval to sync the master pedigree with pedigreeJS
@@ -4762,38 +4767,65 @@ server <- function(input, output, session) {
     } # end of if statement to check if pedigree has been displayed yet (showPed())
   }, ignoreInit = T, ignoreNULL = T)
   
-  # cancer color legend plot
+  ## cancer color legend plot
+  # check if there is at least one PanelPRO cancer in the pedigree 
+  # which triggers whether to make the plot or not
+  atLeastOnePPCancer <- reactiveVal(FALSE)
+  output$atLeastOnePPCancer <- reactive({atLeastOnePPCancer()})
+  outputOptions(output, 'atLeastOnePPCancer', suspendWhenHidden = FALSE)
+  observeEvent(PED(), {
+    ctable <- cancersTbl()
+    if(nrow(ctable) > 0){
+      cans.used <- setdiff(unique(ctable$Cancer), "Other")
+      if(length(cans.used) > 0){
+        atLeastOnePPCancer(TRUE)
+      } else {
+        atLeastOnePPCancer(FALSE)
+      }
+    } else {
+      atLeastOnePPCancer(FALSE)
+    }
+  }, ignoreNULL = T, ignoreInit = T)
+  
+  # create the plot object
   output$canColorKey <- renderPlot({
-    ctable <- cancersTbl()
-    if(nrow(ctable) > 0){
+    if(atLeastOnePPCancer()){
+      ctable <- cancersTbl()
       cans.used <- setdiff(unique(ctable$Cancer), "Other")
-      if(length(cans.used) > 0){
-        return(PJS_can_colors(cans.used))
-      } else {
-        return(NULL)
-      }
+      return(PJS_can_colors(cans.used))
     } else {
       return(NULL)
     }
   })
+  
+  # set the plot height
   canColorKeyHeight <- reactive({
-    ctable <- cancersTbl()
-    if(nrow(ctable) > 0){
-      cans.used <- setdiff(unique(ctable$Cancer), "Other")
-      if(length(cans.used) > 0){
-        ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
-        ht <- ifelse(ht < 60, 60, ht)
-        return(ht)
-      } else {
-        return(NULL)
-      }
+    if(atLeastOnePPCancer()){
+      ctable <- cancersTbl()
+      ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
+      ht <- ifelse(ht < 60, 60, ht)
+      return(ht)
     } else {
       return(NULL)
     }
   })
+  
+  # sent the plot to the UI with dynamic height
   output$canColorKeyUI <- renderUI({
     plotOutput("canColorKey", width = "300px", height = canColorKeyHeight())
   })
+  
+  # download cancer color key individually
+  output$downloadCanColorKey <- shiny::downloadHandler(
+    filename = function(){
+      paste0("cancer-color-key-ped-", unique(PED()$PedigreeID), "-" , Sys.Date(), ".png")
+    },
+    content = function(file){
+      ggsave(plot = output$canColorKey, 
+             filename = file)
+    }
+  )
+  
   
   ###### kinship2 Tree ####
   ## draw pedigree static image using kinship2
