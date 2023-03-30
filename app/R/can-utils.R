@@ -309,3 +309,58 @@ updateCancerDropdowns <- function(cr = canReactive$canNums,
     }
   }
 }
+
+
+#' Cancer color key for PedigreeJS
+#' 
+#' @param cans.used a character vector of the long version of the cancer names 
+#' to be plotted
+PJS_can_colors <- function(cans.used){
+  
+  # color key must match contents of JS.js file
+  color_key <- 
+    c(
+      'Brain' = '#FDAC53',
+      'Breast' = '#9BB7D4',
+      'Contralateral' = '#EDD59E',
+      'Cervical' = '#B55A30',
+      'Colorectal' = '#F5DF4D',
+      'Endometrial' = '#0072B5',
+      'Gastric' = '#A0DAA9',
+      'Hepatobiliary' = '#00758F',
+      'Kidney' = '#E9897E',
+      'Leukemia' = '#00A170',
+      'Melanoma' = '#926AA6',
+      'Ovarian' = '#D2386C',
+      'Osteosarcoma' = '#34568B',
+      'Pancreas' = '#CD212A',
+      'Prostate' = '#FFA500',
+      'Small Intestine' = '#56C6A9',
+      'Soft Tissue Sarcoma' = '#4B5335',
+      'Thyroid' = '#798EA4',
+      'Urinary Bladder' = '#FA7A35'
+    )
+  
+  # prep the data
+  cdf <- 
+    enframe(color_key) %>%
+    rename("Cancer" = "name",
+           "Color" = "value") %>%
+    filter(Cancer %in% cans.used) %>%
+    mutate(y = row_number()) %>%
+    mutate(x_point = 0) %>%
+    mutate(x_text = 0.5)
+  
+  # plot the legend
+  ggplot(data = cdf) +
+    geom_point(aes(x = x_point, y = rev(y), color = Cancer),
+               size = 4) + 
+    geom_text(aes(x = x_text, y = rev(y), label = Cancer),
+              hjust = 0) +
+    scale_color_manual(values = color_key) +
+    scale_x_continuous(limits = c(0,10)) +
+    scale_y_continuous(limits = c(0.75, length(cans.used)+0.25)) +
+    ggtitle("Cancer Legend") +
+    theme_void() +
+    theme(legend.position = "none")
+}

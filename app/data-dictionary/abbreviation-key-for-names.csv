@@ -1,0 +1,13 @@
+Abbreviated Text,Meaning
+Mom,Mother
+Dad,Father
+Unc,Uncle
+Sis,Sister
+Bro,Brother
+Dau,Daughter
+"Starts with a capital ""M""",Maternal side
+"Starts with a capital ""P""",Paternal side
+"Capital ""G""","Great or Grand, ie GGDad is Great-grandfather"
+Rel,Generic relative label
+ProbPart,Partner of the proband
+Part,Partner of a relative of the proband
