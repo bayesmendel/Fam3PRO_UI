@@ -1395,8 +1395,8 @@ abb.Relations <- function(ped.df){
     mutate(name = sub(pattern = "Father|father", replacement = "Dad", name)) %>%
     mutate(name = sub(pattern = "Proband Partner|proband partner|Proband partner", replacement = "ProbPart", name)) %>%
     mutate(name = sub(pattern = "Partner|partner", replacement = "Part", name)) %>%
-    mutate(name = sub(pattern = "Mat\\. |mat\\.", replacement = "M", name)) %>%
-    mutate(name = sub(pattern = "Pat\\. |pat\\.", replacement = "P", name)) %>%
+    mutate(name = sub(pattern = "Mat\\. |mat\\. ", replacement = "M", name)) %>%
+    mutate(name = sub(pattern = "Pat\\. |pat\\. ", replacement = "P", name)) %>%
     mutate(name = sub(pattern = "Relative|relative", replacement = "Rel", name)) %>%
     mutate(name = gsub(pattern = " ", replacement = "", name))
 }
@@ -1407,7 +1407,7 @@ abb.Relations <- function(ped.df){
 #' @param pjs.ped a pedigree data frame
 prepPedJSON <- function(pjs.ped){
   
-  # determine founders ("top_level")
+  # determine founders ("top_level = TRUE")
   pjs.ped$top_level <- FALSE
   if(any(pjs.ped$relation == "grandmother") | any(pjs.ped$relation == "grandfather")){
     pjs.ped$top_level[which(pjs.ped$relation %in%  c("grandmother", "grandfather"))] <- TRUE
@@ -1415,7 +1415,7 @@ prepPedJSON <- function(pjs.ped){
     pjs.ped$top_level[which(pjs.ped$relation %in% c("mother", "father"))] <- TRUE
   }
   
-  # determine partners ("noparents")
+  # determine partners ("noparents = TRUE")
   # anyone without parents (someone who "married") must list the same parents as their partner
   pjs.ped <- mutate(pjs.ped, noparents = ifelse(!top_level & is.na(MotherID) & is.na(FatherID), TRUE, FALSE)) 
   marr.in <- pjs.ped$ID[which(pjs.ped$noparents)]
@@ -1435,7 +1435,7 @@ prepPedJSON <- function(pjs.ped){
     pjs.ped$FatherID[which(pjs.ped$ID == mi)] <- pjs.ped$FatherID[which(pjs.ped$ID == partner)]
   }
   
-  # convert FALSE values to NA to make the JSON string smaller
+  # convert FALSE values to NA to make the JSON string smaller and so that PedigreeJS will accept it
   pjs.ped <- mutate(pjs.ped, across(.cols = c(top_level, noparents), ~ ifelse(!., NA, .)))
   
   # code cancers with unknown affection ages as age 0
@@ -1459,9 +1459,9 @@ prepPedJSON <- function(pjs.ped){
     mutate(isProband = as.logical(isProband)) %>%
     mutate(isProband = ifelse(!isProband, NA, isProband)) %>%
     rename_with(.fn = ~ paste0(gsub(pattern = " ", replacement = "_", 
-                                    PanelPRO:::CANCER_NAME_MAP$long[
-                                      which(PanelPRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
-                                    ]),
+                                     PanelPRO:::CANCER_NAME_MAP$long[
+                                       which(PanelPRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
+                                       ]),
                                "_cancer_diagnosis_age"
                         ),
                 .cols = starts_with("Age")) %>%
@@ -1473,7 +1473,7 @@ prepPedJSON <- function(pjs.ped){
            "status" = "isDead",
            "father" = "FatherID",
            "mother" = "MotherID")
-  
+
   # convert data frame to JSON
   pedJSON <- toJSON(pjs.ped, dataframe = "rows", na = "null", pretty = TRUE)
   return(pedJSON)

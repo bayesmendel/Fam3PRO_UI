@@ -57,15 +57,10 @@ ui <- fixedPage(
   useShinyjs(),
   
   # pedigreejs dependencies
-  # tags$head(tags$meta(charset="UTF-8")),
-  # tags$head(tags$meta(content="IE=edge")),
-  # tags$head(tags$meta(name="viewport", content="width=device-width,maximum-scale=2")),
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
                       href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
-  # tags$head(tags$link(rel = "stylesheet", href = "www/pedigreejs/build/pedigreejs.v2.1.0-rc9.css")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
-  # tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9.js")),
   
   # server busy spinner
   shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
@@ -208,7 +203,7 @@ ui <- fixedPage(
       ##### UI: Home ####
       tabPanel(title = "Home",
         h3("Home"),
-        h4("What are PanelPRO and PPI?"),
+        h4("What is PanelPRO?"),
         p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute,
           is a multi-cancer/multi-gene risk prediction model which utilizes family history
           to estimate the probability that a patient has a pathogenic or likely
@@ -222,6 +217,8 @@ ui <- fixedPage(
         tags$a(tags$img(src = "bm-lab-logo.PNG", height = "150px"), 
                href = "https://projects.iq.harvard.edu/bayesmendel/about"),
         br(),br(),
+        
+        h4("What is PPI?"),
         p("This website is named the PanelPRO Interface (PPI) because it allows clinicians and researchers to 
           utilize PanelPRO without having to use R or know how write code in R. 
           PPI allows users to create pedigrees formatted for PanelPRO and then run 
@@ -231,23 +228,37 @@ ui <- fixedPage(
           viewed, updated, downloaded, and (re)analyzed by PanelPRO."),
         br(),
         
+        h4("Which cancers and genes does PanelPRO consider?"),
+        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
+          paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), 
+          ". Contralateral Breast Cancer (CBC) is also analyzed."),
+        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(PanelPRO:::GENE_TYPES, collapse = ", ")),
+        p("Users can customize their analysis by running a model with a subset of these cancers 
+          and genes."),
+        br(),
+        
         h4("Beta Version"),
-        p("This website is a beta version that is still in development and we are working towards adding more 
-          features. If you run into bugs or have suggestions to improve PPI, please contact us using the email address 
-          at the bottom of the page."),
+        p("This website is a beta version that is still in development. If you 
+          run into bugs or have suggestions to improve PPI, please contact us 
+          using the email address at the bottom of the page."),
         br(),
         
         h4("How to Use PPI"),
-        p("First, navigate to the 'Manage Pedigrees' tab at the top of the page where you can 
-          create a new pedigree, load a pedigree you created previously on this site, or 
-          download one or more pedigrees in .csv or .rds format."),
-        p("To run PanelPRO, you will first either need to create a new pedigree or load an 
-          existing one which you previously saved to your account. Once you do either of these 
-          actions you will have access to the 'Create/Modify Pedigree' and the 'PanelPRO' pages."),
-        p("When creating a new pedigree, see the privacy section below for rules on naming your pedigrees."),
-        p("Once you create a new pedigree and everytime you modify that pedigree, it will automatically save 
-          to your user account and you can come back at any time to modify your saved pedigrees 
-          and run/re-run them through PanelPRO."),
+        p("First, navigate to the 'Manage Pedigrees' tab at the top of the page 
+          where you can create a new pedigree or load a pedigree you created 
+          previously on this site."),
+        p("Once you have made your selection, you can create or edit your pedigree 
+          using the 'Create/Edit Pedigree' tab. When creating a new pedigree, 
+          see the privacy section below for rules on naming your pedigrees. 
+          Everytime you modify your working pedigree, it will automatically save 
+          to your user account or you can manually save it at any time using the 
+          save button in the top right corner of the editor (be sure to do this 
+          before you log-out)."),
+        p("When your working pedigree is complete, use the 'PanelPRO' tab to run 
+          the analysis where you can custimze the model settings. After your 
+          analysis has run, you can download the results which include tables 
+          and graphs of the proband's carrier probabilities and future cancer 
+          risks."),
         br(),
         
         h4("Privacy"),
@@ -545,6 +556,7 @@ ui <- fixedPage(
                   ),
                   h5("Note: the tree above can only display PanelPRO cancers. 
                      It will display any unknown cancer ages as 0."),
+                  uiOutput("canColorKeyUI"),
                   
                   # Create a hidden button to retrieve pedigreeJS pedigree in JSON format.
                   # The server needs to simulate a click on this buttons at a 
@@ -3051,6 +3063,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            "download-pedigrees/README.md",
                            new.files))
       
@@ -3114,6 +3127,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/README.md",
                            "download-pedigrees/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -4738,6 +4752,39 @@ server <- function(input, output, session) {
     } # end of if statement to check if pedigree has been displayed yet (showPed())
   }, ignoreInit = T, ignoreNULL = T)
   
+  # cancer color legend plot
+  output$canColorKey <- renderPlot({
+    ctable <- cancersTbl()
+    if(nrow(ctable) > 0){
+      cans.used <- setdiff(unique(ctable$Cancer), "Other")
+      if(length(cans.used) > 0){
+        return(PJS_can_colors(cans.used))
+      } else {
+        return(NULL)
+      }
+    } else {
+      return(NULL)
+    }
+  })
+  canColorKeyHeight <- reactive({
+    ctable <- cancersTbl()
+    if(nrow(ctable) > 0){
+      cans.used <- setdiff(unique(ctable$Cancer), "Other")
+      if(length(cans.used) > 0){
+        ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
+        ht <- ifelse(ht < 55, 55, ht)
+        return(ht)
+      } else {
+        return(NULL)
+      }
+    } else {
+      return(NULL)
+    }
+  })
+  output$canColorKeyUI <- renderUI({
+    plotOutput("canColorKey", width = "300px", height = canColorKeyHeight())
+  })
+  
   ###### kinship2 Tree ####
   ## draw pedigree static image using kinship2
   # prepare the data
@@ -4768,7 +4815,6 @@ server <- function(input, output, session) {
   ###### Pedigree Table ####
   # prepare the data frame
   tablePed <- reactive({
-    
     if(!is.null(PED())){
       t.ped <- 
         PED() %>% 
@@ -4785,7 +4831,6 @@ server <- function(input, output, session) {
         relocate(name, .after = "ID") %>%
         relocate(Sex, .after = "name") %>%
         relocate(Twins, .after = "isDead")
-        
       return(
         DT::datatable(data = t.ped,
                       rownames = FALSE,
@@ -4935,6 +4980,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -4963,6 +5009,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -5986,6 +6033,7 @@ server <- function(input, output, session) {
                  files = c("data-dictionary/columns-and-codings-dictionary.csv",
                            "data-dictionary/README.md",
                            "download-results/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
@@ -6117,6 +6165,7 @@ server <- function(input, output, session) {
         zip::zip(zipfile = file, 
                  files = c("data-dictionary/README.md",
                            "download-results/README.md",
+                           "data-dictionary/abbreviation-key-for-names.csv",
                            new.files))
       
       # remove the created files
