@@ -1,6 +1,6 @@
 # README
 
-The directory contains data dictionary information for PPI. It will contain 3 files if this was downloaded with pedigrees only and will contain 1 additional file if downloaded with PanelPRO results. The first three files will either be in .csv or .rds format depending on what was chosen at download.
+The directory contains data dictionary information for PPI. It will contain 4 files if this was downloaded with pedigrees only and will contain 1 additional file if downloaded with PanelPRO results. The first 4 files will either be in .csv or .rds format depending on what was chosen at download.
 
 ## Always Included
 
@@ -9,6 +9,8 @@ The directory contains data dictionary information for PPI. It will contain 3 fi
 2. panelpro-cancer-abbreviations: provides the abbreviations used to represent each cancer in PanelPRO.
 
 3. panelpro-gene-list: provides the list of all genes currently supported by PanelPRO.
+
+4. abbreviation-key-for-names: provides a key to interpret abbreviated relative names used on the pedigree tree images.
 
 ## Only Included with Results
 

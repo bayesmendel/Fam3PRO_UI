@@ -119,9 +119,9 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     if(is.null(m.id) | is.null(f.id)){
       stop("For 'niece', 'nephew' and 'cousin', provide non-NULL values for 'tmp.ped', 'm.id' and 'f.id' only")
     } else if(relation != "cousin" & 
-              (!is.null(c.ids) | !is.null(m.or.p.side) | !is.null(partner.of) | !is.null(sx))){
+              (!is.null(m.or.p.side) | !is.null(partner.of) | !is.null(sx))){
       stop("For 'niece' and 'nephew', provide non-NULL values for 'tmp.ped', 'm.id', and 'f.id' only")
-    } else if(relation == "cousin" & (is.null(sx) | !is.null(c.ids) | !is.null(m.or.p.side) | !is.null(partner.of))){
+    } else if(relation == "cousin" & (is.null(sx) | !is.null(m.or.p.side) | !is.null(partner.of))){
       stop("For 'cousin', provide non-NULL values for 'tmp.ped', 'm.id', 'f.id', and 'sx' only")
     }
     
@@ -148,11 +148,17 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
     tmp.id <- 1
   }
   
-  # assign side if needed but not specified and can be implied by relation
+  # assign side if needed but if not specified and can be implied by relation the do it
   if(relation == "rel.partner"){
     tmp.side <- tmp.ped$side[tmp.ped$ID == partner.of]
   } else if(relation %in% c("niece","nephew","cousin")){
-    tmp.side <- tmp.ped$side[which(tmp.ped$ID == m.id)]
+    if(!is.na(m.id)){
+      tmp.side <- tmp.ped$side[which(tmp.ped$ID == m.id)]
+    } else if(!is.na(f.id)){
+      tmp.side <- tmp.ped$side[which(tmp.ped$ID == f.id)]
+    } else {
+      tmp.side <- NA
+    }
   }
   
   # create and format a 1 row data frame with default values
@@ -166,8 +172,8 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
                   ~is.character(.))) %>%
     mutate(PedigreeID = ped.id) %>%
     mutate(ID = tmp.id) %>%
-    mutate(relationship = ifelse(relation == "rel.partner", paste0("partner.of.",partner.of), relation)) %>%
-    mutate(side = ifelse(grepl(pattern = "partner.of", relationship) | relationship %in% c("niece","nephew","cousin"), tmp.side, 
+    mutate(relationship = relation) %>%
+    mutate(side = ifelse(grepl(pattern = "rel.partner", relationship) | relationship %in% c("niece","nephew","cousin"), tmp.side, 
                          ifelse(!is.null(m.or.p.side), m.or.p.side, side))) %>%
     mutate(race = "All_Races") %>%
     mutate(Ancestry = "nonAJ") %>%
@@ -362,6 +368,79 @@ popPersonData <- function(tmp.ped,
   }
   
   # demographics
+  if(!is.null(sx)){ 
+    tmp.ped$Sex[which(tmp.ped$ID == id)] <- ifelse(sx == "Female", 0, 1)
+    
+    # check that the relationship and name are still valid, if not get the 
+    # corrected relationship
+    rela <- tmp.ped$relationship[which(tmp.ped$ID == id)]
+    if(!rela %in% c("partner", "rel.partner")){
+      name.sx.mismatch <- FALSE
+      if(sx == "Male"){
+        if(grepl(pattern = "daughter|mother|niece|sister|aunt", rela)){
+          name.sx.mismatch <- TRUE
+        }
+        if(grepl(pattern = "daughter", rela)){
+          rela <- sub(pattern = "daughter", replacement = "son", rela)
+        } else if(grepl(pattern = "mother", rela)){
+          rela <- sub(pattern = "mother", replacement = "father", rela)
+        } else if(grepl(pattern = "niece", rela)){
+          rela <- sub(pattern = "niece", replacement = "nephew", rela)
+        } else if(grepl(pattern = "sister", rela)){
+          rela <- sub(pattern = "sister", replacement = "brother", rela)
+        } else if(grepl(pattern = "aunt", rela)){
+          rela <- sub(pattern = "aunt", replacement = "uncle", rela)
+        }
+      } else if(sx == "Female"){
+        if(grepl(pattern = "son|father|nephew|brother|uncle", rela)){
+          name.sx.mismatch <- TRUE
+        }
+        if(grepl(pattern = "son", rela)){
+          rela <- sub(pattern = "son", replacement = "daughter", rela)
+        } else if(grepl(pattern = "father", rela)){
+          rela <- sub(pattern = "father", replacement = "mother", rela)
+        } else if(grepl(pattern = "nephew", rela)){
+          rela <- sub(pattern = "nephew", replacement = "niece", rela)
+        } else if(grepl(pattern = "brother", rela)){
+          rela <- sub(pattern = "brother", replacement = "sister", rela)
+        } else if(grepl(pattern = "uncle", rela)){
+          rela <- sub(pattern = "uncle", replacement = "aunt", rela)
+        }
+      }
+      
+      # if the name and sex were mismatched, get a new name label for the relative
+      if(name.sx.mismatch){
+        sd <- tmp.ped$side[which(tmp.ped$ID == id)]
+        if(is.na(sd)){
+          nm <- stringi::stri_trans_totitle(rela)
+        } else {
+          nm <- stringi::stri_trans_totitle(paste0(ifelse(sd == "m", "Mat.", 
+                                                      ifelse(sd == "p", "Pat.", "?")), " ", rela))
+        }
+        
+        # if the name is a non-unique type, add a number identifier to the end
+        # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
+        if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
+          other.rela.names <- tmp.ped$name[which(tmp.ped$relationship == rela)]
+          if(length(other.rela.names) > 0){
+            other.rela.nums <- 
+              as.numeric(
+                str_sub(other.rela.names, 
+                        start = str_locate(other.rela.names, pattern = "\\d")[1,1])
+              )
+            new.name.num <- max(other.rela.nums, na.rm = T) + 1
+          } else {
+            new.name.num <- 1
+          }
+          nm <- paste0(nm, " ", new.name.num)
+        }
+        
+        # update the pedigree
+        tmp.ped$relationship[which(tmp.ped$ID == id)] <- rela
+        tmp.ped$name[which(tmp.ped$ID == id)] <- nm
+      }
+    }
+  }
   if(!is.null(cur.age)){ tmp.ped$CurAge[which(tmp.ped$ID == id)] <- cur.age }
   if(!is.null(is.dead)){ 
     tmp.ped$isDead[which(tmp.ped$ID == id)] <- ifelse(is.dead, 1, 0) 
@@ -756,6 +835,7 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
   if(inp$pedTabs == "Demographics"){
     return(popPersonData(tmp.ped = tped, id = rel, 
                          cur.age = inp$Age, is.dead = inp$isDead,
+                         sx = inp$Sex,
                          rc = inp$race, et = inp$eth, 
                          an.aj = inp$ancAJ, an.it = inp$ancIt)
     )
@@ -763,7 +843,9 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
     # cancer hx
   } else if(inp$pedTabs == "Cancer Hx"){
     can.df <- makeCancerDF(rel = rel, cr = cr, inp = inp)
-    return(popPersonData(tmp.ped = tped, id = rel, sx = sx, cancers.and.ages = can.df))
+    return(popPersonData(tmp.ped = tped, id = rel, 
+                         sx = inp$Sex, 
+                         cancers.and.ages = can.df))
     
     # cbc
   } else if(inp$pedTabs == "CBC Risk"){
@@ -1294,4 +1376,526 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
                   ~as.character(.)))
   
   return(uped)
+}
+
+
+#' Abbreviate display names for the pedigree
+#' 
+#' @param ped.df a pedigree data frame with a column 'name'
+abb.Relations <- function(ped.df){
+  ped.df %>%
+    mutate(name = sub(pattern = "G\\.|g\\.", replacement = "G", name)) %>%
+    mutate(name = sub(pattern = "Daughter|daughter", replacement = "Dau", name)) %>%
+    mutate(name = sub(pattern = "Sister|sister", replacement = "Sis", name)) %>%
+    mutate(name = sub(pattern = "Brother|brother", replacement = "Bro", name)) %>%
+    mutate(name = sub(pattern = "Uncle|uncle", replacement = "Unc", name)) %>%
+    mutate(name = sub(pattern = "Grandmother|grandmother", replacement = "GMom", name)) %>%
+    mutate(name = sub(pattern = "Grandfather|grandfather", replacement = "GDad", name)) %>%
+    mutate(name = sub(pattern = "Mother|mother", replacement = "Mom", name)) %>%
+    mutate(name = sub(pattern = "Father|father", replacement = "Dad", name)) %>%
+    mutate(name = sub(pattern = "Proband Partner|proband partner|Proband partner", replacement = "ProbPart", name)) %>%
+    mutate(name = sub(pattern = "Partner|partner", replacement = "Part", name)) %>%
+    mutate(name = sub(pattern = "Mat\\. |mat\\. ", replacement = "M", name)) %>%
+    mutate(name = sub(pattern = "Pat\\. |pat\\. ", replacement = "P", name)) %>%
+    mutate(name = sub(pattern = "Relative|relative", replacement = "Rel", name)) %>%
+    mutate(name = gsub(pattern = " ", replacement = "", name))
+}
+
+
+#' Prepare pedigree JSON object
+#' 
+#' @param pjs.ped a pedigree data frame
+prepPedJSON <- function(pjs.ped){
+  
+  # determine founders ("top_level = TRUE")
+  pjs.ped$top_level <- FALSE
+  if(any(pjs.ped$relation == "grandmother") | any(pjs.ped$relation == "grandfather")){
+    pjs.ped$top_level[which(pjs.ped$relation %in%  c("grandmother", "grandfather"))] <- TRUE
+  } else {
+    pjs.ped$top_level[which(pjs.ped$relation %in% c("mother", "father"))] <- TRUE
+  }
+  
+  # determine partners ("noparents = TRUE")
+  # anyone without parents (someone who "married") must list the same parents as their partner
+  pjs.ped <- mutate(pjs.ped, noparents = ifelse(!top_level & is.na(MotherID) & is.na(FatherID), TRUE, FALSE)) 
+  marr.in <- pjs.ped$ID[which(pjs.ped$noparents)]
+  for(mi in marr.in){
+    
+    # find their partner by checking the kids they have in common (NOTE DOES NOT HANDLE LOOPS)
+    if(pjs.ped$Sex[which(pjs.ped$ID == mi)] == 0){
+      kids <- pjs.ped$ID[which(pjs.ped$MotherID == mi)]
+      partner <- pjs.ped$FatherID[which(pjs.ped$ID %in% kids)][1]
+    } else if(pjs.ped$Sex[which(pjs.ped$ID == mi)] == 1){
+      kids <- pjs.ped$ID[which(pjs.ped$FatherID == mi)]
+      partner <- pjs.ped$MotherID[which(pjs.ped$ID %in% kids)][1]
+    }
+    
+    # replace the missing parent IDs with the parent IDs of their parnter
+    pjs.ped$MotherID[which(pjs.ped$ID == mi)] <- pjs.ped$MotherID[which(pjs.ped$ID == partner)]
+    pjs.ped$FatherID[which(pjs.ped$ID == mi)] <- pjs.ped$FatherID[which(pjs.ped$ID == partner)]
+  }
+  
+  # convert FALSE values to NA to make the JSON string smaller and so that PedigreeJS will accept it
+  pjs.ped <- mutate(pjs.ped, across(.cols = c(top_level, noparents), ~ ifelse(!., NA, .)))
+  
+  # code cancers with unknown affection ages as age 0
+  for(rw in 1:nrow(pjs.ped)){
+    for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+      if(is.na(pjs.ped[rw, paste0("Age", cn)]) & pjs.ped[rw, paste0("isAff", cn)] == 1){
+        pjs.ped[rw, paste0("Age", cn)] <- 0
+      }
+    }
+  }
+  
+  # abbreviate display names
+  pjs.ped <- abb.Relations(pjs.ped)
+  
+  # recode and rename for compatibility with pedigreejs
+  pjs.ped <- 
+    pjs.ped %>%
+    select(ID, name, isProband, top_level, noparents, Sex, CurAge, isDead, MotherID, FatherID, 
+           starts_with("Age")) %>%
+    mutate(across(.cols = c(ID, ID, Sex, isDead, MotherID, FatherID), ~as.character(.))) %>%
+    mutate(Sex = ifelse(Sex == "0", "F", ifelse(Sex == "1", "M", "U"))) %>%
+    mutate(isProband = as.logical(isProband)) %>%
+    mutate(isProband = ifelse(!isProband, NA, isProband)) %>%
+    rename_with(.fn = ~ paste0(gsub(pattern = " ", replacement = "_", 
+                                     PanelPRO:::CANCER_NAME_MAP$long[
+                                       which(PanelPRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
+                                       ]),
+                               "_cancer_diagnosis_age"
+                        ),
+                .cols = starts_with("Age")) %>%
+    rename("display_name" = "name",
+           "name" = "ID",
+           "sex" = "Sex",
+           "proband" = "isProband",
+           "age" = "CurAge",
+           "status" = "isDead",
+           "father" = "FatherID",
+           "mother" = "MotherID")
+
+  # convert data frame to JSON
+  pedJSON <- toJSON(pjs.ped, dataframe = "rows", na = "null", pretty = TRUE)
+  return(pedJSON)
+}
+
+#' Determine if a relative is a direct ancestor (great-grand, etc) of the proband
+#' 
+#' A recursive function that counts the number of recursions
+#' @param t.pjs a data frame containing the the pedigree columns ID, MotherID, FatherID, sex, and proband.
+#' Where ID, MotherID, FatherID are numeric and sex is one of `c("M","F")` and where 
+#' proband is one of TRUE or NA
+#' @param rl a number with the unique ID number (R) / name (pedigreeJS) of the relative
+#' @returns if not a direct ancestor, returns `NA`, otherwise returns the relationship name.
+#' all greats and abbreviated as just "g.".
+CountGs <- function(t.pjs, rl){
+  isGrandP <- function(t.pjs, rl, cnt = 0, mo, fa, side){
+    
+    # find the person's children
+    sx <- t.pjs$sex[which(t.pjs$ID == rl)]
+    if(sx == 'M'){
+      rel.children <- t.pjs$ID[which(t.pjs$FatherID == rl)]
+    } else {
+      rel.children <- t.pjs$ID[which(t.pjs$MotherID == rl)]
+    }
+    if(length(rel.children) > 0){
+      
+      # if any of their children were the mother or father of the proband then 
+      # the side of the family is known
+      if(is.na(side) & mo %in% rel.children){
+        side <- "m"
+      } else if(is.na(side) & fa %in% rel.children){
+        side <- "p"
+      }
+      
+      # if any of the children were the proband then return the number of generations 
+      # above the proband the relative was and the side of the family
+      if(any(rel.children == t.pjs$ID[which(t.pjs$proband == TRUE)])){
+        return(list(cnt = cnt+1,
+                    side = side))
+        
+        # if the children did not include the proband, recursively move one generation down 
+        # the family tree until either the proband if found in the direct path or not
+      } else {
+        for(rc in rel.children){
+          return(isGrandP(t.pjs = t.pjs, rl = rc, cnt = cnt+1, mo = mo, fa = fa, side = side))
+        }
+      }
+      
+      # the person did not have children and the proband has not been found to 
+      # be in their line, therefore they are not a direct ancestor
+    } else {
+      return(list(cnt = 0,
+                  side = NA))
+    }
+  }
+  
+  # used to identify the side of the family a direct ancestor is on
+  pb.mo <- t.pjs$MotherID[which(t.pjs$proband == TRUE)]
+  pb.fa <- t.pjs$FatherID[which(t.pjs$proband == TRUE)]
+  
+  # call recursive function
+  Gcount <- isGrandP(t.pjs = t.pjs, rl = rl, mo = pb.mo, fa = pb.fa, side = NA)
+  if(Gcount$cnt == 0){ # not in the direct line of the proband
+    return(list(rela = NA,
+                side = NA))
+  } else if(Gcount$cnt > 0){
+    sx <- t.pjs$sex[which(t.pjs$ID == rl)]
+    if(sx == 'M'){
+      rel.root <- "father"
+    } else if(sx == 'F'){
+      rel.root <- "mother"
+    }
+    if(Gcount$cnt == 1){ # proband's parents, 
+      return(list(rela = rel.root,
+                  side = Gcount$side))
+    } else if(Gcount$cnt == 2){ # proband's grandparents
+      return(list(rela = paste0("grand", rel.root),
+                  side = Gcount$side))
+    } else if(Gcount$cnt > 2){
+      return(list(rela = paste0(strrep("g.", Gcount$cnt-2), "grand", rel.root),
+                  side = Gcount$side))
+    }
+  }
+}
+
+#' Add a relative to the pedigree based on change in pedigreejs
+#' 
+#' @param pjs a pedigree data frame extracted from pedigreeJS which has the new relative. 
+#' If `type = "parent"` or `type = "partner"` and the `target.rel` is the first 
+#' in the set of two people that will be added to the master pedigree, then 
+#' this pedigree should not contain the 2nd person who has not been added yet. If 
+#' this is the case then also specify the `pjs.full` argument.
+#' @param r.ped a pedigree data frame from R which does not have the new relative
+#' @param target.rel a string, the name assigned to the new relative by pedigreejs in the 'name' field
+#' @param type the type of relative pedigreejs addition, one of 
+#' `c("sib-child", "parent", "partner")` 
+#' @param partner.of only specified when `type = "partner"`, a string containing the 
+#' name/ID of the person with who the partner has children in common.
+#' @param pjs.full only specified when `type = "parent"` and the first parent is 
+#' being added to the pedigree but the 2nd has not been added or if `type = "partner"` 
+#' and the partner is being added but the child has not been added yet. This is 
+#' the version of the pjs pedigree data frame which contains the either both new 
+#' parents or both the partner and the child and is required for the 
+#' function `PanelPRO:::.secondDegreeRelatives()` to work properly.
+#' @returns a list of length two:
+#' - `pjs_updated`: an updated copy of the pedigree data frame from pedigreeJS with 
+#' modified values `name`, `display_name`, `status` for the new relative
+#' - `r.ped_updated`: an updated copy of the pedigree data frame for R with the 
+#' new relative added.
+addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full = NULL){
+  
+  # replace missing death status with alive code (0)
+  pjs$status[which(pjs$name == target.rel)] <- as.character(0)
+  
+  # default an unknown sex to male, for compatibility with PPI
+  target.rel.sx <- pjs$sex[which(pjs$name == target.rel)]
+  if(target.rel.sx == "U"){
+    pjs$sex[which(pjs$name == target.rel)] <- "M"
+  }
+  
+  ### determine relationship to proband and, if possible, maternal or paternal side
+  if(type != "parent"){
+    rel.ped <- pjs
+  } else {
+    rel.ped <- pjs.full
+  }
+  if(any(colnames(rel.ped) == "noparents")){
+    rel.ped <-
+      rel.ped %>%
+      select(name, mother, father, sex, proband, noparents, top_level) %>%
+      mutate(across(.cols = c(mother, father), ~ ifelse(is.na(noparents), ., ifelse(noparents == TRUE, NA, .))))
+  } else {
+    rel.ped <-
+      rel.ped %>%
+      select(name, mother, father, sex, proband, top_level)
+  }
+  rel.ped <- 
+    rel.ped %>%
+    rename("ID" = "name",
+           "MotherID" = "mother",
+           "FatherID" = "father") %>%
+    mutate(across(.cols = c(ID, MotherID, FatherID), ~ as.numeric(.))) %>%
+    mutate(across(.cols = c(MotherID, FatherID), ~ replace_na(., -999)))
+  target.rel.idx <- which(pjs$name == target.rel)
+  pb.name <- pjs$name[which(pjs$proband == TRUE)] # proband's name/ID
+  
+  # initialize paternal or maternal side variable
+  sd <- NA 
+  
+  # get the mother and fathers only if the added relative was a sibling or child
+  # because if parents or a partner is added in pedigreeJS they will not have parents
+  if(type == "sib-child"){
+    fa <- pjs$father[which(pjs$name == target.rel)]
+    mo <- pjs$mother[which(pjs$name == target.rel)]
+    fa.rela <- r.ped$relationship[which(r.ped$ID == as.numeric(fa))]
+    mo.rela <- r.ped$relationship[which(r.ped$ID == as.numeric(mo))]
+  }
+  
+  # first check if the person is married/partnered in
+  if(type == "partner"){
+    if(pb.name == partner.of){
+      rela <- "partner"
+    } else {
+      rela <- "rel.partner"
+      sd <- r.ped$side[which(r.ped$ID == as.numeric(partner.of))]
+    }
+    
+    # if not a partner, use PanelPRO functions to check if the person is a 1st or 2nd degree relative
+  } else {
+    fdr.idxs <- PanelPRO:::.firstDegreeRelative(rel.ped, which(pjs$proband == TRUE))
+    sdr.idxs <- PanelPRO:::.secondDegreeRelative(rel.ped, which(pjs$proband == TRUE))
+    
+    is1degree <- FALSE
+    if(target.rel.idx %in% fdr.idxs$index){ # first degree (FDR)
+      is1degree <- TRUE
+      lineage <- fdr.idxs$lineage[which(fdr.idxs$index == target.rel.idx)]
+      if(lineage == "F"){
+        rela <- "father"
+        sd <- "p"
+      } else if(lineage == "M"){
+        rela <- "mother"
+        sd <- "m"
+      } else if(lineage == "C"){
+        if(target.rel.sx == "M"){
+          rela <- "son"
+        } else if(target.rel.sx == "F"){
+          rela <- "daughter"
+        }
+      } else if(lineage == "S"){
+        if(target.rel.sx == "M"){
+          rela <- "brother"
+        } else if(target.rel.sx == "F"){
+          rela <- "sister"
+        }
+      }
+    } 
+    
+    # check if they are a SDR
+    is2degree <- FALSE
+    if(!is1degree & !is.null(sdr.idxs)){
+      if(target.rel.idx %in% sdr.idxs$index){
+        is2degree <- TRUE
+        
+        # in this case, lineage just tells whether the 2nd degree rel is related 
+        # to the proband through the mother, father, sibling, or child
+        lineage <- sdr.idxs$lineage[which(sdr.idxs$index == target.rel.idx)]
+        if(lineage == "M"){
+          sd <- "m"
+        } else if(lineage == "F"){
+          sd <- "p"
+        }
+        
+        # check the relationship labels of the person's parents, if a sibling or child was added
+        if(type == "sib-child"){
+          if(fa.rela == "grandfather" & mo.rela == "grandmother"){
+            if(target.rel.sx == "M"){
+              rela <- "uncle"
+            } else if(target.rel.sx == "F"){
+              rela <- "aunt"
+            }
+          } else if(fa.rela == "brother" | mo.rela == "sister"){
+            if(target.rel.sx == "M"){
+              rela <- "nephew"
+            } else if(target.rel.sx == "F"){
+              rela <- "neice"
+            }
+          } else if(fa.rela == "son" | mo.rela == "daughter"){
+            if(target.rel.sx == "M"){
+              rela <- "grandson"
+            } else if(target.rel.sx == "F"){
+              rela <- "granddaughter"
+            }
+          } else if(xor(fa.rela == "father", mo.rela == "mother")){
+            if(target.rel.sx == "M"){
+              rela <- "half.brother"
+            } else if(target.rel.sx == "F"){
+              rela <- "half.sister"
+            }
+          }
+          
+          # if a parent is being added, it is either for someone who "partnered" into the family or 
+          # is a grandparent, great-grandparent, etc
+        } else if(type == "parent"){
+          isGP <- CountGs(t.pjs = rel.ped, rl = as.numeric(target.rel))
+          if(!is.na(isGP$rela)){
+            rela <- isGP$rela
+            sd <- isGP$side
+          } else {
+            rela <- "relative"
+          }
+        }
+      } # end of check for if the target relative is a 2nd degree relative
+    } # end of check for presense of 2nd degree relatives in the pedigree
+    
+    # create a cousin, great-grandparent or generic label for more distant relatives
+    if(!is1degree & !is2degree){
+      
+      # label as a cousin or generic relative if a sibling or child was added
+      if(type %in% c("sib-child")){
+        if(fa.rela == "uncle" | mo.rela == "aunt"){
+          rela <- "cousin"
+        } else {
+          rela <- "relative"
+        }
+        
+        # if a parent was added, check if they are a direct ancestor (ie great-grandparent),
+        # otherwise assign generic label
+      } else if(type == "parent"){
+        isGP <- CountGs(t.pjs = rel.ped, rl = as.numeric(target.rel))
+        if(!is.na(isGP$rela)){
+          rela <- isGP$rela
+          sd <- isGP$side
+        } else {
+          rela <- "relative"
+        }
+      }
+    }
+  } # end of else statement for finding the relation for non-partners
+  
+  ## create a name for the relative ('name' as used in the R pedigree, not pedigreejs)
+  # note that the ID column is R is equivalent to the name property in pedigreeJS
+  # and note that the name column in R is equivalent to the display_name property in pedigreeJS
+  num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
+  target.rel.rname <- gsub(pattern = "\\.", replacement = " ", rela)
+  if(type == "partner"){
+    if(pb.name == partner.of){
+      target.rel.rname <- "Proband Partner"
+    } else {
+      target.rel.rname <- paste0(r.ped$name[which(r.ped$ID == as.numeric(partner.of))], " Partner")
+    }
+    
+    # not a partner
+  } else {
+    if(is.na(sd)){
+      target.rel.rname <- stringi::stri_trans_totitle(target.rel.rname)
+    } else {
+      target.rel.rname <- 
+        stringi::stri_trans_totitle(paste0(ifelse(sd == "m", "Mat.", 
+                                                  ifelse(sd == "p", "Pat.", "?")), 
+                                           " ", target.rel.rname))
+    }
+  }
+  
+  # add a unique number if the relationship is not unique 
+  # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
+  if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
+    other.rela.names <- r.ped$name[which(r.ped$relationship == rela)]
+    if(length(other.rela.names) > 0){
+      other.rela.nums <- 
+        as.numeric(
+          str_sub(other.rela.names, 
+                  start = str_locate(other.rela.names, pattern = "\\d")[1,1])
+        )
+      new.name.num <- max(other.rela.nums, na.rm = T) + 1
+    } else {
+      new.name.num <- 1
+    }
+    target.rel.rname <- paste0(target.rel.rname, " ", new.name.num)
+  }
+  
+  # abbreviate the name and add it into the JSON
+  abbName <- abb.Relations(data.frame(name = target.rel.rname))[1,1]
+  pjs$display_name[which(pjs$name == target.rel)] <- abbName
+  
+  # add new person to the R pedigree, format row initially as a cousin 
+  # (allows manual entry of fields) then update
+  if(type == "sib-child"){
+    r.ped <- formatNewPerson(relation = "cousin", tmp.ped = r.ped, 
+                             m.id = as.numeric(mo), f.id = as.numeric(fa), 
+                             sx = ifelse(target.rel.sx == "F", 0, ifelse(target.rel.sx == "M", 1, NA)))
+  } else if(type == "parent"){
+    r.ped <- formatNewPerson(relation = "cousin", tmp.ped = r.ped, 
+                             m.id = as.numeric(NA), f.id = as.numeric(NA), 
+                             sx = ifelse(target.rel.sx == "F", 0, ifelse(target.rel.sx == "M", 1, NA)))
+  } else if(type == "partner"){
+    if(pb.name == partner.of){
+      r.ped <- formatNewPerson(relation = "partner", tmp.ped = r.ped)
+    } else {
+      r.ped <- formatNewPerson(relation = "rel.partner", tmp.ped = r.ped, 
+                               partner.of = as.numeric(partner.of))
+    }
+  }
+  r.ped$ID[nrow(r.ped)] <- as.numeric(target.rel)
+  if(target.rel.sx == "F"){
+    kids <- rel.ped$ID[which(rel.ped$MotherID == target.rel)]
+    if(length(kids) > 0){
+      r.ped$MotherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
+    }
+  } else if(target.rel.sx == "M"){
+    kids <- rel.ped$ID[which(rel.ped$FatherID == target.rel)]
+    if(length(kids) > 0){
+      r.ped$FatherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
+    }
+  }
+  r.ped$relationship[nrow(r.ped)] <- rela
+  r.ped$side[nrow(r.ped)] <- sd
+  r.ped$name[nrow(r.ped)] <- target.rel.rname
+  
+  return(list(pjs_updated = pjs,
+              r.ped_updated = r.ped))
+}
+
+
+#' Create kinship2 pedigree
+kinship2.ped <- function(ped){
+  plot_fam <-
+    ped %>%
+    mutate(Sex = ifelse(Sex == 0, 2, Sex)) %>%
+    mutate(across(.cols = c(MotherID, FatherID), ~ ifelse(is.na(.), 0, .))) %>%
+    mutate(nameMother = "") %>%
+    mutate(nameFather = "")
+  plot_fam <- abb.Relations(plot_fam)
+  plot_fam <- 
+    plot_fam %>%
+    select(PedigreeID, ID, name, MotherID, nameMother, FatherID, nameFather, Sex)
+  
+  # replace mother and father ID numbers with names
+  for(uid in unique(plot_fam$MotherID)){
+    if(uid != 0){
+      pname <- plot_fam$name[which(plot_fam$ID == uid)]
+      plot_fam$nameMother[which(plot_fam$MotherID == uid)] <- pname
+    }
+  }
+  for(uid in unique(plot_fam$FatherID)){
+    if(uid != 0){
+      pname <- plot_fam$name[which(plot_fam$ID == uid)]
+      plot_fam$nameFather[which(plot_fam$FatherID == uid)] <- pname
+    }
+  }
+  
+  # cancer affection status
+  can_aff <- 
+    ped %>%
+    select(starts_with("isAff")) %>%
+    rename_with(.cols = everything(), 
+                .fn = ~ sub(pattern = "isAff", replacement = "", .))
+  non.zero.cols <- apply(can_aff, 2, sum, simplify = F)
+  non.zero.cols <- non.zero.cols[which(non.zero.cols > 0)]
+  
+  # create pedigree object, based on number of affected cancer in the family
+  if(length(non.zero.cols) == 0){
+    kped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID,
+                     status = ped$isDead)
+  } else {
+    if(length(non.zero.cols) <= 4){
+      can_aff <- select(can_aff, all_of(names(non.zero.cols)))
+    } else {
+      can_aff <- select(can_aff, all_of(names(non.zero.cols[1:4])))
+    }
+    can_aff <- as.matrix(can_aff)
+    kped <- pedigree(id = plot_fam$name,
+                     momid = plot_fam$nameMother,
+                     dadid = plot_fam$nameFather,
+                     sex = plot_fam$Sex,
+                     famid = plot_fam$PedigreeID,
+                     affected = can_aff,
+                     status = ped$isDead)
+  }
+  return(kped)
 }

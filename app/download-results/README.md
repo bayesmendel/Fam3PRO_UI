@@ -1,6 +1,6 @@
 # README
 
-This directory contains 8 files that contain PanelPRO results for a single pedigree, along with the input data. The ending of each file name is the PedigreeID number of the pedigree analyzed. Files that contains tables will be in either .csv or .rds format depening on what was chosen at the time of download.
+This directory contains 8 files that contain PanelPRO results for a single pedigree, along with the input data. The ending of each file name is the PedigreeID number of the pedigree analyzed. Files that contains tables will be in either .csv or .rds format depending on what was chosen at the time of download.
 
 ## Input data: 
 
@@ -10,7 +10,9 @@ This directory contains 8 files that contain PanelPRO results for a single pedig
 
 3. panel-details-[PedigreeID].[csv or rds]: a table indexed by PedigreeID, ID, gene, result type, nucleotide, protein, zygosity and panel name. This information was extracted from the genesJSON column in the pedigree file.
 
-4. run-settings-[PedigreeID].[csv or rds]: a table of the PanelPRO function argument settings (see the PanelPRO R function documentation in the data-dictionary directory).
+4. pedigree-image-[PedigreeID].png: an image of the pedigree tree. Note that this image can only display up to four different PanelPRO cancers. If you prefer a higher quality image that can display more cancers then you can manually download the image of the interactive pedigree tree from the Create/Modify Pedigree tab.
+
+5. run-settings-[PedigreeID].[csv or rds]: a table of the PanelPRO function argument settings (see the PanelPRO R function documentation in the data-dictionary directory).
  
 ## Result data:
 

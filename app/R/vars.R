@@ -3,6 +3,8 @@
 # https://www.dana-farber.org/for-patients-and-families/care-and-treatment/cancer-types/
 non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 
+app.title <- "PPI: PanelPRO Interface"
+
 # set universal delay execution time in milliseconds
 delay_load_ms <- delay_copy_ms <- 4000
 delay_download_ms <- delay_delete_ms <- delay_insert_ms <- 2000
