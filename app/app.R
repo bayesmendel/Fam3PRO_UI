@@ -560,13 +560,13 @@ ui <- fixedPage(
                   h5("Note: the tree above only displays PanelPRO cancers. 
                      Unknown cancer ages will show as 0. Gene tests, surgical 
                      history, and tumor markers are not displayed."),
-                  uiOutput("canColorKeyUI"),
+                  # uiOutput("canColorKeyUI"),
                   br(),
-                  conditionalPanel(condition = "output.atLeastOnePPCancer",
-                    downloadButton("downloadCanColorKey", 
-                                   label = "Download Cancer Legend",
-                                   icon = icon('download'))
-                  ),
+                  # conditionalPanel(condition = "output.atLeastOnePPCancer",
+                  #   downloadButton("downloadCanColorKey", 
+                  #                  label = "Download Cancer Legend",
+                  #                  icon = icon('download'))
+                  # ),
                     
                   # Create a hidden button to retrieve pedigreeJS pedigree in JSON format.
                   # The server needs to simulate a click on this buttons at a 
@@ -4791,44 +4791,44 @@ server <- function(input, output, session) {
     }
   }, ignoreNULL = T, ignoreInit = T)
   
-  # create the plot object
-  output$canColorKey <- renderPlot({
-    if(atLeastOnePPCancer()){
-      ctable <- cancersTbl()
-      cans.used <- setdiff(unique(ctable$Cancer), "Other")
-      return(PJS_can_colors(cans.used))
-    } else {
-      return(NULL)
-    }
-  })
-  
-  # set the plot height
-  canColorKeyHeight <- reactive({
-    if(atLeastOnePPCancer()){
-      ctable <- cancersTbl()
-      ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
-      ht <- ifelse(ht < 60, 60, ht)
-      return(ht)
-    } else {
-      return(NULL)
-    }
-  })
-  
-  # sent the plot to the UI with dynamic height
-  output$canColorKeyUI <- renderUI({
-    plotOutput("canColorKey", width = "300px", height = canColorKeyHeight())
-  })
-  
-  # download cancer color key individually
-  output$downloadCanColorKey <- shiny::downloadHandler(
-    filename = function(){
-      paste0("cancer-color-key-ped-", unique(PED()$PedigreeID), "-" , Sys.Date(), ".png")
-    },
-    content = function(file){
-      ggsave(plot = output$canColorKey, 
-             filename = file)
-    }
-  )
+  # # create the plot object
+  # output$canColorKey <- renderPlot({
+  #   if(atLeastOnePPCancer()){
+  #     ctable <- cancersTbl()
+  #     cans.used <- setdiff(unique(ctable$Cancer), "Other")
+  #     return(PJS_can_colors(cans.used))
+  #   } else {
+  #     return(NULL)
+  #   }
+  # })
+  # 
+  # # set the plot height
+  # canColorKeyHeight <- reactive({
+  #   if(atLeastOnePPCancer()){
+  #     ctable <- cancersTbl()
+  #     ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
+  #     ht <- ifelse(ht < 60, 60, ht)
+  #     return(ht)
+  #   } else {
+  #     return(NULL)
+  #   }
+  # })
+  # 
+  # # sent the plot to the UI with dynamic height
+  # output$canColorKeyUI <- renderUI({
+  #   plotOutput("canColorKey", width = "300px", height = canColorKeyHeight())
+  # })
+  # 
+  # # download cancer color key individually
+  # output$downloadCanColorKey <- shiny::downloadHandler(
+  #   filename = function(){
+  #     paste0("cancer-color-key-ped-", unique(PED()$PedigreeID), "-" , Sys.Date(), ".png")
+  #   },
+  #   content = function(file){
+  #     ggsave(plot = output$canColorKey, 
+  #            filename = file)
+  #   }
+  # )
   
   
   ###### kinship2 Tree ####
