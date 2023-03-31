@@ -706,7 +706,7 @@ make.ggline <- function(data, cancer, cancer.colors, age, grows){
                             color = interaction(Cancer, Who),
                             shape = Who)) +
     geom_point(size = 3) + 
-    geom_line(size = 1.5) +
+    geom_line(linewidth = 1.5) +
     scale_x_continuous(breaks = x.ticks) +
     scale_y_continuous(limits = c(0,1)) +
     scale_color_manual(values = these.colors,
