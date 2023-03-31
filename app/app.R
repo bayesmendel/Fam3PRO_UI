@@ -4573,7 +4573,7 @@ server <- function(input, output, session) {
   observeEvent(input$pedJSJSON, {
     
     # only do this after the pedigree has been visualized
-    if(showPed()){
+    if(showPed() & input$navbarTabs == "Create/Modify Pedigree"){
       
       # convert JSON pedigree object from pedigreeJS to data frame
       pjs <- fromJSON(input$pedJSJSON, simplifyDataFrame = T)
