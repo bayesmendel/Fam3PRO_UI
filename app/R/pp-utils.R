@@ -185,7 +185,6 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                          bottom = textGrob("Age", gp = gpar(fontsize = 16)),
                          nrow = grows)
       
-      
       # create 2 static ggplot version for download, one with y-axis at 1, and the other at the maximum cancer risk
       p1.zoom.fap <-
         ggplot2::ggplot(subset(future_risk_data, Who == "Proband"),
@@ -202,7 +201,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
         ggplot2::theme(plot.title = element_text(hjust = 0.5),
                        plot.caption = element_text(size = 7, hjust = 0),
                        strip.text.x = element_text(size = 4))
-        
+      
       ###### Full Y-axis ####
       p1.full.fap <-
         p1.zoom.fap +
@@ -217,7 +216,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
         ggplot2::geom_point() +
         ggplot2::geom_line() +
         ggplot2::theme_minimal()
-        
+      
       ###### Full Y-axis ####
       p1.full <- 
         p1.zoom +
@@ -254,8 +253,8 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       # If markdown not set, do normal resizable ggplotly
       # otherwise set the heights and widths
       if (is.null(markdown)) {
-        gg1.zoom <- plotly::ggplotly(p1.zoom)
-        gg1.full <- plotly::ggplotly(p1.full)
+        gg1.zoom <- plotly::ggplotly(p1.zoom, height = height+150, width = width)
+        gg1.full <- plotly::ggplotly(p1.full, height = height+150, width = width)
       } else {
         gg1 <- plotly::ggplotly(p1, height = height, width = width)
       }
@@ -329,6 +328,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                                       "zoomIn2d","zoomOut2d"),
                            displaylogo = FALSE
       ) %>% plotly::layout(yaxis = list(range = list(0,1)))
+      
     } else {
       pp1a.zoom <- NULL
       pp1a.full <- NULL
@@ -420,8 +420,8 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       # If markdown not set, do normal resizable ggplotly
       # otherwise set the heights and widths
       if (is.null(markdown)) {
-        gg2.zoom <- plotly::ggplotly(p2.zoom)
-        gg2.full <- plotly::ggplotly(p2.full)
+        gg2.zoom <- plotly::ggplotly(p2.zoom, height = height, width = width)
+        gg2.full <- plotly::ggplotly(p2.full, height = height, width = width)
       } else {
         gg2 <- plotly::ggplotly(p2, height = height, width = width)
       }
@@ -706,7 +706,7 @@ make.ggline <- function(data, cancer, cancer.colors, age, grows){
                             color = interaction(Cancer, Who),
                             shape = Who)) +
     geom_point(size = 3) + 
-    geom_line(size = 1.5) +
+    geom_line(linewidth = 1.5) +
     scale_x_continuous(breaks = x.ticks) +
     scale_y_continuous(limits = c(0,1)) +
     scale_color_manual(values = these.colors,
