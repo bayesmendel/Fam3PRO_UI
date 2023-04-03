@@ -63,7 +63,7 @@ ui <- fixedPage(
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   
   # server busy spinner
-  shinybusy::add_busy_spinner(spin = "fading-circle", position = "full-page"),
+  shinybusy::add_busy_bar(color = "blue", height = "8px"),
   
   # title and log-out button
   titlePanel(
@@ -1334,6 +1334,10 @@ ui <- fixedPage(
             
             # RUN MODEL
             br(),
+            h5("Note: running PanelPRO generally takes about 2-3 minutes but may take 10 
+               minutes or longer for large pedigree with many unknown ages. The blue 
+               status bar at the top of the screen will stop cycling once the analysis 
+               is complete."),
             actionButton("runPP", label = "Run PanelPRO",
                          icon = icon('play'))
             
@@ -5445,7 +5449,8 @@ server <- function(input, output, session) {
       pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
       
       # settings table
-      settings <- c("PedigreeID" = "pedigree",
+      settings <- c("PanelPRO Version" = NA,
+                    "PedigreeID" = "pedigree",
                     "Proband ID" = "proband",
                     "Model Spec" = "model_spec",
                     "Num. Cancers" = NA,
@@ -5465,6 +5470,7 @@ server <- function(input, output, session) {
       settingsTbl <- data.frame(Setting = names(settings),
                                 Argument = unname(settings),
                                 Value = rep(NA, length(settings)))
+      settingsTbl$Value[which(settingsTbl$Setting == "PanelPRO Version")] <- as.character(packageVersion("PanelPRO"))
       settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
       settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
       if(input$modelSpec != "Custom"){
