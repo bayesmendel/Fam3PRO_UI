@@ -1410,6 +1410,7 @@ ui <- fixedPage(
                 h4("Run Settings"),
                 p("The PanelPRO results were obtained using the setting listed below. For a detailed explanation of 
                   the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
+                textOutput("ppTime"),
                 tableOutput("ppRunSettings"),
                 actionButton("showPPDocString2", label = "Show PanelPRO Documentation",
                              icon = icon('book'))
@@ -4517,22 +4518,20 @@ server <- function(input, output, session) {
                        user = credentials()$info[["user"]],
                        tmp_tbl = PED())
       
-      # get names and abbreviated names
-      selector.names <- 
-        PED() %>%
-        select(ID, name) %>%
-        mutate(long_name = name)
-      selector.names <- abb.Relations(selector.names)
-      selector.names <- 
-        selector.names %>%
-        mutate(combined_name = paste0(long_name, " (", name, ")"))
-      
-      # update relative selector with all relatives in the pedigree
-      updateSelectInput(session = session, inputId = "relSelect", 
-                        choices = setNames(selector.names$ID, selector.names$combined_name), 
-                        selected = PED()$ID[which(PED()$isProband == 1)])
-      
     } # end of if statement for confirming the pedigree is a new creation
+    
+    # update relative selector with all relatives in the pedigree
+    selector.names <- 
+      PED() %>%
+      select(ID, name) %>%
+      mutate(long_name = name)
+    selector.names <- abb.Relations(selector.names)
+    selector.names <- 
+      selector.names %>%
+      mutate(combined_name = paste0(long_name, " (", name, ")"))
+    updateSelectInput(session = session, inputId = "relSelect", 
+                      choices = setNames(selector.names$ID, selector.names$combined_name), 
+                      selected = PED()$ID[which(PED()$isProband == 1)])
     
     # hide initialize pedigree tab and reset inputs
     for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
@@ -5386,7 +5385,16 @@ server <- function(input, output, session) {
                                frPlotStaticZoom = NULL, frPlotStaticFull = NULL,
                                settingsTbl = NULL)
   
+  # time the PanelPRO run
+  ppTime <- reactiveVal(0)
+  output$ppTime <- renderText({ paste0("Run time: ", round(ppTime(), 2),"s") })
+  
+  # run PanelPRO and get results
   observeEvent(input$runPP, {
+    
+    # start the timer
+    start.time <- proc.time()
+    
     if(!is.null(PED())){
       
       # validate numeric settings
@@ -5774,6 +5782,10 @@ server <- function(input, output, session) {
         frPlotStaticFull <- NULL
       }
     } # end of if statement to check if pedigree was present
+    
+    # record the calculation time
+    ppTime((proc.time() - start.time)[3])
+    
   }, ignoreNULL = F, ignoreInit = T)
   
   # carrier probabilities table
