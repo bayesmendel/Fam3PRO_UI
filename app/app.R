@@ -4619,7 +4619,7 @@ server <- function(input, output, session) {
               
               # change the ID/name
               # note that the ID column is R is equivalent to the name property in pedigreeJS
-              # and note that the name column in R is equivalend to the display_name property in pedigreeJS
+              # and note that the name column in R is equivalent to the display_name property in pedigreeJS
               new.id <- max(num.ids)+1
               target.rels <- as.character(new.id)
               pjs$name[which(!varhandle::check.numeric(pjs$name))] <- as.character(new.id)
