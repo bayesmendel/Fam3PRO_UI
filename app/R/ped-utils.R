@@ -1391,6 +1391,8 @@ abb.Relations <- function(ped.df){
     mutate(name = sub(pattern = "Uncle|uncle", replacement = "Unc", name)) %>%
     mutate(name = sub(pattern = "Grandmother|grandmother", replacement = "GMom", name)) %>%
     mutate(name = sub(pattern = "Grandfather|grandfather", replacement = "GDad", name)) %>%
+    mutate(name = sub(pattern = "Granddaughter|granddaughter", replacement = "GDau", name)) %>%
+    mutate(name = sub(pattern = "Grandson|grandson", replacement = "GSon", name)) %>%
     mutate(name = sub(pattern = "Mother|mother", replacement = "Mom", name)) %>%
     mutate(name = sub(pattern = "Father|father", replacement = "Dad", name)) %>%
     mutate(name = sub(pattern = "Proband Partner|proband partner|Proband partner", replacement = "ProbPart", name)) %>%
@@ -1778,28 +1780,10 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
     }
   }
   
-  
-  print("1")
-  print(target.rel.rname)
-  
-  
-  print("1a")
-  print(rela)
-  
-  
-  
   # add a unique number if the relationship is not unique 
   # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
   if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
     other.rela.names <- r.ped$name[which(r.ped$relationship == rela)]
-    
-    
-    print("1b")
-    print(other.rela.names)
-    
-    
-    
-    
     if(length(other.rela.names) > 1){
       other.rela.nums <- 
         as.numeric(
@@ -1810,23 +1794,8 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
     } else {
       new.name.num <- 1
     }
-    
-    
-    
-    print("2")
-    print(new.name.num)
-    
-    
-    
     target.rel.rname <- paste0(target.rel.rname, " ", new.name.num)
   }
-  
-  
-  print("3")
-  print(target.rel.rname)
-  
-  
-  
   
   # abbreviate the name and add it into the JSON
   abbName <- abb.Relations(data.frame(name = target.rel.rname))[1,1]

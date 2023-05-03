@@ -62,8 +62,10 @@ ui <- fixedPage(
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   
-  # server busy spinner
+  # wait bars/spinners
   shinybusy::add_busy_bar(color = "blue", height = "8px"),
+  shinybusy::use_busy_spinner(position = "full-page"),
+  
   
   # title and log-out button
   titlePanel(
@@ -2072,12 +2074,12 @@ server <- function(input, output, session) {
   # check that loading a pedigree is possible based on if at least one pedigree is selected
   # and enable/disable download buttons accordingly
   observeEvent(list(input$existingPed, input$newOrLoad), {
-    if(input$newOrLoad == "Load existing" & input$existingPed == "No pedigree selected"){
+    if(input$newOrLoad == "Load existing" & !input$existingPed %in% userPeds()){
       waitLoad(FALSE)
       shinyjs::disable("goNewOrLoad")
     } else if(input$newOrLoad == "Load existing"){
       waitLoad(TRUE)
-      shinyjs::delay(delay_load_ms, {
+      shinyjs::delay(delay_ms, {
         shinyjs::enable("goNewOrLoad")
         waitLoad(FALSE)
       })
@@ -2085,7 +2087,7 @@ server <- function(input, output, session) {
       waitLoad(FALSE)
       shinyjs::enable("goNewOrLoad")
     }
-  }, ignoreInit = T)
+  }, ignoreInit = T, ignoreNULL = T)
   waitLoad <- reactiveVal(FALSE)
   output$waitLoad <- renderText({ need(!waitLoad(), "Please wait...") })
   observeEvent(input$newOrLoad, { shinyjs::reset("existingPed") })
@@ -2160,6 +2162,10 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUser, userPeds()), {
+    
+    # add a busy spinner while the query runs to prevent app from crashing
+    shinybusy::show_spinner()
+    
     userPeds(sort(unique(
       dbGetQuery(conn = conn,
                         statement = paste0("SELECT PedigreeID FROM ",
@@ -2169,11 +2175,24 @@ server <- function(input, output, session) {
     )))
     updateSelectInput(session, inputId = "existingPed",
                       choices = c("No pedigree selected", userPeds()))
+    
+    # hide busy spinner and enable new selection buttons
+    shinyjs::delay(delay_ms, {
+      shinybusy::hide_spinner()
+    })
+    
   }, ignoreInit = T, ignoreNULL = T)
   
   newOrLoadFlag <- reactiveVal("new")
   observeEvent(input$goNewOrLoad, {
     if(input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected"){
+      
+      # start the busy spinner to prevent database pull delay from crashing the app
+      shinybusy::show_spinner()
+      shinyjs::disable("goNewOrLoad")
+      shinyjs::disable("selectUser")
+      shinyjs::disable("existingPed")
+      
       newOrLoadFlag("load")
       
       # for admins, load sub-table from the selected user's master table
@@ -2192,9 +2211,10 @@ server <- function(input, output, session) {
                                             selected.user,
                                             " WHERE PedigreeID = '",
                                             input$existingPed,"';"))
+      
       colnames(tped)[which(colnames(tped) == "CK5_6")] <- "CK5.6"
       PED(tped)
-    
+      
       # re-populate pedigree editor input widgets with new proband's information
       updateTextInput(session, "pedID", value = PED()$PedigreeID[1])
       shinyjs::disable("pedID")
@@ -2491,6 +2511,14 @@ server <- function(input, output, session) {
       # reset the pedigree loading selector
       shinyjs::reset("existingPed")
       
+      # hide busy spinner and enable new selection buttons
+      shinyjs::delay(delay_ms, {
+        shinyjs::enable("goNewOrLoad")
+        shinyjs::enable("selectUser")
+        shinyjs::enable("existingPed")
+        shinybusy::hide_spinner()
+      })
+      
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
@@ -2704,6 +2732,11 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available to copy from based on the user account selected
   observeEvent(list(input$selectUserForCopyFrom, userPedsForCopyFrom()), {
+    
+    
+    # add a busy spinner while the query runs to prevent app from crashing
+    shinybusy::show_spinner()
+    
     userPedsForCopyFrom(sort(unique(
       dbGetQuery(conn = conn,
                  statement = paste0("SELECT PedigreeID FROM ",
@@ -2713,10 +2746,20 @@ server <- function(input, output, session) {
     )))
     updateSelectInput(session, inputId = "selectCopyPed",
                       choices = c("No pedigree selected", userPedsForCopyFrom()))
+    
+    # hide busy spinner and enable new selection buttons
+    shinyjs::delay(delay_ms, {
+      shinybusy::hide_spinner()
+    })
+    
   }, ignoreInit = T, ignoreNULL = T)
   
   # for admins and managers, update the pedigrees in the copy to account
   observeEvent(input$selectUserForCopyTo, {
+    
+    # add a busy spinner while the query runs to prevent app from crashing
+    shinybusy::show_spinner()
+    
     userPedsForCopyTo(sort(unique(
       dbGetQuery(conn = conn,
                  statement = paste0("SELECT PedigreeID FROM ",
@@ -2724,6 +2767,11 @@ server <- function(input, output, session) {
                                            input$selectUserForCopyTo),
                                     ";"))$PedigreeID
     )))
+    
+    # hide busy spinner and enable new selection buttons
+    shinyjs::delay(delay_ms, {
+      shinybusy::hide_spinner()
+    })
     
   }, ignoreInit = T, ignoreNULL = T)
   
@@ -2747,7 +2795,7 @@ server <- function(input, output, session) {
   observeEvent(list(input$selectCopyPed, validPedID()), {
     if(input$selectCopyPed != "No pedigree selected" & length(validPedID()) == 0){
       waitCopy(TRUE)
-      shinyjs::delay(delay_copy_ms, {
+      shinyjs::delay(delay_ms, {
         shinyjs::enable("copyPed")
         waitCopy(FALSE)
       })
@@ -2762,6 +2810,14 @@ server <- function(input, output, session) {
   # copy the selected pedigrees
   observeEvent(input$copyPed, {
     if(length(validPedID()) == 0){
+      
+      # start the busy spinner to prevent database pull delay from crashing the app
+      shinybusy::show_spinner()
+      shinyjs::disable("copyPed")
+      shinyjs::disable("selectCopyPed")
+      shinyjs::disable("selectUserForCopyTo")
+      shinyjs::disable("selectUserForCopyFrom")
+      
       if(admin() | manager()){
         fromAcct <- ifelse(input$selectUserForCopyFrom == "", credentials()$info[["user"]],
                            input$selectUserForCopyFrom)
@@ -2797,6 +2853,15 @@ server <- function(input, output, session) {
       
       # reset pedigree name input
       updateTextInput(session, "newPedName", value = "")
+      
+      # hide busy spinner and enable new selection buttons
+      shinyjs::delay(delay_ms, {
+        shinyjs::enable("copyPed")
+        shinyjs::enable("selectCopyPed")
+        shinyjs::enable("selectUserForCopyTo")
+        shinyjs::enable("selectUserForCopyFrom")
+        shinybusy::hide_spinner()
+      })
       
       # notify user of copy success
       shinybusy::notify_success("Copy Successful!", position = "center-bottom")
@@ -2870,6 +2935,10 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUserForDownload, userPedsForDownload()), {
+    
+    # add a busy spinner while the query runs to prevent app from crashing
+    shinybusy::show_spinner()
+    
     userPedsForDownload(sort(unique(
       dbGetQuery(conn = conn,
                  statement = paste0("SELECT PedigreeID FROM ",
@@ -2879,6 +2948,12 @@ server <- function(input, output, session) {
     )))
     updateSelectInput(session, inputId = "selectDownloadPeds",
                       choices = userPedsForDownload())
+    
+    # hide busy spinner and enable new selection buttons
+    shinyjs::delay(delay_ms, {
+      shinybusy::hide_spinner()
+    })
+    
   }, ignoreInit = T, ignoreNULL = T)
   
   # select or de-select all pedigrees in a user account for downloading
@@ -2898,7 +2973,7 @@ server <- function(input, output, session) {
   observeEvent(input$selectDownloadPeds, {
     if(!is.null(input$selectDownloadPeds)){
       waitDownload(TRUE)
-      shinyjs::delay(delay_download_ms, {
+      shinyjs::delay(delay_ms, {
         shinyjs::enable("downloadPedsCSV")
         shinyjs::enable("downloadPedsRDS")
         waitDownload(FALSE)
@@ -3038,6 +3113,12 @@ server <- function(input, output, session) {
     },
     content = function(file){
       
+      # start the busy spinner to prevent database pull delay from crashing the app
+      shinybusy::show_spinner()
+      shinyjs::disable("downloadPedsCSV")
+      shinyjs::disable("selectUserForDownload")
+      shinyjs::disable("selectDownloadPeds")
+      
       # create .csv files and zip them together
       write.csv(downloadPedsTable(), file = "download-pedigrees/pedigrees.csv", row.names = F)
       write.csv(downloadCanDetails(), file = "download-pedigrees/cancer-details.csv", row.names = F)
@@ -3084,6 +3165,14 @@ server <- function(input, output, session) {
       
       # remove the created files
       file.remove(new.files)
+      
+      # hide busy spinner and enable new selection buttons
+      shinyjs::delay(delay_ms, {
+        shinyjs::enable("downloadPedsCSV")
+        shinyjs::enable("selectUserForDownload")
+        shinyjs::enable("selectDownloadPeds")
+        shinybusy::hide_spinner()
+      })
       
       return(tmp.zip)
     },
@@ -3220,6 +3309,10 @@ server <- function(input, output, session) {
   
   # for admins and managers, update the pedigrees available based on the user account selected
   observeEvent(list(input$selectUserForDelete, userPedsForDelete()), {
+    
+    # add a busy spinner while the query runs to prevent app from crashing
+    shinybusy::show_spinner()
+    
     userPedsForDelete(sort(unique(
       dbGetQuery(conn = conn,
                  statement = paste0("SELECT PedigreeID FROM ",
@@ -3229,6 +3322,12 @@ server <- function(input, output, session) {
     )))
     updateSelectInput(session, inputId = "selectDeletePeds",
                       choices = userPedsForDelete())
+    
+    # hide busy spinner and enable new selection buttons
+    shinyjs::delay(delay_ms, {
+      shinybusy::hide_spinner()
+    })
+    
   }, ignoreInit = T, ignoreNULL = T)
 
   # select or de-select all pedigrees in a user account for deletion
@@ -3248,7 +3347,7 @@ server <- function(input, output, session) {
   observeEvent(input$selectDeletePeds, {
     if(!is.null(input$selectDeletePeds)){
       waitDelete(TRUE)
-      shinyjs::delay(delay_delete_ms, {
+      shinyjs::delay(delay_ms, {
         shinyjs::enable("deletePeds")
         waitDelete(FALSE)
       })
@@ -3275,6 +3374,13 @@ server <- function(input, output, session) {
   
   # delete the selected pedigrees
   observeEvent(input$confirmDeletePeds, {
+    
+    # start the busy spinner to prevent database pull delay from crashing the app
+    shinybusy::show_spinner()
+    shinyjs::disable("deletePeds")
+    shinyjs::disable("selectDeletePeds")
+    shinyjs::disable("selectUserForDelete")
+    
     if(admin() | manager()){
       fromAcct <- ifelse(input$selectUserForDelete == "", credentials()$info[["user"]],
                          input$selectUserForDelete)
@@ -3308,6 +3414,14 @@ server <- function(input, output, session) {
     
     # remove the confirmation pop-up window
     removeModal()
+    
+    # hide busy spinner and enable new selection buttons
+    shinyjs::delay(delay_ms, {
+      shinyjs::enable("deletePeds")
+      shinyjs::enable("selectDeletePeds")
+      shinyjs::enable("selectUserForDelete")
+      shinybusy::hide_spinner()
+    })
     
     # notify user of delete success
     shinybusy::notify_success("Deletion Successful!", position = "center-bottom")
@@ -4065,7 +4179,7 @@ server <- function(input, output, session) {
     } else {
       panelNameUnique(TRUE)
       waitNewPanel(TRUE)
-      shinyjs::delay(delay_insert_ms, {
+      shinyjs::delay(delay_ms, {
         shinyjs::enable("createPanel")
         waitNewPanel(FALSE)
       })
@@ -4583,35 +4697,35 @@ server <- function(input, output, session) {
       
       # check that the proband was not deleted
       if(sum(pjs$proband, na.rm = T) != 0){
-      
+        
         # get the numeric ids from the pedigreeJS pedigree
         num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
         
         # get a copy of the R data frame master pedigree
         r.ped <- PED()
-  
+        
         # check if relatives were added or deleted
         if(nrow(pjs) != nrow(r.ped)){
-  
+          
           # check if there were deletions of relatives and update the pedigree in R
           if(nrow(pjs) < nrow(r.ped)){
             del.rels <- r.ped$ID[which(!as.character(r.ped$ID) %in% pjs$name)]
             for(dr in del.rels){
               r.ped <- subset(r.ped, ID != dr)
-    
+              
               # update master pedigree
               PED(r.ped)
-    
+              
               # remove relative from panel and cancer hx tracking
               canReactive$canNums[[as.character(dr)]] <- NULL
               geneReactive$GeneNums[[as.character(dr)]] <- NULL
             }
-  
+            
             # not a deletion, therefore it was an addition, so
             # update the pedigree in R,
             # and change the new names, display_names, and statuses in pedigreeJS
           } else {
-  
+          
             # check if one relative was added
             # this means either a sibling or child, not necessarily a relative to the proband,
             # was added in pedigreeJS
