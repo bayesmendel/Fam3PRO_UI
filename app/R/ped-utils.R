@@ -1391,6 +1391,8 @@ abb.Relations <- function(ped.df){
     mutate(name = sub(pattern = "Uncle|uncle", replacement = "Unc", name)) %>%
     mutate(name = sub(pattern = "Grandmother|grandmother", replacement = "GMom", name)) %>%
     mutate(name = sub(pattern = "Grandfather|grandfather", replacement = "GDad", name)) %>%
+    mutate(name = sub(pattern = "Granddaughter|granddaughter", replacement = "GDau", name)) %>%
+    mutate(name = sub(pattern = "Grandson|grandson", replacement = "GSon", name)) %>%
     mutate(name = sub(pattern = "Mother|mother", replacement = "Mom", name)) %>%
     mutate(name = sub(pattern = "Father|father", replacement = "Dad", name)) %>%
     mutate(name = sub(pattern = "Proband Partner|proband partner|Proband partner", replacement = "ProbPart", name)) %>%
@@ -1624,7 +1626,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   # initialize paternal or maternal side variable
   sd <- NA 
   
-  # get the mother and fathers only if the added relative was a sibling or child
+  # get the mothers and fathers only if the added relative was a sibling or child
   # because if parents or a partner is added in pedigreeJS they will not have parents
   if(type == "sib-child"){
     fa <- pjs$father[which(pjs$name == target.rel)]
@@ -1755,7 +1757,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   } # end of else statement for finding the relation for non-partners
   
   ## create a name for the relative ('name' as used in the R pedigree, not pedigreejs)
-  # note that the ID column is R is equivalent to the name property in pedigreeJS
+  # note that the ID column in R is equivalent to the name property in pedigreeJS
   # and note that the name column in R is equivalent to the display_name property in pedigreeJS
   num.ids <- as.numeric(pjs$name[which(varhandle::check.numeric(pjs$name))])
   target.rel.rname <- gsub(pattern = "\\.", replacement = " ", rela)
@@ -1782,7 +1784,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
   if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
     other.rela.names <- r.ped$name[which(r.ped$relationship == rela)]
-    if(length(other.rela.names) > 0){
+    if(length(other.rela.names) > 1){
       other.rela.nums <- 
         as.numeric(
           str_sub(other.rela.names, 
