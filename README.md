@@ -7,27 +7,17 @@ PanelPRO Interface (PPI) is a user interface for PanelPRO developed in R Shiny. 
 
 There are three admin/test accounts for the app:
 
-1. Admin account: has admin privledges that can access all user and mananger accounts by default
+1. admin: has admin privileges that can access all user and manager accounts by default
+  
+2. test_manager: has manager privileges over the test user account. This account is generally used to test features only available to accounts with manager level permissions that include loading, copying, deleting, and downloading pedigrees from subordinate accounts.
+  
+3. test_user: primary account used for features.
 
-  - username: admin
-  
-  - password: A9@78y4E@rhv
-  
-2. Test manager account: has manager privledges over the test user account. This account is generally used to test features only available to accounts with manager level permissions that include loading, copying, deleting, and downloading pedigrees from subordinate accounts.
-
-  - username: test_manager
-  
-  - password: test_manager1A@
-  
-3. Test user account: primary account used for features.
-
-  - username: test_user
-  
-  - password: test_user1A@
+The passwords are found in `secrets`.
   
 ## Branches and Deployment
 
-There are three branches in this repository: main, gb-rossi-panc, and develop. The original intent was to have slightly differnt app versions for the main and gb-rossi-panc branches however, the project did not mature to that point yet. They each have separate published R Connect access URLs (below) but they are linked to the same HeidiSQL database in the backend. 
+There are three branches in this repository: main, gb-rossi-panc, and develop. The original intent was to have slightly differnt app versions for the main and gb-rossi-panc branches however, the project did not mature to that point yet. They each have separate published R Connect access URLs (below) but they are linked to the same HeidiSQL database in the back-end. 
 
 1. main: this was intended for general access to PPI that was not specific to a study such as the GB Rossi ASIP study. 
 
@@ -143,13 +133,15 @@ Everything in the `./app` directory is deployed to the server. The main file is 
   
   + `gene-utils.R`: utilities for manaing genetic testing data for pedigrees
   
-  + `modules.R`: contatins UI module functions for cancer history, genetic testing, and managing module memory.
+  + `modules.R`: contains UI module functions for cancer history, genetic testing, and managing module memory.
   
-  + `ped-utils.R`: utilities that manage the pedigree structure such as creating a new pedigree, adding a new family members, modifying a family member's data. Functions that need to user a combintation of cancer history, genetic testing information, demographics, and/or surgical history are also found here.
+  + `ped-utils.R`: utilities that manage the pedigree structure such as creating a new pedigree, adding a new family members, modifying a family member's data. Functions that need to user a combination of cancer history, genetic testing information, demographics, and/or surgical history are also found here.
   
   + `pp-utils.R`: utilities for running PanelPRO and visualizing its results.
   
-  + `surg-utils.R`: utilities for manaing surgical history.
+  + `surg-utils.R`: utilities for managing surgical history.
   
+## Current Status of the App
 
+The app is fully functional in its current state with all major features implemented. The biggest complaint for the users is that the app tended to crash when loading or copying a pedigree however, I pushed a fixed for that 
 
