@@ -55,6 +55,7 @@
 # secrets
 **.json
 **/test_accounts.txt
+secrets
 
 # database files
 sql-db-dump/
