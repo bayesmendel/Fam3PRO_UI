@@ -3,7 +3,7 @@ PanelPRO Interface (PPI) is a user interface for PanelPRO developed in R Shiny. 
 
 [Access the site](https://hereditarycancer.dfci.harvard.edu/ppi/)
 
-## Test User Accounts
+## User Accounts
 
 There are three admin/test accounts for the app:
 
@@ -14,6 +14,10 @@ There are three admin/test accounts for the app:
 3. test_user: primary account used for features.
 
 The passwords are found in `secrets`.
+
+By default, all new user accounts have "standard" permissions which means they cannot access pedigrees from other user accounts. Upgrading a user to have manager level permissions allows them to access pedigrees from a specified set of other user accounts (to include other manager level accounts). This upgrade is done manually using HeidiSQL after they have create their account. It is as simple as changing the permissions field for that user account to say "manager" using the HeidiSQL GUI. See the "Databases" section for more details on how to access this. 
+
+Users, including those with manager level permissions, can give access the pedigrees they create in PPI to other existing user accounts by adding one or more managers to their account. This can either be done when they create their user account or by going into their user account settings once logged in.
   
 ## Branches and Deployment
 
@@ -51,11 +55,37 @@ There are three branches in this repository: main, gb-rossi-panc, and develop. T
 
 ## Databases
 
-The pedigree and user account data is stored in a HeidiSQL database which is installed on the hereditarycancer server (the same server as R Connect). To access this data yourself, you will need a local installation of HeidiSQL which you can then use to connect to the data on server when you are on VPN. 
+The pedigree and user account data is stored in a HeidiSQL database which is installed on the hereditarycancer server (the same server as R Connect). To access this data yourself, you will need a local installation of HeidiSQL which you can then use to connect to the data on server when you are on VPN. When working with and modifying the app locally, you will also need a local copy of HeidiSQL with the same general structure as the one on the server (explained below). The credentials for both versions of the database can be found in the `secrets.txt` file in the same directory as this README. If you set-up your local HeidiSQL correctly, you should be able to use the .Renviron file in the same directory as this READMe to run the app locally. Although, depending on how you do this and your OS, you may need to modify those credentials in the .Renviron file. 
 
-When working with and modifying the app locally, you will also need a local copy of HeidiSQL with the same general structure as the one on the server. If you set-up your local HeidiSQL correctly, you should be able to user the .Renviron file in the same directory as this READMe to run the app locally. Although, depending on how you do this and your OS, you may need to modify those credentials in the .Renviron file. Once you hae HeidiSQL running locally, you can copy the database structure from the server using the instructions found in `./sql-db-dump/README.txt`.
+Once you have HeidiSQL installed locally, you can copy the database structure from the server using the instructions found in `./sql-db-dump/README.txt`. The critical tables needed for the database to work are:
 
-The credentials for both versions of the database can be found in the `secrets.txt` file in the same directory as this README.
+- user_base: contains the user account log-in info
+
+- managers: a dictionary that links an account to one or more manager accounts. A user account can have multiple managers and an account with manager level permissions can have another manager level account listed as one of their managers therefore, this table contains one row for each combination of manager and subordinate account.
+
+- admin: contains the admin account's pedigrees and serves as the template for creating user accounts.
+
+- test_manager: contains the test_manager's pedigrees.
+
+- test_user: contains the test_user's pedigrees.
+
+- panels: a dictionary that links a panel_name to the unique gene names in that panel. 
+
+As each account is created, a new SQL table is added to the database and the table takes the name of the user account. It will match the structure of the admin table and will be initiated with the `example_pedigree` from the admin table.
+
+All pedigree data for all user accounts can be access through the back-end HeidiSQL app, after logging in, using standard SQL queries. The results of your queries can then be downloaded for further analysis.
+
+## Managing the working pedigree (PED) and pedigreejs
+
+Because adding/removing relatives is easier for the user to do using a drawn family tree than using a 2D table, pedigreejs was utilized by PPI. It prevents the user from having to worry about breaking family links and manually managing mother/father IDs and sexes. However, R is more flexible than pedigreejs and allows for all the detailed information PanelPRO needs to be stored in a strictly formatted data frame. R shiny also provides a much more user friendly and visually appealing UI for data entry. The following approach was used to integrate and leverage the strengths of both of these software.
+
+Terminology note: a currently loaded pedigree which the user can modify and analyze is referred to as the "working pedigree." This is the reactive object is called PED() and it takes the form of a data frame. The working pedigree is the centerpiece of the app which all other features revolve around. This data frame contains all information PanelPRO needs for each relative. 
+
+When the user manually saves the working pedigree or it is auto-saved, a snapshot of the working pedigree is saved in the user's SQL table. All modifications of a relative's data, such as for demographics, cancer hx, gene info, etc. are done using R Shiny inputs and modules, not pedigreejs. Each time the user changes tabs in the app (ie from demographics to cancer history, or from the pedigree editor to the home screen, as examples) or the user manually saves the pedigree using the in-app button, the requested edits on their current screen are used to modify the working pedigree data frame. Then, this pedigree is appended (if new) or over written (if existing) into the user's SQL table. 
+
+When a user initializes a new pedigree by entering a pedigree name, proband sex and proband age, in the background the working pedigree is initialized as a 3 person pedigree with the proband, mother, and father with just their ID, mother/father ID, and sex information (plus age for the proband only). As the user works their way through the editor tabs they are entering information for the proband and the working pedigree is updated each time they advance to another tab. Once the proband information has been entered, the user is given the option to add quantities of other first degree and second degree relatives plus aunts and uncles. Once this information is entered a row for each of these relatives is added to the working pedigree with just their ID/relationship name, implied mother/father ID, and implied sex. Maternal/paternal grandparents are created as needed based on whether maternal/paternal aunts or uncles were specified by the user. At this point, a JSON version of the working pedigree is created with just the bare minimum information pedigreejs needs to draw the pedigree and show the cancer history. This JSON includes ID, mother/father ID, age, sex, and cancer history information only. This JSON is then passed to the createPedJSHandler function which then draws the pedigree via pedigreejs.
+
+At this point, the user must use the pedigreejs interactive tree to add and remove any family members while they use the R shiny inputs and modules to modify the data for each relative. When modifying for example the race information for the mother, this information is saved only to the R data frame version of the pedigree and pedigreejs does not know or need to know this information in order to work. The R server is continually querying the pedigreejs pedigree JSON object every 1 second to detect if the the user has added or deleted a relative. It does this by converting the JSON into a data frame using the jsonlite package and comparing the number of rows from that data frame to the number of rows in the working pedigree data frame. If a difference in rows are detected, then the working pedigree data frame is updated accordingly. R assigns any new person their standardized name (ie MGMom for maternal grandmother), the working pedigree is converted back into JSON, and then updatePedJSHandler is called to update the drawn pedigreejs tree with the new pedigree that contains the new person's name/ID. Alternatively, when R shiny is used to update a sex, age, or cancer history value and this new data is used to modify the working pedigree, the R server knows to make a JSON copy of the working pedigree data frame push it to updatePedJSHandler so that the drawn tree also updates.
 
 ## Account recovery email 
 
@@ -143,5 +173,20 @@ Everything in the `./app` directory is deployed to the server. The main file is 
   
 ## Current Status of the App
 
-The app is fully functional in its current state with all major features implemented. The biggest complaint for the users is that the app tended to crash when loading or copying a pedigree however, I pushed a fixed for that 
+The app is fully functional in its current state with all major features implemented. A history of features can be found in `task-list.xlsx` and that file also contains ideas for future improvements ranked by priority. All very high and high priority tasks were completed.
 
+Historically, the slow connection between HeidiSQL and R Connect was causing the app the crash when loading, copying, deleting, or downloading pedigrees (although modifying a pedigree did not seem to be affected). This is a common problem for shiny apps in general. The problem was exacerbated for manager accounts because manager account first query one of their subordinate tables then a specific pedigree from that table is extracted. I pushed a fix for this on 5/3/23 that forces users to wait until the query operations finish before the user can proceed. I have not received a complaint since then. 
+
+Ideally, users could be able to upload their own pedigrees in a variety of formats however at the moment they must create a pedigree from scratch using PPI. I started coding the function checkUploadPed in the ped-utils.R script to address this however, the feature has not yet been implemented. 
+
+Another very useful feature which has not been implemented yet, would be to add nucleotide and variant coding validation from ClinVar via an API.
+
+There is also a way to modify pedigreejs to show P/LP genes by relative however, this is somewhat complicated and requires more modification of the pedigreejs javascript code to be able to handle all of different PanelPRO genes. 
+
+There are two potential improvements related to pedigreejs:
+
+1. Note that when the user downloads a pedigree, only the kinship2 image is included, not the pedigreejs image. This was due to the difficulty in getting pedigreejs to work with the download feature but I'm sure there is a work around if given more time. The user can still download the image of the pedigreejs tree though using the image download button directly below the pedigreejs tree window.
+
+2. The way in which R is continually scanning for changes to the pedigreejs JSON every 1 second is inefficient and, in the past, has caused the tree display to flicker every 1 second (although I partially fixed this). A better way would be for pedigreejs to inform the R server a relative has been added or deleted however this requires modification of the javascript code.
+
+Loading testing would be great to include if this app is to be published. I began to load test the app using the directory `PanelPRO_ShinyApp\PanelPRO_app_load_test`. The shinyloadtest package unfortunately is not compatible with apps that rely on databases and some of our other complex features like pedigreejs. Instead, I created a test version of the app that only runs the PanelPRO analysis (the most computationally demanding feature). Although not representative of using the real PPI app, it did provide insight into how many simultaneous users could run PanelPRO at the same time using our R Connect server. The answer is around 12 before performance beings to degrade. This is a hardware limitation and we would need to upgrade our server to improve performance. Once the server hardware is optimized and if we still want more capacity we would have to set-up a cluster of R Connect servers to handle increased workload.
