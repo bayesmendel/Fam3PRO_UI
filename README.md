@@ -25,33 +25,33 @@ There are three branches in this repository: main, gb-rossi-panc, and develop. M
 
 1. main: this was intended for general access to PPI for individual researchers and clinicians who are not a part of a specific study, such as the GB Rossi ASIP study. 
 
-  + app name: PanelPRO Interface
+    + app name: PanelPRO Interface
   
-  + URL: [https://hereditarycancer.dfci.harvard.edu/ppi/](https://hereditarycancer.dfci.harvard.edu/ppi/)
+    + URL: [https://hereditarycancer.dfci.harvard.edu/ppi/](https://hereditarycancer.dfci.harvard.edu/ppi/)
   
-  + Access: link is public, but need a user account
+    + Access: link is public, but need a user account
   
-  + Lauren Flynn has write access
+    + Lauren Flynn has write access
   
 2. gb-rossi-panc: this is specific the to AISP study and was intended to have its own database in HeidiSQL. At present there is only one database file in HeidiSQL for all versions/branches of the PPI app. 
 
-  + app name: PanelPRO Interface GB Rossi Pancreatic Cancer Study
+    + app name: PanelPRO Interface GB Rossi Pancreatic Cancer Study
   
-  + URL: [https://hereditarycancer.dfci.harvard.edu/aisp-pancreatic-cancer-study/](https://hereditarycancer.dfci.harvard.edu/aisp-pancreatic-cancer-study/)
+    + URL: [https://hereditarycancer.dfci.harvard.edu/aisp-pancreatic-cancer-study/](https://hereditarycancer.dfci.harvard.edu/aisp-pancreatic-cancer-study/)
   
-  + Access: link is public, but need a user account
+    + Access: link is public, but need a user account
   
-  + Lauren Flynn has write access
+    + Lauren Flynn has write access
   
 3. develop: this is for developing new features and it has its own app URL because some features need to be tested locally and on the server prior to modifying the publically accessible links.
 
-  + app name: PanelPRO Interface Development Testing
+    + app name: PanelPRO Interface Development Testing
   
-  + URL: [https://hereditarycancer.dfci.harvard.edu/content/653b1089-6a51-40b9-ad68-6cab2f618def](https://hereditarycancer.dfci.harvard.edu/content/653b1089-6a51-40b9-ad68-6cab2f618def)
+    + URL: [https://hereditarycancer.dfci.harvard.edu/content/653b1089-6a51-40b9-ad68-6cab2f618def](https://hereditarycancer.dfci.harvard.edu/content/653b1089-6a51-40b9-ad68-6cab2f618def)
   
-  + Access: Only Annie Ng, Danielle Braun, and Lauren Flynn (also need a user account)
+    + Access: Only Annie Ng, Danielle Braun, and Lauren Flynn (also need a user account)
   
-  + Only Lauren Flynn has write access 
+    + Only Lauren Flynn has write access 
 
 ## Databases
 
