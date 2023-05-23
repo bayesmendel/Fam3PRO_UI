@@ -2303,7 +2303,6 @@ server <- function(input, output, session) {
             mutate(sex = recode(sex, "0" = "Female", "1" = "Male")) %>%
             mutate(cbc = "No") %>%
             mutate(cbcAge = NA) %>%
-            mutate(age = na_if(age, "NA")) %>%
             mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
 
           # combine contralateral into same row as breast and drop the CBC row
