@@ -21,9 +21,9 @@ Users, including those with manager level permissions, can give access the pedig
   
 ## Branches and Deployment
 
-There are three branches in this repository: main, gb-rossi-panc, and develop. The original intent was to have slightly differnt app versions for the main and gb-rossi-panc branches however, the project did not mature to that point yet. They each have separate published R Connect access URLs (below) but they are linked to the same HeidiSQL database in the back-end. 
+There are three branches in this repository: main, gb-rossi-panc, and develop. Main and gb-rossi-panc are identical copies of one another but were originally intended to be different versions of the same app. As the project evolved, the need to have two different app versions on two different branches became obsolete. However, due to the initial approach, each branch was deployed as a separate app to R Connect and therefore there are two different access URLs. Because the branches are identical, the different URLs take the user to the same app that is connected to the same database file. To make things simpler going forward, I recommend deleting the gb-rossi-panc branch and its corresponding R Connect app and asking the GB Rossi study team to stop using that URL and instead use this generic URL: [https://hereditarycancer.dfci.harvard.edu/ppi/](https://hereditarycancer.dfci.harvard.edu/ppi/). Each branch and its corresponding R Connect information is listed below.
 
-1. main: this was intended for general access to PPI that was not specific to a study such as the GB Rossi ASIP study. 
+1. main: this was intended for general access to PPI for individual researchers and clinicians who are not a part of a specific study, such as the GB Rossi ASIP study. 
 
   - app name: PanelPRO Interface
   
@@ -33,7 +33,7 @@ There are three branches in this repository: main, gb-rossi-panc, and develop. T
   
   - Lauren Flynn has write access
   
-2. gb-rossi-panc: this is specific the to AISP study.
+2. gb-rossi-panc: this is specific the to AISP study and was intended to have its own database in HeidiSQL. At present there is only one database file in HeidiSQL for all versions/branches of the PPI app. 
 
   - app name: PanelPRO Interface GB Rossi Pancreatic Cancer Study
   
