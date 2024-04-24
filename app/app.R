@@ -1,5 +1,6 @@
 #### Set-up ####
 ## libraries
+
 # shiny libraries
 library(shiny)
 library(shinyBS)    # shiny tool tips
@@ -58,7 +59,7 @@ ui <- fixedPage(
   
   # pedigreejs dependencies
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
-                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css", media="all")),
+                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.6.4/css/font-awesome.min.css", media="all")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   
@@ -351,6 +352,7 @@ ui <- fixedPage(
             )
           ), # end of tab for loading/creating new pedigree
           
+          
           ###### UI: Preview Pedigree ####
           tabPanel("Preview",
             h4("Preview Current Pedigree"),
@@ -508,7 +510,7 @@ ui <- fixedPage(
               ),
               textOutput("waitDelete"),
               actionButton("deletePeds", label = "Delete Pedigrees",
-                           icon = icon('trash-o', verify_fa = FALSE),
+                           icon = icon("trash-alt", verify_fa = FALSE),
                            style = "color: white; background-color: red; border-color: grey")
             ) # end of conditionalPanel to check if there are tables to download
           ) # end of tabPanel for deleting pedigrees
@@ -516,8 +518,9 @@ ui <- fixedPage(
       ), # end of tab for manage pedigrees tab
       
       ##### UI: Create/Modify Pedigree ####
+      
       tabPanel("Create/Modify Pedigree",
-        
+               
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
           
@@ -529,20 +532,20 @@ ui <- fixedPage(
                            style = "margin-top: 0px; margin-bottom: 25px")
             )
           ),
-          
-          ###### UI: Visualize Pedgiree ####
+         
+         ###### UI: Visualize Pedgiree ####
           # only show pedigree visualization after pedigree has been initialized with all FDR, aunts, and uncles
           conditionalPanel("output.showPed",
             column(width = 6,
-                   
+        
               # top row to select which relative is being edited
               fluidRow(
-                column(width = 5,
+                column(width = 6,
                   div(class = "pull-right",
-                    h4("Select a relative to edit:", style = "margin-right:-15px")
+                    h4("Select a relative to edit:") #, style = "margin-right:-15px")
                   )
                 ),
-                column(width = 7,
+                column(width = 6,
                   selectInput("relSelect", label = NULL,
                               choices = setNames(c(1), "Proband"), # placeholder, this will be updated once FDR+AU ped initialized
                               width = "300px")
@@ -551,14 +554,14 @@ ui <- fixedPage(
               
               # pedigree visualization (table and tree)
               tabsetPanel(id = "pedVisualsEditor",
-                          
                 # pedigreeJS tree
                 tabPanel(title = "Tree",
                   br(),
                   bootstrapPage(
                     includeScript(path="www/pedigreejs/JS.js"),
-                    includeHTML(path="www/pedigreejs/Html.html")
-                  ),
+                    includeHTML(path="www/pedigreejs/Html.html"),
+                    ),
+                    
                   h5("Note: the tree above only displays PanelPRO cancers. 
                      Unknown cancer ages will show as 0. Gene tests, surgical 
                      history, and tumor markers are not displayed."),
@@ -581,6 +584,7 @@ ui <- fixedPage(
                          label = "")
                   
                   
+                  
                   # # FOR TESTING
                   # textOutput("pedJSJSON")
                   
@@ -591,7 +595,7 @@ ui <- fixedPage(
                 # table
                 tabPanel(title = "Table",
                   fluidRow(
-                    column(width = 12, style = "height:800px; width:100%",
+                    column(width = 6, style = "height:800px; width:100%",
                       br(),
                       DTOutput("tablePedEditor")
                     )
@@ -601,7 +605,7 @@ ui <- fixedPage(
                 # cancer hx
                 tabPanel(title = "Cancers",
                   fluidRow(
-                    column(width = 8, style = "height:800px; width:100%",
+                    column(width = 6, style = "height:800px; width:70%",
                       br(),
                       DTOutput("cancersTblEditor")
                     )
@@ -611,7 +615,7 @@ ui <- fixedPage(
                 # genes
                 tabPanel(title = "Genes",
                   fluidRow(
-                    column(width = 10, style = "height:800px; width:100%",
+                    column(width = 6, style = "height:800px; width:100%",
                       br(),
                       DTOutput("genesTblEditor")
                     )
@@ -630,11 +634,9 @@ ui <- fixedPage(
               )
             ) # end of column for pedigree visualization
           ), # end of conditionalPanel to display pedigree visualization or not
-          
           # column for pedigree data entry
-          column(width = 6,
+          column(width = 6, 
             tabsetPanel(id = "pedTabs", 
-              
               ###### UI: Demographics ####
               tabPanel("Demographics",
                 h3(textOutput("rop1", inline = T), "Demographics"),
@@ -1500,6 +1502,7 @@ ui <- fixedPage(
 
 server <- function(input, output, session) {
   
+  
   #### Connect/Disconnect Database ####
   conn <- dbConnect(drv = RMariaDB::MariaDB(),
                     username = Sys.getenv('maria.un'),
@@ -1526,6 +1529,7 @@ server <- function(input, output, session) {
     id = "logout",
     active = reactive(credentials()$user_auth)
   )
+
   
   # reset app on log-out to clear all fields from previous user
   observeEvent(input$'logout-button', { shinyjs::refresh() })
@@ -1608,7 +1612,9 @@ server <- function(input, output, session) {
                      label = "Try Again")
       ),
       conditionalPanel(condition = "output.botCheck1",
-        p("Success, you're not a bot. You can proceed to sign-up or recover your account information.",
+        tags$p("Success, you're not a bot. You can proceed to", 
+        actionLink("Singuplink", "sign-up"), "or",
+        actionLink("Recoverlink", "recover your account information."),
           style = "margin-top:20px")
       )
     )
@@ -1652,6 +1658,7 @@ server <- function(input, output, session) {
     }
   })
   
+  
   # bot check passed: show sign-up UI
   output$botCheck1 <- reactive({ botCheck1() })
   outputOptions(output, 'botCheck1', suspendWhenHidden = FALSE)
@@ -1664,6 +1671,10 @@ server <- function(input, output, session) {
   ##### Create new account ####
   # switch to sign-up tab if sign-up button clicked
   observeEvent(input$signUp, {
+    updateTabsetPanel(session, inputId = "loginTabs", selected = "Sign Up")
+  })
+  
+  observeEvent(input$Singuplink, {
     updateTabsetPanel(session, inputId = "loginTabs", selected = "Sign Up")
   })
   
@@ -1749,6 +1760,10 @@ server <- function(input, output, session) {
   ##### Account Recovery ####
   # switch to forgot credentials tab if forgot button clicked
   observeEvent(input$forgotUnPw, {
+    updateTabsetPanel(session, inputId = "loginTabs", selected = "Forgot Username or Password")
+  })
+  
+  observeEvent(input$Recoverlink, {
     updateTabsetPanel(session, inputId = "loginTabs", selected = "Forgot Username or Password")
   })
   
@@ -2090,8 +2105,13 @@ server <- function(input, output, session) {
   }, ignoreInit = T, ignoreNULL = T)
   waitLoad <- reactiveVal(FALSE)
   output$waitLoad <- renderText({ need(!waitLoad(), "Please wait...") })
-  observeEvent(input$newOrLoad, { shinyjs::reset("existingPed") })
-  
+  observeEvent(input$newOrLoad, { shinyjs::reset("existingPed")}
+)
+  # page transition from start to preview
+  observeEvent(input$goNewOrLoad, {
+    updateTabsetPanel(session, inputId = "managePedsTab", selected = "Preview")
+  })
+
   # user's pedigrees that are available for loading
   userPeds <- reactiveVal(NULL)
   
@@ -5070,7 +5090,7 @@ server <- function(input, output, session) {
     cancersTbl()
   }, server = F)
   
-  ###### Panel Details ####
+  ###### Panel Details - genes  Genes ####
   ## panel details, convert JSONs into a data frame of panel and gene data indexed by ID
   genesTbl <- reactive({
     gene.df <- NULL
@@ -5094,10 +5114,25 @@ server <- function(input, output, session) {
     
     # if there was no gene info for any relatives return a 0 row data frame
     if(is.null(gene.df)){
-      return(setNames(as.data.frame(matrix(NA, nrow = 0, ncol = 2 + length(gene.df.colnames))), 
-                      c("ID", "Name", stri_trans_totitle(gene.df.colnames))))
+      return(DT::datatable(data = setNames(as.data.frame(matrix(NA, nrow = 0, 
+                      ncol = length(c("ID", "Name", "Panel", "Gene", "Res", "Nuc", "Prot", "Zyg")))), 
+                      c("ID", "Name", "Panel", "Gene", "Res", "Nuc", "Prot", "Zyg")), 
+                      rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact", "cell-border"),
+                      extensions = "FixedColumns",
+                      options = list(pageLength = 20,
+                                     scrollX = TRUE,
+                                     fixedColumns = list(leftColumns = 2))))
     } else {
-      return(gene.df)
+      return(
+        DT::datatable(data = gene.df,
+                      rownames = FALSE,
+                      class = list("nowrap", "stripe", "compact", "cell-border"),
+                      extensions = "FixedColumns",
+                      options = list(pageLength = 20,
+                                     scrollX = TRUE,
+                                     fixedColumns = list(leftColumns = 2)))
+      )
     }
   })
   
@@ -5109,8 +5144,8 @@ server <- function(input, output, session) {
     
     # save space by abbreviating column names and removing row number
     gt <- genesTbl()
-    colnames(gt) <- c("ID", "Name", "Panel", "Gene", "Res", "Nuc", "Prot", "Zyg")
-    gt <- datatable(gt, rownames = F)
+    #colnames(gt) <- c("ID", "Name", "Panel", "Gene", "Res", "Nuc", "Prot", "Zyg")
+    #gt <- datatable(gt, rownames = F)
     gt
   }, server = F)
   

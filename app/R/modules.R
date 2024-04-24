@@ -69,7 +69,7 @@ canUI <- function(id, rel, vals, sex){
           column(width = 2,
             actionButton(inputId = ns("removeCan"),
                          label = NULL,
-                         icon = icon('trash-o', verify_fa = FALSE),
+                         icon = icon('trash-alt', verify_fa = FALSE),
                          style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-150px; margin-top:40px")
           )
         ),
@@ -194,7 +194,7 @@ panelUI <- function(id, rel, panelName){
           column(width = 2,
             actionButton(inputId = ns("removePanel"),
                          label = NULL,
-                         icon = icon('trash-o', verify_fa = FALSE),
+                         icon = icon('trash-alt', verify_fa = FALSE),
                          style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-20px; margin-top:0px")
           )
         )
@@ -279,7 +279,7 @@ geneUI <- function(id, rel, panelName, panelGenes, vals){
           column(width = 1,
             actionButton(inputId = ns("removeGene"),
                          label = NULL,
-                         icon = icon('trash-o', verify_fa = FALSE),
+                         icon = icon('trash-alt', verify_fa = FALSE),
                          style = "color: #FF2800; background-color: white; border-color: grey; margin-left:-20px; margin-top:0px; margin-right:0px")
           )
         ) # end of fluidRow for all inputs

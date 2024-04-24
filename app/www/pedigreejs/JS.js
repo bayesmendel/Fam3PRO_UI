@@ -10,8 +10,8 @@ $( document ).ready(function() {
         }
       }
     }
-    return JSONObj
-  };
+    return JSONObj;
+  }
   
   // a function to process the R data frame pedigree object and convert it into pedigreeJS readable
   Shiny.addCustomMessageHandler("createPedJSHandler", function(pedJSON) {
@@ -23,7 +23,7 @@ $( document ).ready(function() {
 		var opts = {
 			'targetDiv': 'pedjsTree',
 			'btn_target': 'pedjsButtons',
-			'width': 550,
+			'width': 500,
 			'height': 600,
 			'symbol_size': 35,
 			'store_type': 'array',
@@ -58,6 +58,22 @@ $( document ).ready(function() {
 			'DEBUG': false
 		};
 		
+		  $(document).ready(function() {
+    // Function to update SVG width
+    function updateSvgWidth() {
+        var svgWidth = $('.Tree').width() * 0.5; 
+        $('svg').attr('width', svgWidth);
+    }
+
+    // Initial update on page load
+    updateSvgWidth();
+
+    // Update SVG width on window resize
+    $(window).resize(function() {
+        updateSvgWidth();
+    });
+  });
+
 		// code to include as shown here: https://ccge-boadicea.github.io/pedigreejs/
 		var local_dataset = pedigreejs.pedcache.current(opts);
 		if (local_dataset !== undefined && local_dataset !== null) {
@@ -84,7 +100,7 @@ $( document ).ready(function() {
 		var opts = {
 			'targetDiv': 'pedjsTree',
 			'btn_target': 'pedjsButtons',
-			'width': 550,
+			'width': 500,
 			'height': 600,
 			'symbol_size': 35,
 			'store_type': 'array',
@@ -116,12 +132,30 @@ $( document ).ready(function() {
       'labels': ['age'],
 			'font_size': '1.1em',
 			'font_family': 'times',
-			'DEBUG': false
+			'DEBUG': false,
 		};
-    
+
 		opts.dataset = dataset;
 		opts= pedigreejs.pedigreejs.rebuild(opts);
+		
   });
+  
+  $(document).ready(function() {
+    // Function to update SVG width
+    function updateSvgWidth() {
+        var svgWidth = $('.Tree').width() * 0.5; // Adjust as needed
+        $('svg').attr('width', svgWidth);
+    }
+
+    // Initial update on page load
+    updateSvgWidth();
+
+    // Update SVG width on window resize
+    $(window).resize(function() {
+        updateSvgWidth();
+    });
+});
+
 }); // end of document
 
 
