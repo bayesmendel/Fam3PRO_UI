@@ -77,7 +77,7 @@ canUI <- function(id, rel, vals, sex){
         # if "other" cancer selected above, show the selectInput to enter the name of the OTHER cancer
         conditionalPanel(sprintf("input['%s'] == 'Other'", ns("Can")),
           fluidRow(
-             column(5, h5("Other cancer:", style = "margin-left:25px")),
+             column(5, h5("Other cancer:", style = "margin-left:10px")),
              column(7, 
               div(selectizeInput(inputId = ns("CanOther"), 
                                  label = NULL,
@@ -86,7 +86,7 @@ canUI <- function(id, rel, vals, sex){
                                  multiple = FALSE, 
                                  options = list(create=TRUE),
                                  width = "225px"),
-                  style = "margin-left:-125px;"
+                  style = "margin-left:-95px;"
               )
             )
           )

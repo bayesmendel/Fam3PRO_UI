@@ -59,7 +59,7 @@ ui <- fixedPage(
   
   # pedigreejs dependencies
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
-                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.6.4/css/font-awesome.min.css", media="all")),
+                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7/css/font-awesome.min.css", media="all")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   
@@ -377,7 +377,7 @@ ui <- fixedPage(
               # cancer hx
               tabPanel(title = "Cancers",
                 br(),
-                DTOutput("cancersTblViewer", width = "75%")
+                DTOutput("cancersTblViewer")
               ),
               
               # genes
@@ -558,8 +558,8 @@ ui <- fixedPage(
                 tabPanel(title = "Tree",
                   br(),
                   bootstrapPage(
-                    includeScript(path="www/pedigreejs/JS.js"),
-                    includeHTML(path="www/pedigreejs/Html.html"),
+                    includeScript(path="www//pedigreejs//JS.js"),
+                    includeHTML(path="www//pedigreejs//Html.html"),
                     ),
                     
                   h5("Note: the tree above only displays PanelPRO cancers. 
@@ -585,7 +585,7 @@ ui <- fixedPage(
                   
                   
                   
-                  # # FOR TESTING
+                  # FOR TESTING
                   # textOutput("pedJSJSON")
                   
                   
@@ -605,7 +605,7 @@ ui <- fixedPage(
                 # cancer hx
                 tabPanel(title = "Cancers",
                   fluidRow(
-                    column(width = 6, style = "height:800px; width:70%",
+                    column(width = 6, style = "height:800px; width:100%",
                       br(),
                       DTOutput("cancersTblEditor")
                     )
@@ -878,7 +878,7 @@ ui <- fixedPage(
                     ),
                     column(width = 6, 
                       conditionalPanel("input.Ooph",
-                        div(style = "margin-left:-75px",
+                        div(style = "margin-left:-55px",
                           numericInput("OophAge",
                                        label = h5("Age at Oophorectomy:"),
                                        value = NA, min = min.age, max = max.age, step = 1,
@@ -4691,14 +4691,12 @@ server <- function(input, output, session) {
   # output$pedJSJSON <- renderText(input$pedJSJSON)
   
   
-  
-  
   # at a specified time interval, refresh the JSON pedigree
-  autoInvalidate <- reactiveTimer(intervalMs = 1000)
-  observe({
-    autoInvalidate()
-    shinyjs::click("GetPedJSButton")
-  })
+  # autoInvalidate <- reactiveTimer(intervalMs = 1000)
+  # observe({
+  #   autoInvalidate()
+  #   shinyjs::click("GetPedJSButton")
+  # })
   
   # when the JSON pedigree updates:
   # 1: update the R pedigree (PED()) by removing any deleted relatives and 
@@ -4707,6 +4705,12 @@ server <- function(input, output, session) {
   # 2: if any pedigreeJS 'name'/R 'ID' values were changed, pass an updated JSON
   #    string back to pedigreeJS
   observeEvent(input$pedJSJSON, {
+    
+    # autoInvalidate <- reactiveTimer(intervalMs = 1000)
+    # observe({
+    #   autoInvalidate()
+    #   shinyjs::click("GetPedJSButton")
+    # })
     
     # only do this after the pedigree has been visualized
     if(showPed() & input$navbarTabs == "Create/Modify Pedigree"){
@@ -4905,6 +4909,11 @@ server <- function(input, output, session) {
         session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
       }
     } # end of if statement to check if pedigree has been displayed yet (showPed())
+    autoInvalidate <- reactiveTimer(intervalMs = 1000)
+    observe({
+      autoInvalidate()
+      shinyjs::click("GetPedJSButton")
+    })
   }, ignoreInit = T, ignoreNULL = T)
   
   ## cancer color legend plot
@@ -5081,6 +5090,7 @@ server <- function(input, output, session) {
     )
     cancersTbl()
   }, server = F)
+  
   
   # display in the pedigree viewer
   output$cancersTblViewer <- DT::renderDT({

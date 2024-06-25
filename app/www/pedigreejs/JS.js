@@ -89,12 +89,23 @@ $( document ).ready(function() {
 		};
 		
   }); // end of Shiny.addCustomMessageHandler
+
   
   // function to update the pedigree for pedigreeJS
   Shiny.addCustomMessageHandler("updatePedJSHandler", function(pedJSON) {
     
     // remove null values from the JSON so that pedigreejs will accept it
     var dataset = removeNull(pedJSON);
+    
+    $(document).ready(function() {
+    // Function to update SVG width
+    function updateSvgWidth() {
+        var svgWidth = $('.Tree').width() * 0.5; // Adjust as needed
+        $('svg').attr('width', svgWidth);
+    }
+
+    // Initial update on page load
+    updateSvgWidth();
     
     // set the pedigreejs customization options
 		var opts = {
@@ -137,18 +148,10 @@ $( document ).ready(function() {
 
 		opts.dataset = dataset;
 		opts= pedigreejs.pedigreejs.rebuild(opts);
+		updateSvgWidth();
 		
   });
   
-  $(document).ready(function() {
-    // Function to update SVG width
-    function updateSvgWidth() {
-        var svgWidth = $('.Tree').width() * 0.5; // Adjust as needed
-        $('svg').attr('width', svgWidth);
-    }
-
-    // Initial update on page load
-    updateSvgWidth();
 
     // Update SVG width on window resize
     $(window).resize(function() {
