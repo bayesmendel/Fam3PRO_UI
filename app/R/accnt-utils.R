@@ -273,11 +273,11 @@ createRecoveryCode <- function() {
   return(paste0(v,collapse = ""))
 }
 
-#' Email the user recovery information
+#' Email the user recovery information or notify the result
 #' 
 #' @param userEmail string, user's email address
-#' @param emailType string, one of c("un", "pw") for a username or password 
-#' recovery email
+#' @param emailType string, one of c("un", "pw", "result") for a username or password
+#' recovery email, or a result notifiication 
 #' @param userName string, username. Optional, only required if 
 #' `emailType` is "un".
 #' @param rCode string, the recovery code. Optional, only required if 
@@ -292,24 +292,33 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
       warning("userName arguement missing. Cannot email username.")
     }
     subject <- "account username recovery"
-    body <- paste0("Dear User, your hereditarycancer account username is: ", userName,
-                   "\n\nYou can now return to the site and log-in.\n\n 
-                   Thanks, \n
-                   The BayesMendel Lab at Dana-Farber Cancer Institute.")
-    
+    body <- paste0("Dear User,\n", 
+                   "Your hereditarycancer account username is: ", userName, "\n\n", 
+                   "You can now return to the site and log-in.", "\n\n",
+                   "Thanks,\n",
+                   "The BayesMendel Lab at Dana-Farber Cancer Institute")
     # password email subject and body
   } else if(emailType == "recoverPw"){
     subject <- "account password recovery code"
-    body <- paste0("Dear User, your hereditarycancer account password recovery code is: ", rCode,
-                   "\n\nThe code expires in ",expireCode/1000," minutes. You can now return to the site and log-in.\n\n
-                   Thanks, \n
-                   The BayesMendel Lab at Dana-Farber Cancer Institute.")
+    body <- paste0("Dear User,\n",
+                   "Your hereditarycancer account password recovery code is: ", rCode, "\n\n",
+                   "The code expires in ",expireCode/1000," minutes.\n",
+                   "You can now return to the site and log-in.", "\n\n",
+                   "Thanks,\n",
+                   "The BayesMendel Lab at Dana-Farber Cancer Institute")
+  } else if(emailType == "result"){
+    subject <- "PanelPRO result is ready"
+    body <- paste0("Dear User,\n",  
+                   "The job you submitted to PanelPRO is complete.\n",
+                   "You can now return to the site and check your results.", "\n\n",
+                   "Thanks,\n",
+                   "The BayesMendel Lab at Dana-Farber Cancer Institute")
   }
   
   # credentials: get token using service account method
   token <- gargle::credentials_service_account(
-    scopes = c("https://mail.google.com/"), 
-    path = Sys.getenv("gmail.json.path"), 
+    scopes = c("https://mail.google.com/"),
+    path = Sys.getenv("gmail.json.path"),
     subject = Sys.getenv("gmail.email") # Allow service account to act on behalf of this subject
   )
   # Assign token to .auth internal object from gmailr package

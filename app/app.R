@@ -45,7 +45,7 @@ library(plotly)
 # access function doc string
 library(gbRd)
 
-#### UI 
+#### UI ####
 ui <- fixedPage(
   
   # Google analytics
@@ -59,7 +59,7 @@ ui <- fixedPage(
   
   # pedigreejs dependencies
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
-                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7/css/font-awesome.min.css", media="all")),
+                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.6/css/font-awesome.min.css", media="all")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
   tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
   
@@ -1344,7 +1344,6 @@ ui <- fixedPage(
                is complete."),
             actionButton("runPP", label = "Run PanelPRO",
                          icon = icon('play'))
-            
           ), # end of "Run" tab for PanelPRO
           
           ###### UI: Results ####
@@ -1499,6 +1498,9 @@ ui <- fixedPage(
 
 ) # end of UI
 
+# Initialize a global reactive value to store active session counts
+globalCounter <- reactiveVal(0)
+sessionList <- reactiveValues(activeSessions = list())
 
 server <- function(input, output, session) {
   
@@ -1785,6 +1787,7 @@ server <- function(input, output, session) {
     showForgotResponse(TRUE)
     recoveryUserbase(getUserbase(conn))
     
+    
     # check that the email isn't blank
     if(nchar(input$recoveryEmail) > 0){
       
@@ -1811,7 +1814,6 @@ server <- function(input, output, session) {
   # assume that the status of input$newRecoveryCode changes when the button
   # appears in a conditionalPanel
   observeEvent(list(input$newRecoveryCode), {
-    
     # only send if requested
     if(input$forgotWhich %in% c("password","both")){
       
@@ -2036,6 +2038,7 @@ server <- function(input, output, session) {
   }, ignoreInit = TRUE)
   
   ###### Show Managed Accounts ####
+  
   output$managedAccts <- renderText({
     if(manager()){
       maccnts <- dbGetQuery(conn = conn,
@@ -2046,6 +2049,22 @@ server <- function(input, output, session) {
     } else {
       return("")
     }
+  })
+  
+  #### Display the number of active sessions in the server ####
+  sessionID <- session$token
+  observe({
+    isolate({
+      sessionList$activeSessions[[sessionID]] <- TRUE
+      globalCounter(globalCounter() + 1)
+    })
+  })
+  
+  onSessionEnded(function() {
+    isolate({
+      sessionList$activeSessions[[sessionID]] <- NULL
+      globalCounter(globalCounter() - 1)
+    })
   })
   
   #### Manage User Pedigrees ####
@@ -3780,7 +3799,7 @@ server <- function(input, output, session) {
       validateCanAgeServer(id,
                            in.age = input[[paste0(id, "-CanAge")]],
                            cur.age = PED()$CurAge[which(PED()$ID == rel)])
-    })
+      })
     
     # add a server for checking the validity of the entered CBC age
     observeEvent(list(input[[paste0(id, "-CBCAge")]], 
@@ -5550,6 +5569,22 @@ server <- function(input, output, session) {
   # run PanelPRO and get results
   observeEvent(input$runPP, {
     
+    session_count <- globalCounter()
+    message <- if (session_count < 5) {
+      "We will email you when the result is ready (less than 4 minitues). Please do not close the tab.
+      Thank you for your patience."
+    } else if (session_count <= 10) {
+      "We will email you when the result is ready (less than 7 minutes). Please do not close the tab.
+      Thank you for your patience."
+    } else if (session_count <= 20) {
+      "We will email you when the result is ready (less than 10 minutes). Please do not close the tab.
+      Thank you for your patience."
+    } else {
+      "We will email you when the result is ready, it might take longer than 10 minutes. Please do not close the tab.
+      Thank you for your patience."
+    }
+    
+    showNotification(message)
     # start the timer
     start.time <- proc.time()
     
@@ -5920,6 +5955,16 @@ server <- function(input, output, session) {
         ## combined prob and cancer risk plot
         ppReactive$cpAndfrPlots <- vr.plots$both
         
+        # Decrease the number of active sessions by 1 after a process is done
+        isolate({
+          globalCounter(globalCounter() - 1)})
+        
+        if (globalCounter() == 0 ) {
+          # Email users that their result is ready 
+          sessionList$activeSessions[[sessionID]] <- NULL
+          emailUser(credentials()$info[["email"]], "result")
+        }
+        
         # end of if statement to confirm PanelPRO output was not an error
       } else {
         cpTbl <- NULL
@@ -6022,6 +6067,7 @@ server <- function(input, output, session) {
     )
     return(ppReactive$settingsTbl)
   }, striped = T)
+  
   
   # PanelPRO function doc string
   observeEvent(list(input$showPPDocString1, input$showPPDocString2), {
