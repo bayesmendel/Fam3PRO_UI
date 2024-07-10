@@ -581,12 +581,12 @@ ui <- fixedPage(
                          id = "GetPedJSButton",
                          class="btn btn-default action-button shiny-bound-input",
                          style="text-align:center;background-color:white;border-color:white;", 
-                         label = "")
+                         label = ""),
                   
                   
                   
                   # FOR TESTING
-                  # textOutput("pedJSJSON")
+                  textOutput("pedJSJSON")
                   
                   
                   

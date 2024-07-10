@@ -51,7 +51,7 @@ var pedigreejs = (function (exports) {
 	  let store = opts.store_type === 'local' ? localStorage : sessionStorage;
 	  let items = [];
 	  for (let i = 0; i < store.length; i++) {
-	    if (store.key(i).indexOf(prefix) == 0) items.push(store.key(i));
+	    if (store.key(i).indexOf(prefix) === 0) items.push(store.key(i));
 	  }
 	  for (let i = 0; i < items.length; i++) store.removeItem(items[i]);
 	}
