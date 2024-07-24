@@ -59,9 +59,9 @@ ui <- fixedPage(
   
   # pedigreejs dependencies
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
-                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.6/css/font-awesome.min.css", media="all")),
+                      href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7/css/font-awesome.min.css", media="all")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
-  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-4.js")),
   
   # wait bars/spinners
   shinybusy::add_busy_bar(color = "blue", height = "8px"),
@@ -250,6 +250,11 @@ ui <- fixedPage(
         br(),
         
         h4("How to Use PPI"),
+        tags$h5(
+          "The detailed user guide can be found ",
+          tags$a(href = "User-Guide.pdf", "here", target = "_blank")
+        ),
+        h5("Quick Start:"),
         p("First, navigate to the 'Manage Pedigrees' tab at the top of the page 
           where you can create a new pedigree or load a pedigree you created 
           previously on this site."),
@@ -4702,21 +4707,25 @@ server <- function(input, output, session) {
   
   ##### Visualize Pedigree ####
   ###### PedigreeJS ####
-  
-  
-  
+
   
   # # FOR TESTING - diplay the pedigreeJS JSON as a string
   # output$pedJSJSON <- renderText(input$pedJSJSON)
   
   
   # at a specified time interval, refresh the JSON pedigree
-  # autoInvalidate <- reactiveTimer(intervalMs = 1000)
-  # observe({
-  #   autoInvalidate()
-  #   shinyjs::click("GetPedJSButton")
-  # })
-  
+  autoInvalidate <- reactiveTimer(intervalMs = 200)
+  observe({
+    if (showPed() & input$navbarTabs == "Create/Modify Pedigree") {
+      autoInvalidate()
+      # only when the user is at "Create/Modify Pedigree" page 
+      # and the pedigree has been visualized
+        # also the pedigree should not be empty/invalid
+      shinyjs::click("GetPedJSButton")
+      
+    }
+  })
+
   # when the JSON pedigree updates:
   # 1: update the R pedigree (PED()) by removing any deleted relatives and 
   #    changing the pedigreeJS 'name' values to match the formatting of the R 
@@ -4724,12 +4733,6 @@ server <- function(input, output, session) {
   # 2: if any pedigreeJS 'name'/R 'ID' values were changed, pass an updated JSON
   #    string back to pedigreeJS
   observeEvent(input$pedJSJSON, {
-    
-    # autoInvalidate <- reactiveTimer(intervalMs = 1000)
-    # observe({
-    #   autoInvalidate()
-    #   shinyjs::click("GetPedJSButton")
-    # })
     
     # only do this after the pedigree has been visualized
     if(showPed() & input$navbarTabs == "Create/Modify Pedigree"){
@@ -4745,13 +4748,17 @@ server <- function(input, output, session) {
         
         # get a copy of the R data frame master pedigree
         r.ped <- PED()
-        
         # check if relatives were added or deleted
         if(nrow(pjs) != nrow(r.ped)){
           
           # check if there were deletions of relatives and update the pedigree in R
           if(nrow(pjs) < nrow(r.ped)){
             del.rels <- r.ped$ID[which(!as.character(r.ped$ID) %in% pjs$name)]
+            
+            # set dad/mom to NA if their IDs are in the del.rels
+            r.ped <- r.ped %>%
+              mutate(across(c(MotherID, FatherID), ~ if_else(. %in% del.rels | !. %in% ID, NA, .)))
+            
             for(dr in del.rels){
               r.ped <- subset(r.ped, ID != dr)
               
@@ -4761,7 +4768,11 @@ server <- function(input, output, session) {
               # remove relative from panel and cancer hx tracking
               canReactive$canNums[[as.character(dr)]] <- NULL
               geneReactive$GeneNums[[as.character(dr)]] <- NULL
+              
+
             }
+            
+            session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
             
             # not a deletion, therefore it was an addition, so
             # update the pedigree in R,
@@ -4787,7 +4798,7 @@ server <- function(input, output, session) {
                                type = "sib-child")
               
               # check if two relatives were added
-              # (this means either a set of parents or a partner and child were added in pedigreeJS)
+              # (this means either a set of parents or a partner and child or twins were added in pedigreeJS)
             } else if(nrow(pjs) == nrow(r.ped)+2){
               
               # identify the two new additions
@@ -4829,47 +4840,76 @@ server <- function(input, output, session) {
                                  type = "parent",
                                  pjs.full = out.f$pjs_updated)
                 
-                # they were not parents, the two additions were a partner and a child
+                # they were not parents, the two additions were a partner and a child or twins
               } else {
                 
                 # identify which is the partner and which is the child
-                if(isTRUE(pjs$noparents[which(pjs$name == added.rels[1])])){
+                twins <- FALSE
+                if(isTRUE(pjs$noparents[which(pjs$name == added.rels[1])]) & !isTRUE(pjs$noparents[which(pjs$name == added.rels[2])])){
                   added.partner <- added.rels[1]
                   added.child <- added.rels[2]
-                } else {
+                } else if(!isTRUE(pjs$noparents[which(pjs$name == added.rels[1])]) & isTRUE(pjs$noparents[which(pjs$name == added.rels[2])])) {
                   added.partner <- added.rels[2]
-                  added.child <- added.rels[1]
+                  added.child <- added.rels[1] 
+                } else { 
+                  added.child1 <- added.rels[1]
+                  added.child2 <- added.rels[2]
+                  twins <- TRUE
                 }
                 
-                # change string ids for the new parents to numeric names/IDs
-                new.par.id <- max(num.ids)+1
-                new.child.id <- max(num.ids)+2
-                target.rels <- as.character(c(new.par.id, new.child.id))
-                pjs$name[which(pjs$name == added.partner)] <- as.character(new.par.id)
-                pjs$name[which(pjs$name == added.child)] <- as.character(new.child.id)
-                if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "F"){
-                  pjs$mother[which(pjs$mother == added.partner)] <- as.character(new.par.id)
-                } else if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "M"){
-                  pjs$father[which(pjs$father == added.partner)] <- as.character(new.par.id)
+                
+                if(!isTRUE(twins)){
+                  # change string ids for the new parents to numeric names/IDs
+                  new.par.id <- max(num.ids)+1
+                  new.child.id <- max(num.ids)+2
+                  target.rels <- as.character(c(new.par.id, new.child.id))
+                  pjs$name[which(pjs$name == added.partner)] <- as.character(new.par.id)
+                  pjs$name[which(pjs$name == added.child)] <- as.character(new.child.id)
+                  if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "F"){
+                    pjs$mother[which(pjs$mother == added.partner)] <- as.character(new.par.id)
+                  } else if(pjs$sex[which(pjs$name == as.character(new.par.id))] == "M"){
+                    pjs$father[which(pjs$father == added.partner)] <- as.character(new.par.id)
+                  }
+                  
+                  # identify the partner's partner
+                  partner.of <- 
+                    as.character(
+                      pjs[which(pjs$name == as.character(new.child.id)), c("mother","father")]
+                    )
+                  partner.of <- partner.of[which(partner.of != as.character(new.par.id))]
+                  
+                  # add the partner then the child
+                  out.part <- addPJSrel(pjs = pjs,
+                                        r.ped = r.ped,
+                                        target.rel = as.character(new.par.id),
+                                        type = "partner",
+                                        partner.of = partner.of)
+                  out <- addPJSrel(pjs = out.part$pjs_updated,
+                                   r.ped = out.part$r.ped_updated,
+                                   target.rel = as.character(new.child.id),
+                                   type = "sib-child")
+                  
+                } else {
+                  # add twins one by one - default to be male but can be modified later
+                  new.child1.id <- max(num.ids)+1
+                  new.child2.id <- max(num.ids)+2
+                  target.rels <- as.character(c(new.child1.id, new.child2.id))
+                  pjs$name[which(pjs$name == added.child1)] <- as.character(new.child1.id)
+                  pjs$name[which(pjs$name == added.child2)] <- as.character(new.child2.id)
+                  
+                  # add the children
+                  out.child1 <- addPJSrel(pjs = pjs,
+                                   r.ped = r.ped,
+                                   target.rel = as.character(new.child1.id),
+                                   type = "sib-child")
+                  
+                  out <- addPJSrel(pjs = out.child1$pjs_updated,
+                                   r.ped = out.child1$r.ped_updated,
+                                   target.rel = as.character(new.child2.id),
+                                   type = "sib-child")
+                  out$r.ped_updated <- labelTwins(out$r.ped_updated, c(new.child1.id, new.child2.id))
                 }
                 
-                # identify the partner's partner
-                partner.of <- 
-                  as.character(
-                    pjs[which(pjs$name == as.character(new.child.id)), c("mother","father")]
-                  )
-                partner.of <- partner.of[which(partner.of != as.character(new.par.id))]
-                
-                # add the partner then the child
-                out.part <- addPJSrel(pjs = pjs,
-                                      r.ped = r.ped,
-                                      target.rel = as.character(new.par.id),
-                                      type = "partner",
-                                      partner.of = partner.of)
-                out <- addPJSrel(pjs = out.part$pjs_updated,
-                                 r.ped = out.part$r.ped_updated,
-                                 target.rel = as.character(new.child.id),
-                                 type = "sib-child")
               }
               
               # warn if more than two relatives were added
@@ -4927,12 +4967,8 @@ server <- function(input, output, session) {
       } else {
         session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
       }
-    } # end of if statement to check if pedigree has been displayed yet (showPed())
-    autoInvalidate <- reactiveTimer(intervalMs = 1000)
-    observe({
-      autoInvalidate()
-      shinyjs::click("GetPedJSButton")
-    })
+    } 
+    # end of if statement to check if pedigree has been displayed yet (showPed())
   }, ignoreInit = T, ignoreNULL = T)
   
   ## cancer color legend plot

@@ -1588,6 +1588,8 @@ CountGs <- function(t.pjs, rl){
 #' new relative added.
 addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full = NULL){
   
+  rela <- ""
+  
   # replace missing death status with alive code (0)
   pjs$status[which(pjs$name == target.rel)] <- as.character(0)
   
@@ -1595,6 +1597,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   target.rel.sx <- pjs$sex[which(pjs$name == target.rel)]
   if(target.rel.sx == "U"){
     pjs$sex[which(pjs$name == target.rel)] <- "M"
+    target.rel.sx <- "M"
   }
   
   ### determine relationship to proband and, if possible, maternal or paternal side
@@ -1702,21 +1705,21 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
               rela <- "nephew"
             } else if(target.rel.sx == "F"){
               rela <- "neice"
-            }
+            } 
           } else if(fa.rela == "son" | mo.rela == "daughter"){
             if(target.rel.sx == "M"){
               rela <- "grandson"
             } else if(target.rel.sx == "F"){
               rela <- "granddaughter"
-            }
+            } 
           } else if(xor(fa.rela == "father", mo.rela == "mother")){
             if(target.rel.sx == "M"){
               rela <- "half.brother"
             } else if(target.rel.sx == "F"){
               rela <- "half.sister"
-            }
+            } 
           }
-          
+        
           # if a parent is being added, it is either for someone who "partnered" into the family or 
           # is a grandparent, great-grandparent, etc
         } else if(type == "parent"){
@@ -1741,7 +1744,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
         } else {
           rela <- "relative"
         }
-        
+       
         # if a parent was added, check if they are a direct ancestor (ie great-grandparent),
         # otherwise assign generic label
       } else if(type == "parent"){
@@ -1784,7 +1787,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   # (unique includes any maternal/paternal identifier prefix in the name field, ie a materal grandmother)
   if(!rela %in% c("proband", "mother", "father", "grandmother", "grandfather")){
     other.rela.names <- r.ped$name[which(r.ped$relationship == rela)]
-    if(length(other.rela.names) > 1){
+    if(length(other.rela.names) >= 1){
       other.rela.nums <- 
         as.numeric(
           str_sub(other.rela.names, 
@@ -1831,9 +1834,11 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
       r.ped$FatherID[which(r.ped$ID %in% as.numeric(kids))] <- as.numeric(target.rel)
     }
   }
+  
   r.ped$relationship[nrow(r.ped)] <- rela
   r.ped$side[nrow(r.ped)] <- sd
   r.ped$name[nrow(r.ped)] <- target.rel.rname
+  
   
   return(list(pjs_updated = pjs,
               r.ped_updated = r.ped))
