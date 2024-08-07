@@ -292,7 +292,7 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
       warning("userName arguement missing. Cannot email username.")
     }
     subject <- "account username recovery"
-    body <- paste0("Dear User,\n", 
+    body <- paste0("Dear User,\n\n", 
                    "Your hereditarycancer account username is: ", userName, "\n\n", 
                    "You can now return to the site and log-in.", "\n\n",
                    "Thanks,\n",
@@ -300,7 +300,7 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
     # password email subject and body
   } else if(emailType == "recoverPw"){
     subject <- "account password recovery code"
-    body <- paste0("Dear User,\n",
+    body <- paste0("Dear User,\n\n",
                    "Your hereditarycancer account password recovery code is: ", rCode, "\n\n",
                    "The code expires in ",expireCode/1000," minutes.\n",
                    "You can now return to the site and log-in.", "\n\n",
@@ -308,7 +308,7 @@ emailUser <- function(userEmail, emailType, userName = NULL, rCode = NULL){
                    "The BayesMendel Lab at Dana-Farber Cancer Institute")
   } else if(emailType == "result"){
     subject <- "PanelPRO result is ready"
-    body <- paste0("Dear User,\n",  
+    body <- paste0("Dear User,\n\n",  
                    "The job you submitted to PanelPRO is complete.\n",
                    "You can now return to the site and check your results.", "\n\n",
                    "Thanks,\n",

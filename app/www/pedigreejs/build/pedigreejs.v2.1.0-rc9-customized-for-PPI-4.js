@@ -2607,21 +2607,22 @@ var pedigreejs = (function (exports) {
 	  // popup gender selection box
 	  let font_size = parseInt($("body").css('font-size'));
 	  let popup_selection = d3.select('.diagram');
-	  popup_selection.append("rect").attr("class", "popup_selection").attr("rx", 6).attr("ry", 6).attr("transform", "translate(-1000,-100)").style("opacity", 0).attr("width", font_size * 7.9).attr("height", font_size * 2).style("stroke", "darkgrey").attr("fill", "white");
+	  popup_selection.append("rect").attr("class", "popup_selection").attr("rx", 6).attr("ry", 6).attr("transform", "translate(-1000,-100)").style("opacity", 0).attr("width", font_size * 6.2).attr("height", font_size * 2).style("stroke", "darkgrey").attr("fill", "white");
 	  let square = popup_selection.append("text") // male
 	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr('font-size', '1.em').attr("class", "popup_selection fa-lg fa-square persontype").attr("transform", "translate(-1000,-100)").attr("x", font_size / 3).attr("y", font_size * 1.5).text("\uf096 ");
 	  let square_title = square.append("svg:title").text("add male");
 	  let circle = popup_selection.append("text") // female
 	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr('font-size', '1.em').attr("class", "popup_selection fa-lg fa-circle persontype").attr("transform", "translate(-1000,-100)").attr("x", font_size * 1.7).attr("y", font_size * 1.5).text("\uf10c ");
 	  let circle_title = circle.append("svg:title").text("add female");
-	  let unspecified = popup_selection.append("text") // unspecified
-	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr('font-size', '1.em').attr("transform", "translate(-1000,-100)").attr("class", "popup_selection fa-lg fa-unspecified popup_selection_rotate45 persontype").text("\uf096 ");
-	  unspecified.append("svg:title").text("add unspecified");
+	  let unspecified = popup_selection.append("text"); // unspecified
+	  unspecified.remove();
+	  //.attr('font-family', 'FontAwesome').style("opacity", 0).attr('font-size', '1.em').attr("transform", "translate(-1000,-100)").attr("class", "popup_selection fa-lg fa-unspecified popup_selection_rotate45 persontype").text("\uf096 ");
+	  //unspecified.append("svg:title").text("add unspecified");
 	  let dztwin = popup_selection.append("text") // dizygotic twins
-	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr("transform", "translate(-1000,-100)").attr("class", "popup_selection fa-2x fa-angle-up persontype dztwin").attr("x", font_size * 4.6).attr("y", font_size * 1.5).text("\uf106 ");
+	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr("transform", "translate(-1000,-100)").attr("class", "popup_selection fa-2x fa-angle-up persontype dztwin").attr("x", font_size * 3.1).attr("y", font_size * 1.5).text("\uf106 ");
 	  dztwin.append("svg:title").text("add dizygotic/fraternal twins");
 	  let mztwin = popup_selection.append("text") // monozygotic twins
-	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr("transform", "translate(-1000,-100)").attr("class", "popup_selection fa-2x fa-caret-up persontype mztwin").attr("x", font_size * 6.2).attr("y", font_size * 1.5).text("\uf0d8");
+	  .attr('font-family', 'FontAwesome').style("opacity", 0).attr("transform", "translate(-1000,-100)").attr("class", "popup_selection fa-2x fa-caret-up persontype mztwin").attr("x", font_size * 4.7).attr("y", font_size * 1.5).text("\uf0d8");
 	  mztwin.append("svg:title").text("add monozygotic/identical twins");
 	  let add_person = {};
 	  // click the person type selection
@@ -3721,7 +3722,7 @@ var pedigreejs = (function (exports) {
 	  let ptr_name;
 	  let children = getAllChildren(dataset, node);
 	  if (children.length > 0) {
-	    ptr_name = children[0].mother == node.name ? children[0].father : children[0].mother;
+	    ptr_name = children[0].mother === node.name ? children[0].father : children[0].mother;
 	    pid = getNodeByName(flat_tree, ptr_name).data.id;
 	  }
 	  let i;
@@ -3739,14 +3740,14 @@ var pedigreejs = (function (exports) {
 	    dataset.splice(0, 0, mother);
 	    dataset.splice(0, 0, father);
 	    for (i = 0; i < dataset.length; i++) {
-	      if ((dataset[i].top_level || getDepth(dataset, dataset[i].name) == 2) && dataset[i].name !== mother.name && dataset[i].name !== father.name)  {
+	      if ((dataset[i].top_level || getDepth(dataset, dataset[i].name) === 2) && dataset[i].name !== mother.name && dataset[i].name !== father.name) {
 	        delete dataset[i].top_level;
 	        dataset[i].noparents = true;
 	        dataset[i].mother = mother.name;
 	        dataset[i].father = father.name;
 	      }
 	    }
-	  } else {
+	  }else {
 	    let node_mother = getNodeByName(flat_tree, tree_node.data.mother);
 	    let node_father = getNodeByName(flat_tree, tree_node.data.father);
 	    let node_sibs = getAllSiblings(dataset, node);
@@ -3853,7 +3854,7 @@ var pedigreejs = (function (exports) {
 	      let ps = [getNodeByName(dataset, parent.mother.name), getNodeByName(dataset, parent.father.name)];
 	      // delete parents
 	      for (j = 0; j < ps.length; j++) {
-	        if (ps[j].name === node.name || ps[j].noparents !== undefined || ps[j].top_level) {
+	        if (ps[j].name == node.name || ps[j].noparents != undefined || ps[j].top_level) {
 	          dataset.splice(getIdxByName(dataset, ps[j].name), 1);
 	          deletes.push(ps[j]);
 	        }

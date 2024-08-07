@@ -9,7 +9,7 @@ library(shinybusy)  # success notifications and waiting on calc spinner
 
 # pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
-library(cbcrisk)    # Swati's cbcrisk model
+#library(cbcrisk)    # Swati's cbcrisk model - provided in PanelPRO
 library(PanelPRO)
 
 # database and user accounts
@@ -116,7 +116,8 @@ ui <- fixedPage(
           p("Complete the form below to create a user account."),
           
           # user name
-          p("Usernames can only contain lower case letters, numbers, and underscores (_)."),
+          p("Usernames can only contain lowercase letters, numbers, 
+            and underscores (_) and less than 60 characters."),
           textInput(inputId = "newUsername",
                     label = "New Username",
                     placeholder = "Enter a new username"),
@@ -142,8 +143,9 @@ ui <- fixedPage(
                     placeholder = "Re-enter your email address"),
            
           # set password
-          p("Passwords must be at least 8 character in length and have one of each: 
-            lowercase letter, upper case letter, number, symbol."),
+          p("Password reauirements: 1. Your password must be at least 8 character in length 
+            2. Your password must contain one of each: lowercase letter (a-z), upper case letter (A-Z), 
+            number (0-9), and symbol (example: !, @, #, $)"),
           passwordInput(inputId = "newPassword",
                         label = "New Password",
                         placeholder = "Enter a new password"),
@@ -234,21 +236,6 @@ ui <- fixedPage(
           by PanelPRO."),
         br(),
         
-        h4("Beta Version"),
-        p("This website is a beta version that is still in development. If you 
-          run into bugs or have suggestions to improve PPI, please contact us 
-          using the email address at the bottom of the page."),
-        br(),
-        
-        h4("Which cancers and genes does PanelPRO consider?"),
-        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
-          paste0(paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
-          "Contralateral Breast Cancer (CBC) is also analyzed."),
-        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(paste0(PanelPRO:::GENE_TYPES, collapse = ", "), ".")),
-        p("Users can customize their analysis by running a model with a subset of these cancers 
-          and genes."),
-        br(),
-        
         h4("How to Use PPI"),
         tags$h5(
           "The detailed user guide can be found ",
@@ -270,6 +257,21 @@ ui <- fixedPage(
           analysis has run, you can download the results which includes tables 
           and graphs of the proband's carrier probabilities and future cancer 
           risks along with the pedigree table and tree."),
+        br(),
+        
+        h4("Beta Version"),
+        p("This website is a beta version that is still in development. If you 
+          run into bugs or have suggestions to improve PPI, please contact us 
+          using the email address at the bottom of the page."),
+        br(),
+        
+        h4("Which cancers and genes does PanelPRO consider?"),
+        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
+          paste0(paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
+          "Contralateral Breast Cancer (CBC) is also analyzed."),
+        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(paste0(PanelPRO:::GENE_TYPES, collapse = ", "), ".")),
+        p("Users can customize their analysis by running a model with a subset of these cancers 
+          and genes."),
         br(),
         
         h4("Privacy"),
@@ -365,8 +367,9 @@ ui <- fixedPage(
               textOutput("currentPed2", inline = T), 
               style = "font-size:17px"),
             p("Below you can choose between the tree and table views of the pedigree which is currently loaded."),
+            p(strong("Now you proceed to"), actionLink("goToCreate" ,"Create/Modify Pedigrees"), strong("tab to edit your pedigree")),
             tabsetPanel(id = "pedVisualsViewer",
-                        
+                      
               # tree
               tabPanel(title = "Tree",
                 plotOutput("treePedViewer", width = "750px"),
@@ -525,7 +528,6 @@ ui <- fixedPage(
       ##### UI: Create/Modify Pedigree ####
       
       tabPanel("Create/Modify Pedigree",
-               
         # create 2 columns, one for displaying the pedigree (left) and one for data entry (right)
         fluidRow(
           
@@ -1367,28 +1369,6 @@ ui <- fixedPage(
             )),
             
             tabsetPanel(id = "ppResultTabs",
-              
-              ## Carrier Probs
-              # plot
-              tabPanel(title = "Carrier Prob. Plot",
-                h4("Posterior Carrier Probabilities"),
-                radioButtons("ppCPPlotView", label = "Select a Y-axis Scale:",
-                             choices = c("Full (0 to 1)", "Zoomed"),
-                             inline = T),
-                conditionalPanel(condition = "input.ppCPPlotView == 'Zoomed'",
-                  plotly::plotlyOutput("ppCPPlotZoom", width = "1000px", height = "500px")
-                ),
-                conditionalPanel(condition = "input.ppCPPlotView != 'Zoomed'",
-                  plotly::plotlyOutput("ppCPPlotFull", width = "1000px", height = "500px")
-                )
-              ),
-              
-              # table
-              tabPanel(title = "Carrier Prob. Table",
-                h4("Posterior Carrier Probabilities"),
-                DT::DTOutput("ppCPTbl", width = "500px")
-              ),
-              
               ## Cancer Risk
               # plot
               tabPanel(title = "Cancer Risk Plots",
@@ -1411,6 +1391,27 @@ ui <- fixedPage(
               tabPanel(title = "Cancer Risk Table",
                 h4("Future Cancer Risk"),
                 DT::DTOutput("ppFRTbl", width = "450px")
+              ),
+              
+              ## Carrier Probs
+              # plot
+              tabPanel(title = "Carrier Prob. Plot",
+                h4("Posterior Carrier Probabilities"),
+                radioButtons("ppCPPlotView", label = "Select a Y-axis Scale:",
+                             choices = c("Full (0 to 1)", "Zoomed"),
+                             inline = T),
+                conditionalPanel(condition = "input.ppCPPlotView == 'Zoomed'",
+                  plotly::plotlyOutput("ppCPPlotZoom", width = "1000px", height = "500px")
+                ),
+                conditionalPanel(condition = "input.ppCPPlotView != 'Zoomed'",
+                  plotly::plotlyOutput("ppCPPlotFull", width = "1000px", height = "500px")
+                )
+              ),
+              
+              # table
+              tabPanel(title = "Carrier Prob. Table",
+                h4("Posterior Carrier Probabilities"),
+                DT::DTOutput("ppCPTbl", width = "500px")
               ),
               
               ## Settings
@@ -1918,7 +1919,10 @@ server <- function(input, output, session) {
   output$recoveryCodeResponse <- renderUI({
     if(goodCode()){
       return( shiny::tagList(
-        p("Thank you. Please reset your password below."),
+        p("Thank you. Please reset your password below. 
+          Password reauirements: 1. Your password must be at least 8 character in length 
+          2. Your password must contain one of each: lowercase letter (a-z), upper case letter (A-Z), 
+          number (0-9), and symbol (example: !, @, #, $)" ),
         passwordInput(inputId = "resetPw",
                       label = "Enter a new password"),
         passwordInput(inputId = "resetPw2",
@@ -2087,7 +2091,7 @@ server <- function(input, output, session) {
     if(!is.null(currentPed())){
       return(currentPed())
     } else {
-      return("no pedigree has been loaded or created yet.")
+      return("")
     }
   })
   
@@ -2096,7 +2100,7 @@ server <- function(input, output, session) {
     if(!is.null(currentPed())){
       return(currentPed())
     } else {
-      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+      return("")
     }
   })
   
@@ -2105,7 +2109,7 @@ server <- function(input, output, session) {
     if(!is.null(currentPed())){
       return(currentPed())
     } else {
-      return("no pedigree has been loaded or created yet. Go to the 'Create or Load' tab.")
+      return("")
     }
   })
   
@@ -3470,11 +3474,30 @@ server <- function(input, output, session) {
     shinybusy::notify_success("Deletion Successful!", position = "center-bottom")
     
   }, ignoreInit = T)
+
+  observeEvent(input$goToCreate, {
+    updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
+  }, ignoreInit = TRUE)
   
   #### Edit Pedigree ####
   # manually save the pedigree, useful for pre-logout save and to update the pedigree viewers
   # with information just entered on an editor tab without requiring the user to change tabs
+  # manually save the pedigree, useful for pre-logout save and to update the pedigree viewers
+  # with information just entered on an editor tab without requiring the user to change tabs
+  # user confirms deletion
   observeEvent(input$manualPedSave, {
+    showModal(modalDialog(
+      tagList(p("Are you sure you want to save the selected pedigrees to your account? ")),
+      title = "Save Confirmation",
+      footer = tagList(
+        actionButton("confirmSavePeds", "Save"),
+        modalButton("Cancel")
+      )
+    ))
+  })
+
+  
+  observeEvent(input$confirmSavePeds, {
     if(!is.null(PED())){
       PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
                            cr = canReactive$canNums,
@@ -3504,6 +3527,12 @@ server <- function(input, output, session) {
       
       # send pedigree to pedigreeJS
       session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
+      
+      # remove the confirmation pop-up window
+      removeModal()
+      
+      # notify user of delete success
+      shinybusy::notify_success("Pedigree Successfully Saved!", position = "center-bottom")
     }
   }, ignoreInit = TRUE)
   
@@ -4720,7 +4749,7 @@ server <- function(input, output, session) {
       autoInvalidate()
       # only when the user is at "Create/Modify Pedigree" page 
       # and the pedigree has been visualized
-        # also the pedigree should not be empty/invalid
+      # also the pedigree should not be empty/invalid
       shinyjs::click("GetPedJSButton")
       
     }
@@ -5309,11 +5338,11 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
-      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+      updateTabsetPanel(session, "ppResultTabs", selected = "Cancer Risk Plots")
     }
   }, ignoreInit = TRUE)
   
-  ##### Switch Selected Relative ####
+  ##### Switch Selected Relative #####
   # initialize the ID of the last relative selected with proband
   lastRel <- reactiveVal(1)
   
