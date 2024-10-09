@@ -908,7 +908,7 @@ ui <- fixedPage(
                     p("Use this screen to enter or modify germline genetic test results. 
                       There are three tabs:"),
                     tags$ol(
-                      tags$li("'Manage Panels' allows you to add a multi-gene panels or single 
+                      tags$li("'Manage Gene Panels' allows you to add a multi-gene panels or single 
                               gene tests as well as delete one of the existing tests."),
                       tags$li("'Edit Panel Results' allows you to edit gene test 
                               results (if there is at least one panel)."),
@@ -917,9 +917,9 @@ ui <- fixedPage(
                     )
                   ),
                   
-                  tabPanel(title = "Manage Panels",
+                  tabPanel(title = "Manage Gene Panel Templates",
                     fluidRow(column(width = 12, 
-                      h4(textOutput("rop14", inline = T), "Current Panel Tests"),
+                      h4(textOutput("rop14", inline = T), "Current Gene Test Templates"),
                       tags$div(
                         id = "PanCont",
                         style = "width:100%"
@@ -928,33 +928,33 @@ ui <- fixedPage(
                         h5(textOutput("rop15", inline = T), "does not have any gene testing results yet.")
                       ),
                       br(),
-                      h4("Add a Panel"),
-                      p("Using the dropdown, select one of the pre-existing panels and click 'Add Panel' or select 'Create new' 
-                        to make a custom panel of genes."),
-                      p("Note, do not add or create a new panel until you have received the panel results back from the lab.", 
+                      h4("Add a Gene Panel Template"),
+                      p("create a new custom template of genes by selecting 'Create New' from the dropdown or
+                      select one of the pre-existing panels and click 'Add'"),
+                      p("NOTE: do not add or create a new template until you have received the gene test results back from the lab.", 
                         style = "color:blue"),
                       selectInput("existingPanels", label = NULL,
-                                  selected = "No panel selected", 
-                                  choices = c("No panel selected", "Create new"),
+                                  selected = "No template selected", 
+                                  choices = c("No template selected", "Create new"),
                                   width = "300px"),
-                      actionButton("addPanel", label = "Add Panel",
+                      actionButton("addPanel", label = "Add",
                                    style = "margin-top: 0px; margin-bottom:15px"),
                       
-                      # create new panel
+                      # create new template
                       conditionalPanel("input.existingPanels == 'Create new'",
-                        p("Enter the genes in your panel below.
+                        p("Enter the genes in your template below.
                           When you start typing, the dropdown will filter to genes for you to select.
                           You can also add genes that are not in the dropdown. When done, give it a name and select the
-                          'Create Panel' button. You will still need to add the panel above after its created."),
-                        textInput("newPanelName", label = h5("Name the new panel:"), width = "250px"),
+                          'Create Template' button. You will still need to add the template above after its created."),
+                        textInput("newPanelName", label = h5("Name the new template:"), width = "250px"),
                         textOutput("validPanelName"),
-                        selectizeInput("newPanelGenes", label = h5("Type or select the genes in this panel:"),
+                        selectizeInput("newPanelGenes", label = h5("Type or select the genes in this template:"),
                                        choices = all.genes, 
                                        multiple = TRUE, 
                                        options = list(create = TRUE),
                                        width = "500px"),
                         textOutput("waitNewPanel"),
-                        actionButton("createPanel", label = "Create Panel",
+                        actionButton("createPanel", label = "Create Template",
                                      style = "margin-top: 0px; margin-bottom:15px")
                       )
                     ))
@@ -966,7 +966,7 @@ ui <- fixedPage(
                       
                       # cannot enter results if no panels exist
                       conditionalPanel("!output.atLeastOnePanel",
-                        p("To edit panel results, please add at least one panel on the 'Manage Panels' tab.")
+                        p("To edit panel results, please add at least one panel template on the 'Manage Panels' tab.")
                       ),
                       
                       # enter results by type
@@ -1359,7 +1359,8 @@ ui <- fixedPage(
             # top row for instructions and download button
             fluidRow(div(style = "margin-top:10px",
               column(width = 8,
-                p("View the results in one of the tabs below or download them using the 'Download Results' button.")
+                p("View the results in one of the tabs below or download them using the 'Download Results' button.
+                  You can click on the legend in the 'Cancer Risk Plots' to hide a specific type of cancer.")
               ),
               column(width = 4, align = "right",
                 actionButton("downloadResults1", label = "Download Results",
@@ -1730,9 +1731,16 @@ server <- function(input, output, session) {
       # initialize the user's table with the example_pedigree from the admin's account
       example_pedigree <- dbGetQuery(conn = conn,
                                      statement = "SELECT * FROM admin WHERE PedigreeID='example_pedigree'")
+      gene_test_table <- dbGetQuery(conn = conn, 
+                                    statement = "SELECT * FROM panels WHERE panel_name='Lynch'")
       savePedigreeToDB(conne = conn,
                         user = input$newUsername,
                         tmp_tbl = example_pedigree)
+      
+      # initialize the user's table with the default gene testing templates from 
+      dbWriteTable(conn = conn,
+                    name = paste0(input$newUsername, "_gene_templates"),
+                    value = gene_test_table)
       
       # notify user of successful account creation
       shinybusy::notify_success("Account Created!", position = "center-bottom")
@@ -2272,7 +2280,8 @@ server <- function(input, output, session) {
                         choices = setNames(as.character(PED()$ID), PED()$name),
                         selected = as.character(proband.id))
       proband.info <- PED()[which(PED()$ID == proband.id),]
-      updateRelInputs(rel.info = proband.info, ss = session, conn = conn)
+      updateRelInputs(rel.info = proband.info, ss = session, 
+                      user = credentials()$info[["user"]], conn = conn)
       shinyjs::disable("Sex")
       
       #### Reset cancer and gene reactives and UI modules and create data frames
@@ -2309,7 +2318,6 @@ server <- function(input, output, session) {
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
             for(pMod in sort(as.numeric(names(geneReactive$GeneNums[[as.character(rl)]]$dict)), decreasing = T)){
-              
               # update the geneReactive and also remove and delete all related UI modules for this panel
               out <-
                 removePanel(gr = geneReactive$GeneNums,
@@ -2318,6 +2326,7 @@ server <- function(input, output, session) {
                             panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
                             inp = input,
                             ss = session,
+                            user = credentials()$info[["user"]],
                             conn = conn)
               geneReactive$GeneNums <- out$gr
 
@@ -2370,7 +2379,7 @@ server <- function(input, output, session) {
 
         ## GENES
         if(!is.na(PED()$genesJSON[which(PED()$ID == rl)])){
-
+      
           # convert JSON into a data frame of genes
           mod.gene.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$genesJSON[which(PED()$ID == rl)])
           gene.df <- fromJSON(mod.gene.JSON, simplifyDataFrame = T)
@@ -2378,7 +2387,6 @@ server <- function(input, output, session) {
             gene.df %>%
             mutate(across(.cols = everything(), ~as.character(.))) %>%
             mutate(rel = rl)
-
           # append to data frame of genes for all relatives
           if(is.null(master.gene.df)){
             master.gene.df <- gene.df
@@ -2486,6 +2494,7 @@ server <- function(input, output, session) {
                             inp = input,
                             ss = session,
                             pan.name = master.gene.df$panel[x],
+                            user = credentials()$info[["user"]],
                             conn = conn)
             geneReactive$GeneNums <- out$gr
             panel.module.id.num <- out$panel.module.id.num
@@ -2499,6 +2508,7 @@ server <- function(input, output, session) {
                                     panel.module.id.num = panel.module.id.num,
                                     inp = input,
                                     ss = session,
+                                    user = credentials()$info[["user"]],
                                     conn = conn)
               geneReactive$GeneNums <- out.rm$gr
   
@@ -2641,6 +2651,7 @@ server <- function(input, output, session) {
                           panel.module.id.num = geneReactive$GeneNums[[as.character(rl)]]$dict[pMod],
                           inp = input,
                           ss = session,
+                          user = credentials()$info[["user"]],
                           conn = conn)
             geneReactive$GeneNums <- out$gr
             
@@ -4197,26 +4208,30 @@ server <- function(input, output, session) {
   ###### Panels ####
   # get panel name choices from the database
   observe({
-    all.pans <- 
-      sort(dbGetQuery(conn = conn,
-                      statement = "SELECT panel_name FROM panels")$panel_name)
-    
-    # update the panel selector
-    updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
-  })
-  
+    if (loggedIn()) {
+      all.pans <-
+        sort(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]],
+                        "_gene_templates"))$panel_name)
+      # update the panel selector
+      updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
+    }
+    })
+
   # create new panel
+
   observeEvent(input$createPanel, {
+    
     all.pans <- 
       dbGetQuery(conn = conn,
-                 statement = "SELECT panel_name FROM panels")$panel_name
-    
+                 statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]], "_gene_templates"))$panel_name
     if(input$newPanelName != "" &
        !input$newPanelName %in% all.pans &
        !is.null(input$newPanelGenes)){
       pan.genes <- paste0(input$newPanelGenes, collapse = ",")
       dbExecute(conn = conn,
-                statement = paste0("INSERT INTO panels (panel_name,genes) VALUES ('", 
+                statement = paste0("INSERT INTO ", credentials()$info[["user"]],
+                                   "_gene_templates (panel_name,genes) VALUES ('", 
                                    input$newPanelName,"','", pan.genes,"');"))
       
       # reset/update inputs
@@ -4224,9 +4239,9 @@ server <- function(input, output, session) {
       shinyjs::reset("newPanelGenes")
       all.pans <- 
         sort(dbGetQuery(conn = conn,
-                        statement = "SELECT panel_name FROM panels")$panel_name)
+                        statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]], "_gene_templates"))$panel_name)
       updateSelectInput(session, "existingPanels", 
-                        choices = c("No panel selected", "Create new", all.pans))
+                        choices = c("No panel selected", "Create New", all.pans))
       updateTextInput(session, "newPanelName", value = "")
       updateSelectizeInput(session, "newPanelGenes", selected = NULL)
     }
@@ -4234,29 +4249,28 @@ server <- function(input, output, session) {
 
   # disable Create Panel button if conditions are not met
   observeEvent(list(input$newPanelName, input$newPanelGenes), {
-    all.pans <- 
-      dbGetQuery(conn = conn,
-                 statement = "SELECT panel_name FROM panels")$panel_name
-  
-    if(input$newPanelName == "" |
-       input$newPanelName %in% all.pans |
+    if(loggedIn()){
+      all.pans <- dbGetQuery(conn = conn,
+                 statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]],  "_gene_templates"))$panel_name
+      if(input$newPanelName == "" | input$newPanelName %in% all.pans |
        is.null(input$newPanelGenes)){
-      waitNewPanel(FALSE)
-      shinyjs::disable("createPanel")
-      if(input$newPanelName %in% all.pans){
-        panelNameUnique(FALSE)
+        waitNewPanel(FALSE)
+        shinyjs::disable("createPanel")
+        if(input$newPanelName %in% all.pans){
+          panelNameUnique(FALSE)
+        } else {
+          panelNameUnique(TRUE)
+        }
       } else {
         panelNameUnique(TRUE)
+        waitNewPanel(TRUE)
+        shinyjs::delay(delay_ms, {
+          shinyjs::enable("createPanel")
+          waitNewPanel(FALSE)
+        })
       }
-    } else {
-      panelNameUnique(TRUE)
-      waitNewPanel(TRUE)
-      shinyjs::delay(delay_ms, {
-        shinyjs::enable("createPanel")
-        waitNewPanel(FALSE)
-      })
-    }
-  }, ignoreNULL = F, ignoreInit = F)
+      }
+    }, ignoreNULL = F, ignoreInit = F)
   waitNewPanel <- reactiveVal(FALSE)
   output$waitNewPanel <- renderText({ need(!waitNewPanel(), "Please wait...") })
   
@@ -4297,6 +4311,7 @@ server <- function(input, output, session) {
                       inp = input,
                       ss = session,
                       pan.name = pan.name,
+                      user = credentials()$info[["user"]], 
                       conn = conn)
       geneReactive$GeneNums <- out$gr
       panel.module.id.num <- out$panel.module.id.num
@@ -4311,6 +4326,7 @@ server <- function(input, output, session) {
                               panel.module.id.num = panel.module.id.num,
                               inp = input,
                               ss = session,
+                              user = credentials()$info[["user"]],
                               conn = conn)
         geneReactive$GeneNums <- out.rm$gr
         
@@ -4743,7 +4759,7 @@ server <- function(input, output, session) {
   
   
   # at a specified time interval, refresh the JSON pedigree
-  autoInvalidate <- reactiveTimer(intervalMs = 200)
+  autoInvalidate <- reactiveTimer(intervalMs = 100)
   observe({
     if (showPed() & input$navbarTabs == "Create/Modify Pedigree") {
       autoInvalidate()
@@ -5372,7 +5388,7 @@ server <- function(input, output, session) {
       
       # Re-populate data for new person
       rel.info <- PED()[which(PED()$ID == as.numeric(input$relSelect)),]
-      updateRelInputs(rel.info = rel.info, ss = session, conn = conn)
+      updateRelInputs(rel.info = rel.info, ss = session, user = credentials()$info[["user"]],conn = conn)
       
       # reset the selected tabs
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
@@ -5877,9 +5893,11 @@ server <- function(input, output, session) {
             mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
             mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA,
                                                                       ifelse(.<0.000001, "<1E-6", .)))) %>%
-            DT::datatable(rownames = FALSE,
+            DT::datatable(rownames = FALSE, filter = 'top',
                           class = list("nowrap", "stripe", "compact"),
-                          options = list(pageLength = 20)) %>%
+                          options = list(pageLength = 20, scrollX = TRUE)) %>%
+            DT::formatStyle(columns = c("Num. Muts."),
+                            textAlign = "center") %>%
             DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
                             textAlign = "right")
           ppReactive$cpTbl <- cpTbl
@@ -5960,9 +5978,13 @@ server <- function(input, output, session) {
             mutate(across(.cols = c(Estimate, Lower, Upper), ~ round(., digits = 6))) %>%
             mutate(across(.cols = c(Estimate, Lower, Upper), ~ ifelse(is.na(.), NA,
                                                                       ifelse(.<0.000001, "<1E-6", .)))) %>%
-            DT::datatable(rownames = FALSE,
+            DT::datatable(rownames = FALSE, filter = 'top',
                           class = list("nowrap", "stripe", "compact"),
-                          options = list(pageLength = 20)) %>%
+                          options = list(pageLength = 20, 
+                                         autoWidth = TRUE,
+                                         scrollX = TRUE)) %>%
+            DT::formatStyle(columns = c("Who"),
+                            textAlign = "center") %>%
             DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
                             textAlign = "right")
           ppReactive$frTbl <- frTbl

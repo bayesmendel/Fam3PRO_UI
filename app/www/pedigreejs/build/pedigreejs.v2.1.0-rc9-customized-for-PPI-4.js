@@ -491,7 +491,9 @@ var pedigreejs = (function (exports) {
 	// get the siblings + adopted siblings
 	function getAllSiblings(dataset, person, sex) {
 	  return $.map(dataset, function (p, _i) {
-	    return p.name !== person.name && !('noparents' in p) && p.mother && p.mother === person.mother && p.father === person.father && (!sex || p.sex == sex) ? p : null;
+	    return  p.name !== person.name && !('noparents' in p) && p.mother &&
+			   (p.mother === person.mother && p.father === person.father) &&
+			   (!sex || p.sex === sex) ? p : null;
 	  });
 	}
 
@@ -2636,7 +2638,7 @@ var pedigreejs = (function (exports) {
 	      sex = add_person.node.datum().data.sex;
 	      twin_type = mztwin ? "mztwin" : "dztwin";
 	    } else {
-	      sex = d3.select(this).classed("fa-square") ? 'M' : d3.select(this).classed("fa-circle") ? 'F' : 'U';
+	      sex = d3.select(this).classed("fa-square") ? 'M' : d3.select(this).classed("fa-circle") ? 'F' : null;
 	    }
 	    if (add_person.type === 'addsibling') addsibling(newdataset, add_person.node.datum().data, sex, false, twin_type);else if (add_person.type === 'addchild') addchild(newdataset, add_person.node.datum().data, twin_type ? 'U' : sex, twin_type ? 2 : 1, twin_type);else return;
 	    opts.dataset = newdataset;
@@ -3740,7 +3742,8 @@ var pedigreejs = (function (exports) {
 	    dataset.splice(0, 0, mother);
 	    dataset.splice(0, 0, father);
 	    for (i = 0; i < dataset.length; i++) {
-	      if ((dataset[i].top_level || getDepth(dataset, dataset[i].name) === 2) && dataset[i].name !== mother.name && dataset[i].name !== father.name) {
+	      if( (dataset[i].top_level || getDepth(dataset, dataset[i].name) === 2) && 
+			     dataset[i].name !== mother.name && dataset[i].name !== father.name){
 	        delete dataset[i].top_level;
 	        dataset[i].noparents = true;
 	        dataset[i].mother = mother.name;
@@ -3854,7 +3857,7 @@ var pedigreejs = (function (exports) {
 	      let ps = [getNodeByName(dataset, parent.mother.name), getNodeByName(dataset, parent.father.name)];
 	      // delete parents
 	      for (j = 0; j < ps.length; j++) {
-	        if (ps[j].name == node.name || ps[j].noparents != undefined || ps[j].top_level) {
+	        if (ps[j].name === node.name || ps[j].noparents !== undefined || ps[j].top_level) {
 	          dataset.splice(getIdxByName(dataset, ps[j].name), 1);
 	          deletes.push(ps[j]);
 	        }

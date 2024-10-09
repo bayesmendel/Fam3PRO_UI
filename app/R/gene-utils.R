@@ -121,13 +121,14 @@ makeGeneDF <- function(rel, gr = geneReactive$GeneNums,
 #' @param inp the shiny input object
 #' @param ss shiny session
 #' @param pan.name name of the panel to add
+#' @param user the username of the current user
 #' @param conn a database connection
 #' @returns a list:
 #' - gr: updated copy of geneReactive$GeneNums
 #' - panel.module.id.num: the unique number associated with the panelUI module
 #' - panMod.id: the full panelUI module id
 addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
-                     pan.name, conn){
+                     pan.name, user, conn){
   
   if(is.numeric(rel)){
     rel <- as.character(rel)
@@ -157,7 +158,8 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
   add.gr$panels[[new.pan]]$genes <- 
     strsplit(
       dbGetQuery(conn = conn,
-                 statement = paste0("SELECT genes FROM panels WHERE panel_name='", pan.name,"';"))$genes,
+                 statement = paste0("SELECT genes FROM ", user, "_gene_templates",
+                                    " WHERE panel_name='", pan.name,"'"))$genes,
       split = ","
     )[[1]]
   add.gr$panels[[new.pan]]$results <- geneResultsTemplate
@@ -181,7 +183,8 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
   }
   all.pans <- 
     sort(dbGetQuery(conn = conn,
-                    statement = "SELECT panel_name FROM panels")$panel_name)
+                    statement = paste0("SELECT panel_name FROM ",
+                                       user, "_gene_templates"))$panel_name)
   updateSelectInput(ss, "existingPanels",
                     choices = c("No panel selected", "Create new", all.pans[which(!all.pans %in% cur.panels)]),
                     selected = "No panel selected")
@@ -209,6 +212,7 @@ addPanel <- function(gr = geneReactive$GeneNums, rel, inp = input, ss = session,
 #' @param pan.name name of the panel to remove/delete
 #' @param panel.module.id.number number, the unique numeric id number of the panelUI module
 #' @param conn a database connection
+#' @param user the username of the current user
 #' @returns a list:
 #' - an updated copy of geneReactive$GeneNums
 #' - a character vector with all of the geneUI module id's associated with the panel (so they can be removed from memory)
@@ -218,6 +222,7 @@ removePanel <- function(gr = geneReactive$GeneNums,
                         ss = session, 
                         pan.name, 
                         panel.module.id.num,
+                        user,
                         conn){
   
   if(is.numeric(rel)){
@@ -304,7 +309,8 @@ removePanel <- function(gr = geneReactive$GeneNums,
   }
   all.pans <- 
     sort(dbGetQuery(conn = conn,
-                    statement = "SELECT panel_name FROM panels")$panel_name)
+                    statement = paste0("SELECT panel_name FROM ",  
+                    user, "_gene_templates"))$panel_name)
   updateSelectInput(ss, "existingPanels",
                     choices = c("No panel selected", "Create new", all.pans[which(!all.pans %in% rm.cur.panels)]),
                     selected = "No panel selected")

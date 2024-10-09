@@ -888,9 +888,10 @@ saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
 #' 
 #' @param rel.info a one row data frame containing the pedigree information for the relative.
 #' @param ss shiny session
+#' @param user username of the current user
 #' @param conn a database connection
 #' @return nothing
-updateRelInputs <- function(rel.info, ss, conn){
+updateRelInputs <- function(rel.info, ss, user, conn){
   
   ## Demographics 
   # sex
@@ -938,7 +939,7 @@ updateRelInputs <- function(rel.info, ss, conn){
   # update the panel data for the new person
   all.pans <- 
     sort(dbGetQuery(conn = conn,
-                    statement = "SELECT panel_name FROM panels")$panel_name)
+                    statement = paste0("SELECT panel_name FROM ", user, "_gene_templates"))$panel_name)
   if(rel.info$panelNames != "none"){
     updateSelectInput(ss, "existingPanels", 
                       choices = c("No panel selected", "Create new",
@@ -973,7 +974,7 @@ validateRelNums <- function(num.rels){
 #' @param uped data.frame, the pedigree
 #' @param pedID string, the pedigree ID
 #' @param conn a database connection
-#' @param username self explanitory
+#' @param username self explainatory
 #' @returns either an error message if the pedigree could not be conformed to the 
 #' PPI format or a pedigree data.frame compatible with PPI
 checkUploadPed <- function(uped, pedID = NULL, conn, username){
