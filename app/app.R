@@ -939,6 +939,11 @@ ui <- fixedPage(
                                   width = "300px"),
                       actionButton("addPanel", label = "Add",
                                    style = "margin-top: 0px; margin-bottom:15px"),
+                      actionButton("modifyPanel", label = "Modify",
+                                   style = "margin-top: 0px; margin-bottom:15px"),
+                      actionButton("delPanel", label = "Delete",
+                                   style = "color: white; background-color: red;
+                                   border-color: grey; margin-top: 0px; margin-bottom:15px"),
                       
                       # create new template
                       conditionalPanel("input.existingPanels == 'Create new'",
@@ -956,11 +961,14 @@ ui <- fixedPage(
                         textOutput("waitNewPanel"),
                         actionButton("createPanel", label = "Create Template",
                                      style = "margin-top: 0px; margin-bottom:15px")
-                      )
+                      ),
+                      conditionalPanel("input.existingPanels != 'Create new' && input.existingPanels != 'No template selected'",
+                                       uiOutput("modifySubsectionUI"),  # UI that appears on action button click
+                                       textOutput("waitNewPanel"))
                     ))
                   ),
                   
-                  tabPanel(title = "Edit Panel Results",
+                  tabPanel(title = "Edit Gene Testng Results",
                     fluidRow(column(width = 12, 
                       h4("Edit ", textOutput("rop16", inline = T)," Panel Results"),
                       
@@ -1740,6 +1748,7 @@ server <- function(input, output, session) {
       # initialize the user's table with the default gene testing templates from 
       dbWriteTable(conn = conn,
                     name = paste0(input$newUsername, "_gene_templates"),
+                    field.types = c(panel_name = "TEXT", genes = "TEXT"),
                     value = gene_test_table)
       
       # notify user of successful account creation
@@ -2715,7 +2724,7 @@ server <- function(input, output, session) {
   }, ignoreInit = T)
   
   ##### Copy Pedigree ####
-  # keep dropdowns of user tables and pedigrees available for copy updated at all times
+  # keep dropdowns of user tables, pedigrees, and gene templates available for copy updated at all times
   userPedsForCopyFrom <- reactiveVal(NULL)
   userPedsForCopyTo <- reactiveVal(NULL)
   showTblExistsErrorCopy <- reactiveVal(FALSE)
@@ -2764,6 +2773,19 @@ server <- function(input, output, session) {
         
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
+        
+        # check if the user has a gene template table, if not (old users), create one for them
+        tables <- dbListTables(conn)
+        table_name <- paste0(credentials()$info[["user"]], "_gene_templates")
+        if(!(table_name %in% tables)){
+          gene_test_table <- dbGetQuery(conn = conn, 
+                                        statement = "SELECT * FROM panels WHERE panel_name='Lynch'")
+          dbWriteTable(conn = conn,
+                       name = table_name,
+                       value = gene_test_table,
+                       field.types = c(panel_name = "TEXT", genes = "TEXT")
+                       )
+        }
         
         # check if the user has a master table
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
@@ -4218,8 +4240,7 @@ server <- function(input, output, session) {
     }
     })
 
-  # create new panel
-
+  # create a new panel
   observeEvent(input$createPanel, {
     
     all.pans <- 
@@ -4298,7 +4319,77 @@ server <- function(input, output, session) {
       atLeastOnePanel(FALSE)
     }
   })
-
+  
+  ### modify an existing panel
+  modify_clicked <- reactiveVal(FALSE)
+  observeEvent(input$modifyPanel,{
+    if(!input$existingPanels %in% c("No panel selected", "Create new")){
+      modify_clicked(TRUE)
+      current_pan <- input$existingPanels
+      genelist <- strsplit(
+        dbGetQuery(conn = conn,
+                   statement = paste0("SELECT genes FROM ", 
+                                      credentials()$info[["user"]], "_gene_templates",
+                                      " WHERE panel_name = '", current_pan,"'"))$genes,
+        split = ","
+      )[[1]]
+      
+      # Update the selectizeInput with the filtered choices and pre-selected genes
+      updateSelectizeInput(
+        session, 
+        inputId = "changeGenes", 
+        choices = all.genes,  # Filtered choices
+        selected = genelist         # Pre-selected genes
+      )
+      }
+  })
+  
+  observeEvent(input$existingPanels, {
+    modify_clicked(FALSE)  # Reset to FALSE to remove the UI
+    # shinyjs::reset("newPanelName")
+    # shinyjs::reset("newPanelGenes")
+  })
+  
+  # Conditionally render the modify subsection UI only if the button is clicked
+  output$modifySubsectionUI <- renderUI({
+    req(modify_clicked())  # Only render if the button was clicked
+    
+    tagList(
+      selectizeInput(
+        inputId = "changeGenes",
+        label = h5("Modify the genes in this template:"),
+        choices = NULL,  # Choices updated dynamically via updateSelectizeInput
+        selected = NULL,  # Pre-load selected genes after query
+        multiple = TRUE,
+        options = list(create = TRUE),
+        width = "500px"
+      ),
+      actionButton("savePanelChanges", "Save Changes", style = "margin-top: 10px;")
+    )
+   
+  })
+  
+  
+  # Observe Save Changes button click to update the SQL database
+  observeEvent(input$savePanelChanges, {
+    req(input$changeGenes)  # Ensure genes are selected
+    
+    # Get the updated gene list from the input
+    updated_genes <- paste(input$changeGenes, collapse = ",")
+    print(updated_genes)
+    # Construct the SQL UPDATE query
+    update_query <- paste0(
+      "UPDATE ", credentials()$info[["user"]], "_gene_templates ",
+      "SET genes = '", updated_genes, "' ",
+      "WHERE panel_name = '", input$existingPanels, "'"
+    )
+    
+    # Execute the SQL update query
+    dbExecute(conn, update_query)
+    
+    shinybusy::notify_success("Template Successfully Updated!", position = "center-bottom")
+  })
+  
   ### add an existing panel
   observeEvent(input$addPanel, {
     
@@ -4341,6 +4432,41 @@ server <- function(input, output, session) {
       }) # end of removePanel observeEvent
     } # end of if statement to check if the request to create the new panel had a valid panel name
   }) # end of observeEvent for creating a new panelUI module
+  
+  
+  # permenantly remove the panel from the user database
+  observeEvent(input$delPanel,{
+    if(!input$existingPanels %in% c("No panel selected", "Create new")){
+      showModal(modalDialog(
+        tagList(p("Are you sure you want to delete the selected template? 
+                You cannot undo this action.")),
+        title = "Confirmation",
+        footer = tagList(
+          actionButton("confirmDeletePan", "Delete"),
+          modalButton("Cancel")
+        )
+      ))
+    }
+  }) # end of observeEvent for deleting a panel template 
+  
+  observeEvent(input$confirmDeletePan, {
+    if(!input$existingPanels %in% c("No panel selected", "Create new")){
+    current_pan <- input$existingPanels
+    dbExecute(conn = conn,
+              statement = paste0("DELETE FROM ", 
+                                 credentials()$info[["user"]], "_gene_templates",
+                                 " WHERE panel_name = '", current_pan,"'"))
+    # reset/update inputs
+    shinyjs::reset("newPanelName")
+    shinyjs::reset("newPanelGenes")
+    all.pans <- 
+      sort(dbGetQuery(conn = conn,
+                      statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]], "_gene_templates"))$panel_name)
+    updateSelectInput(session, "existingPanels", 
+                      choices = c("No panel selected", "Create New", all.pans))
+    removeModal()
+    }
+  }) # end of the observeEvent for confirming deleting a panel tempalte
 
   ###### PLP Genes ####
   # add a PLP geneUI module on button click and advance the module counter
