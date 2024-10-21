@@ -963,8 +963,7 @@ ui <- fixedPage(
                                      style = "margin-top: 0px; margin-bottom:15px")
                       ),
                       conditionalPanel("input.existingPanels != 'Create new' && input.existingPanels != 'No template selected'",
-                                       uiOutput("modifySubsectionUI"),  # UI that appears on action button click
-                                       textOutput("waitNewPanel"))
+                                       uiOutput("modifySubsectionUI"))
                     ))
                   ),
                   
@@ -2169,6 +2168,20 @@ server <- function(input, output, session) {
   observe({
     if(loggedIn()){
       
+      
+      # check if the user has a gene template table, if not (old users), create one for them
+      tables <- dbListTables(conn)
+      table_name <- paste0(credentials()$info[["user"]], "_gene_templates")
+      if(!(table_name %in% tables)){
+        gene_test_table <- dbGetQuery(conn = conn, 
+                                      statement = "SELECT * FROM panels WHERE panel_name='Lynch'")
+        dbWriteTable(conn = conn,
+                     name = table_name,
+                     value = gene_test_table,
+                     field.types = c(panel_name = "TEXT", genes = "TEXT")
+        )
+      }
+      
       # for admin, make all user tables available
       if(admin() | manager()){
         showTblExistsError(FALSE)
@@ -2203,7 +2216,7 @@ server <- function(input, output, session) {
         
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
-        
+  
         # check if the user has a master table
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
         if(hasTbl){
@@ -2733,6 +2746,7 @@ server <- function(input, output, session) {
   observe({
     if(loggedIn()){
       
+      
       # for admin, make all user tables available
       if(admin() | manager()){
         showTblExistsErrorCopy(FALSE)
@@ -2773,19 +2787,6 @@ server <- function(input, output, session) {
         
         # for non-admins and non-managers, only show sub-tables in their master table
       } else {
-        
-        # check if the user has a gene template table, if not (old users), create one for them
-        tables <- dbListTables(conn)
-        table_name <- paste0(credentials()$info[["user"]], "_gene_templates")
-        if(!(table_name %in% tables)){
-          gene_test_table <- dbGetQuery(conn = conn, 
-                                        statement = "SELECT * FROM panels WHERE panel_name='Lynch'")
-          dbWriteTable(conn = conn,
-                       name = table_name,
-                       value = gene_test_table,
-                       field.types = c(panel_name = "TEXT", genes = "TEXT")
-                       )
-        }
         
         # check if the user has a master table
         hasTbl <- dbExistsTable(conn = conn, name = credentials()$info[["user"]])
@@ -4231,13 +4232,18 @@ server <- function(input, output, session) {
   # get panel name choices from the database
   observe({
     if (loggedIn()) {
-      all.pans <-
-        sort(dbGetQuery(conn = conn,
-                        statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]],
-                        "_gene_templates"))$panel_name)
-      # update the panel selector
-      updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
-    }
+      tables <- dbListTables(conn)
+      table_name <- paste0(credentials()$info[["user"]], "_gene_templates")
+      if(table_name %in% tables){
+        all.pans <-
+          sort(dbGetQuery(conn = conn,
+                          statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]],
+                                             "_gene_templates"))$panel_name)
+        # update the panel selector
+        updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
+      }
+      }
+      
     })
 
   # create a new panel
@@ -4271,6 +4277,7 @@ server <- function(input, output, session) {
   # disable Create Panel button if conditions are not met
   observeEvent(list(input$newPanelName, input$newPanelGenes), {
     if(loggedIn()){
+      
       all.pans <- dbGetQuery(conn = conn,
                  statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]],  "_gene_templates"))$panel_name
       if(input$newPanelName == "" | input$newPanelName %in% all.pans |
