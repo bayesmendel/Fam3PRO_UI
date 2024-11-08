@@ -59,3 +59,4 @@ sql-db-dump/
 
 # google analytics
 **/google-analytics.html
+packrat/lib*/

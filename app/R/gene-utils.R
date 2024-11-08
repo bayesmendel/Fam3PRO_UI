@@ -298,7 +298,6 @@ removePanel <- function(gr = geneReactive$GeneNums,
   
   # update reactive
   gr[[rel]] <- rm.gr
-  
   ## update related dropdown choices
   # add removed panel back to dropdown choices for adding a new panel
   rm.cur.panels <- as.character()

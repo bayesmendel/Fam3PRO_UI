@@ -29,6 +29,7 @@ library(stringi)    # convert to title case function: stri_trans_totitle()
 library(varhandle)  # check if a character or factor can be safely converted to a number
 
 # html
+library(tools)
 library(htmltools)  # formatting text
 
 # tables
@@ -224,10 +225,10 @@ ui <- fixedPage(
                href = "https://projects.iq.harvard.edu/bayesmendel/about"),
         br(),br(),
         
-        h4("What is PPI?"),
-        p("This website is named the PanelPRO Interface (PPI) because it allows 
-          clinicians and researchers to utilize PanelPRO without having to use or 
-          write code in R. PPI allows users to create pedigrees 
+        h4("What is Fam3PRO?"),
+        p("This website is named the Fam3PRO Interface as it allows 
+          clinicians and researchers to utilize the PanelPRO R package without having to use or 
+          write code in R. Fam3PRO allows users to create pedigrees 
           formatted for PanelPRO in a user friendly, interactive manner and then 
           run the PanelPRO model, or one of its sub-models, on those pedigrees to 
           obtain carrier probabilities and future cancer risk estimates for their 
@@ -236,7 +237,7 @@ ui <- fixedPage(
           by PanelPRO."),
         br(),
         
-        h4("How to Use PPI"),
+        h4("How to Use Fam3PRO"),
         tags$h5(
           "The detailed user guide can be found ",
           tags$a(href = "User-Guide.pdf", "here", target = "_blank")
@@ -246,7 +247,7 @@ ui <- fixedPage(
           where you can create a new pedigree or load a pedigree you created 
           previously on this site."),
         p("Once you have made your selection, you can create or edit your pedigree 
-          using the 'Create/Edit Pedigree' tab. When creating a new pedigree, 
+          using the 'Create/Modify Pedigree' tab. When creating a new pedigree, 
           see the privacy section below for rules on naming your pedigrees. 
           Everytime you modify your working pedigree, it will automatically save 
           to your user account or you can manually save it at any time using the 
@@ -261,7 +262,7 @@ ui <- fixedPage(
         
         h4("Beta Version"),
         p("This website is a beta version that is still in development. If you 
-          run into bugs or have suggestions to improve PPI, please contact us 
+          run into bugs or have suggestions to improve Fam3PRO, please contact us 
           using the email address at the bottom of the page."),
         br(),
         
@@ -279,7 +280,7 @@ ui <- fixedPage(
           patient names (including parts of names or initials), ages above 89, medical record numbers (MRNs), 
           months and days of birth, diagnoses, surgeries, enrollment, or other dates (years are okay), location, contact information, or 
           insurance information. When creating names for your pedigrees, do not use any of these identifiers 
-          in whole or in part. The identifiers used to differentiate relatives in each pedigree created using PPI 
+          in whole or in part. The identifiers used to differentiate relatives in each pedigree created using Fam3PRO 
           will use generic labels like 'Proband' or 'Sister 1'."),
         p("Website admins have access to all pedigrees saved to all user accounts and if you assigned other users 
           as managers for your account, those accounts can also access all of your saved pedigrees. Admins nor managers 
@@ -908,7 +909,7 @@ ui <- fixedPage(
                     p("Use this screen to enter or modify germline genetic test results. 
                       There are three tabs:"),
                     tags$ol(
-                      tags$li("'Manage Gene Panels' allows you to add a multi-gene panels or single 
+                      tags$li("'Manage Gene Panel Templates' allows you to add a multi-gene panels or single 
                               gene tests as well as delete one of the existing tests."),
                       tags$li("'Edit Panel Results' allows you to edit gene test 
                               results (if there is at least one panel)."),
@@ -963,7 +964,8 @@ ui <- fixedPage(
                                      style = "margin-top: 0px; margin-bottom:15px")
                       ),
                       conditionalPanel("input.existingPanels != 'Create new' && input.existingPanels != 'No template selected'",
-                                       uiOutput("modifySubsectionUI"))
+                                       uiOutput("modifySubsectionUI")
+                                       )
                     ))
                   ),
                   
@@ -973,7 +975,7 @@ ui <- fixedPage(
                       
                       # cannot enter results if no panels exist
                       conditionalPanel("!output.atLeastOnePanel",
-                        p("To edit panel results, please add at least one panel template on the 'Manage Panels' tab.")
+                        p("To edit panel results, please add at least one panel template on the 'Manage Gene Panel Templates' tab.")
                       ),
                       
                       # enter results by type
@@ -2350,8 +2352,9 @@ server <- function(input, output, session) {
                             ss = session,
                             user = credentials()$info[["user"]],
                             conn = conn)
+              
               geneReactive$GeneNums <- out$gr
-
+              
               # remove each geneUI module associated with this panel from memory
               for(tmp.geneMod.id in out$panel.geneMod.ids){
                 remove_shiny_inputs(tmp.geneMod.id, input)
@@ -2362,7 +2365,7 @@ server <- function(input, output, session) {
             }
           }
 
-          # else initialize gene tracker for this realtive
+          # else initialize gene tracker for this relative
         } else {
           geneReactive$GeneNums[[as.character(rl)]] <- relTemplate.trackGenes
         }
@@ -2521,7 +2524,7 @@ server <- function(input, output, session) {
             geneReactive$GeneNums <- out$gr
             panel.module.id.num <- out$panel.module.id.num
             panMod.id <- out$panMod.id
-  
+            
             # create a remove module button observer for each panelUI module created
             observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
               out.rm <- removePanel(gr = geneReactive$GeneNums,
@@ -2533,6 +2536,25 @@ server <- function(input, output, session) {
                                     user = credentials()$info[["user"]],
                                     conn = conn)
               geneReactive$GeneNums <- out.rm$gr
+              
+              # edge case: previously added panel, if deleted and the user has 
+              # no other loaded panel, needs to update PED() to write changes
+              # into the database. 
+              rel <- master.gene.df$rel[x]
+              master.gene.df <- master.gene.df |>
+                filter(panel != master.gene.df$panel[x] & rel != rel)
+              rel_row <- PED()[which(PED()$ID ==rel), ]
+              if(! rel %in% master.gene.df$ID){
+                ped_copy <- PED()
+                ped_copy[which(PED()$ID == rel), "genesJSON"] <- NA_character_
+                ped_copy[which(PED()$ID == rel), "panelNames"] <- "none"
+                ped_copy[which(PED()$ID == rel), 73:94] <- NA
+                PED(ped_copy)
+                savePedigreeToDB(conne = conn,
+                                 user = credentials()$info[["user"]],
+                                 tmp_tbl = PED())
+              }
+              
   
               # remove each geneUI module associated with this panel from memory
               for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
@@ -2541,10 +2563,9 @@ server <- function(input, output, session) {
   
               # remove the panel module's inputs from memory
               remove_shiny_inputs(panMod.id, input)
-  
-            }) # end of removePanel observeEvent
-          } # end of if statement to prevent duplication panels
-        }) # end of lapply for creating panelUI modules
+          }) # end of removePanel observeEvent
+        } # end of if statement to prevent duplication panels
+      }) # end of lapply for creating panelUI modules
   
         ## create the geneUI modules by iterating through the rows of the master table of gene results
         lapply(1:nrow(master.gene.df), function(y){
@@ -4227,7 +4248,6 @@ server <- function(input, output, session) {
   ##### Genes ####
   # track the panel and gene UI modules
   geneReactive <- reactiveValues(GeneNums = trackGenes.init)
-  
   ###### Panels ####
   # get panel name choices from the database
   observe({
@@ -4353,8 +4373,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$existingPanels, {
     modify_clicked(FALSE)  # Reset to FALSE to remove the UI
-    # shinyjs::reset("newPanelName")
-    # shinyjs::reset("newPanelGenes")
+    shinyjs::reset("newPanelName")
+    shinyjs::reset("newPanelGenes")
   })
   
   # Conditionally render the modify subsection UI only if the button is clicked
@@ -4383,7 +4403,6 @@ server <- function(input, output, session) {
     
     # Get the updated gene list from the input
     updated_genes <- paste(input$changeGenes, collapse = ",")
-    print(updated_genes)
     # Construct the SQL UPDATE query
     update_query <- paste0(
       "UPDATE ", credentials()$info[["user"]], "_gene_templates ",
@@ -4414,7 +4433,6 @@ server <- function(input, output, session) {
       geneReactive$GeneNums <- out$gr
       panel.module.id.num <- out$panel.module.id.num
       panMod.id <- out$panMod.id
-      
       ## panelUI Remove Observer
       # create a remove module button observer for each panelUI module created
       observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
@@ -4427,15 +4445,28 @@ server <- function(input, output, session) {
                               user = credentials()$info[["user"]],
                               conn = conn)
         geneReactive$GeneNums <- out.rm$gr
-        
         # remove each geneUI module associated with this panel from memory
         for(tmp.geneMod.id in out.rm$panel.geneMod.ids){
           remove_shiny_inputs(tmp.geneMod.id, input)
         }
-        
         # remove the panel module's inputs from memory
         remove_shiny_inputs(panMod.id, input)
+        rel_row <- PED()[which(PED()$ID ==rel), ]
         
+        # edge case: previously added panel, if deleted and the user has 
+        # no other loaded panel, needs to update PED() to write changes
+        # into the database. 
+        if(is.na(geneReactive$GeneNums[[as.character(rel)]]$dict[1])){
+          ped_copy <- PED()
+          ped_copy[which(PED()$ID == rel), "genesJSON"] <- NA_character_
+          ped_copy[which(PED()$ID == rel), "panelNames"] <- "none"
+          ped_copy[which(PED()$ID == rel), 73:94] <- NA
+          PED(ped_copy)
+          savePedigreeToDB(conne = conn,
+                           user = credentials()$info[["user"]],
+                           tmp_tbl = PED())
+        }
+
       }) # end of removePanel observeEvent
     } # end of if statement to check if the request to create the new panel had a valid panel name
   }) # end of observeEvent for creating a new panelUI module
@@ -4458,21 +4489,22 @@ server <- function(input, output, session) {
   
   observeEvent(input$confirmDeletePan, {
     if(!input$existingPanels %in% c("No panel selected", "Create new")){
-    current_pan <- input$existingPanels
-    dbExecute(conn = conn,
+      current_pan <- input$existingPanels
+      dbExecute(conn = conn,
               statement = paste0("DELETE FROM ", 
                                  credentials()$info[["user"]], "_gene_templates",
                                  " WHERE panel_name = '", current_pan,"'"))
-    # reset/update inputs
-    shinyjs::reset("newPanelName")
-    shinyjs::reset("newPanelGenes")
-    all.pans <- 
-      sort(dbGetQuery(conn = conn,
-                      statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]], "_gene_templates"))$panel_name)
-    updateSelectInput(session, "existingPanels", 
-                      choices = c("No panel selected", "Create New", all.pans))
-    removeModal()
+      # reset/update inputs
+      shinyjs::reset("newPanelName")
+      shinyjs::reset("newPanelGenes")
+      all.pans <- 
+        sort(dbGetQuery(conn = conn,
+                        statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]], "_gene_templates"))$panel_name)
+      updateSelectInput(session, "existingPanels", 
+                        choices = c("No panel selected", "Create New", all.pans))
+      removeModal()
     }
+    shinybusy::notify_success("Template Successfully Deleted!", position = "center-bottom")
   }) # end of the observeEvent for confirming deleting a panel tempalte
 
   ###### PLP Genes ####
@@ -5298,6 +5330,7 @@ server <- function(input, output, session) {
           rel.can.df <- cbind(data.frame(ID = rep(PED()$ID[row], nrow(rel.can.df)),
                                          Name = rep(PED()$name[row], nrow(rel.can.df))), 
                               rel.can.df)
+          
           if(is.null(can.df)){
             can.df <- rel.can.df
           } else {
@@ -5943,7 +5976,7 @@ server <- function(input, output, session) {
         } else if(is.symbol(def.vals[[ln]])){
           tmp.val <- rlang::as_string(def.vals[[ln]])
         } else if(ln == "remove.miss.cancers"){
-          tmp.val <- "Default is TRUE but not applicable when run on PPI."
+          tmp.val <- "Default is TRUE but not applicable when run on Fam3PRO"
         } else {
           tmp.val <- def.vals[[ln]]
         }
