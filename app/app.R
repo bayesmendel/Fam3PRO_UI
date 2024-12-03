@@ -9,7 +9,7 @@ library(shinybusy)  # success notifications and waiting on calc spinner
 
 # pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
-#library(cbcrisk)    # Swati's cbcrisk model - provided in PanelPRO
+#library(cbcrisk)    # Swati's cbcrisk model - provided in FAM3PRO package
 library(PanelPRO)
 
 # database and user accounts
@@ -209,17 +209,17 @@ ui <- fixedPage(
       ##### UI: Home ####
       tabPanel(title = "Home",
         h3("Home"),
-        h4("What is PanelPRO?"),
-        p("PanelPRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute,
+        h4("What is Fam3PRO?"),
+        p("Fam3PRO, created by the BayesMendel Lab at Dana-Farber Cancer Institute,
           is a multi-cancer/multi-gene risk prediction model which utilizes family history
           to estimate the probability that a patient has a pathogenic or likely
           pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and,
           estimates a patient's future risk of cancer for up to ",length(PanelPRO:::CANCER_NAME_MAP$long)-1,
           " different cancer types.
-          PanelPRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users
+          Fam3PRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users
           have the ability to create customized models focused on specific cancers and genes.
-          The PanelPRO software package was written in the statistical
-          programming language R. You can learn more about PanelPRO at the ",
+          The Fam3PRO software package was written in the statistical
+          programming language R. You can learn more about Fam3PRO at the ",
           a("BayesMendel lab's website.", href = "https://projects.iq.harvard.edu/bayesmendel/about")),
         tags$a(tags$img(src = "bm-lab-logo.PNG", height = "150px"), 
                href = "https://projects.iq.harvard.edu/bayesmendel/about"),
@@ -227,14 +227,14 @@ ui <- fixedPage(
         
         h4("What is Fam3PRO?"),
         p("This website is named the Fam3PRO Interface as it allows 
-          clinicians and researchers to utilize the PanelPRO R package without having to use or 
+          clinicians and researchers to utilize the Fam3PRO R package without having to use or 
           write code in R. Fam3PRO allows users to create pedigrees 
-          formatted for PanelPRO in a user friendly, interactive manner and then 
-          run the PanelPRO model, or one of its sub-models, on those pedigrees to 
+          formatted for Fam3PRO in a user friendly, interactive manner and then 
+          run the Fam3PRO model, or one of its sub-models, on those pedigrees to 
           obtain carrier probabilities and future cancer risk estimates for their 
           patients or study samples. Users can also save pedigrees they created 
           to their account which can be viewed, updated, downloaded, and (re)analyzed 
-          by PanelPRO."),
+          by Fam3PRO"),
         br(),
         
         h4("How to Use Fam3PRO"),
@@ -253,7 +253,7 @@ ui <- fixedPage(
           to your user account or you can manually save it at any time using the 
           save button in the top right corner of the editor (be sure to do this 
           before you log-out)."),
-        p("When your working pedigree is complete, use the 'PanelPRO' tab to run 
+        p("When your working pedigree is complete, use the 'Fam3PRO' tab to run 
           the analysis where you can customize the model settings. After your 
           analysis has run, you can download the results which includes tables 
           and graphs of the proband's carrier probabilities and future cancer 
@@ -266,7 +266,7 @@ ui <- fixedPage(
           using the email address at the bottom of the page."),
         br(),
         
-        h4("Which cancers and genes does PanelPRO consider?"),
+        h4("Which cancers and genes does Fam3PRO consider?"),
         p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
           paste0(paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
           "Contralateral Breast Cancer (CBC) is also analyzed."),
@@ -399,7 +399,7 @@ ui <- fixedPage(
             # data dictionary available for download
             conditionalPanel("input.pedVisualsViewer != 'Tree'",
               br(),
-              p("If you are unfamiliar with PanelPRO formatted pedigree tables, download the data dictionary below to assist you."),
+              p("If you are unfamiliar with Fam3PRO formatted pedigree tables, download the data dictionary below to assist you."),
               downloadButton("downloadDD1", label = "Download Data Dictionary",
                              icon = icon('download'))
             )
@@ -455,7 +455,7 @@ ui <- fixedPage(
               2) detailed cancer history (extracted from the cancerJSON column in the pedigrees file)
               and 3) detailed panel and gene results (extracted from the genesJSON column in the pedigree file). 
               'data-dictionary' will include 3 more files: 1) a description of the each pedigree column, 
-              2) PanelPRO cancer abbreviations and 3) a list of PanelPRO genes."),
+              2) Fam3PRO cancer abbreviations and 3) a list of Fam3PRO genes."),
             
             # for admins and managers, select the user account to load from first
             conditionalPanel("output.admin | output.manager",
@@ -570,7 +570,7 @@ ui <- fixedPage(
                     includeHTML(path="www//pedigreejs//Html.html"),
                     ),
                     
-                  h5("Note: the tree above only displays PanelPRO cancers. 
+                  h5("Note: the tree above only displays Fam3PRO cancers. 
                      Unknown cancer ages will show as 0. Gene tests, surgical 
                      history, and tumor markers are not displayed."),
                   # uiOutput("canColorKeyUI"),
@@ -594,7 +594,7 @@ ui <- fixedPage(
                   
                   
                   # FOR TESTING
-                  textOutput("pedJSJSON")
+                  # textOutput("pedJSJSON")
                   
                   
                   
@@ -634,7 +634,7 @@ ui <- fixedPage(
               # download data dictionary
               conditionalPanel("input.pedVisualsEditor != 'Tree' & input.pedVisualsEditor != 'Interactive'",
                 fluidRow(
-                  p("If you are unfamiliar with PanelPRO formatted pedigree tables, 
+                  p("If you are unfamiliar with Fam3PRO formatted pedigree tables, 
                     download the data dictionary below to assist you."),
                   downloadButton("downloadDD2", label = "Download Data Dictionary",
                                  icon = icon('download'))
@@ -1074,7 +1074,7 @@ ui <- fixedPage(
                         h5("There is at least one gene for ", 
                            textOutput("rop21", inline = T), "which has multiple different result types recorded. 
                           This is possible but, it could be an error. Please check the table below for accuracy.
-                          If one of these result types is P/LP, PanelPRO will treat this gene as P/LP.", 
+                          If one of these result types is P/LP, Fam3PRO will treat this gene as P/LP.", 
                           style = "color:blue")
                       ),
                       
@@ -1186,11 +1186,11 @@ ui <- fixedPage(
         ) # end of fluidRow for create/modify pedigree tab
       ), # end of navbar tab for create/modify pedigree
       
-      ##### UI: PanelPRO ####
-      tabPanel("PanelPRO",
-        h3("PanelPRO", style = "margin-bottom:0px"),
+      ##### UI: Fam3PRO ####
+      tabPanel("Fam3PRO",
+        h3("Fam3PRO", style = "margin-bottom:0px"),
         
-        # PanelPRO version
+        # Fam3PRO version
         div(textOutput("ppVersion"), style = "margin-left:10px"),
         
         # show the current pedigree
@@ -1202,13 +1202,13 @@ ui <- fixedPage(
         tabsetPanel(id = "panelproTabs",
           
           ###### UI: Run / Settings ####
-          tabPanel(title = "Run PanelPRO",
+          tabPanel(title = "Run Fam3PRO",
             h4("Instructions"),
-            p("Specify the model parameters below then hit the 'Run PanelPRO' button at the bottom of the page. For more information on the parameters click on the 
-              'Show PanelPRO Documentation' button."),
+            p("Specify the model parameters below then hit the 'Run Fam3PRO' button at the bottom of the page. For more information on the parameters click on the 
+              'Show Fam3PRO Documentation' button."),
             
             # show panelpro doc string
-            actionButton("showPPDocString1", label = "Show PanelPRO Documentation",
+            actionButton("showPPDocString1", label = "Show Fam3PRO Documentation",
                          icon = icon('book'),
                          style = "margin-bottom:25px"),
             
@@ -1345,7 +1345,7 @@ ui <- fixedPage(
                 ),
                 
                 # reset settings to defaults
-                h5("Reset all settings to PanelPRO default values"),
+                h5("Reset all settings to Fam3PRO default values"),
                 actionButton("resetPanelPROInputs", label = "Reset to Defaults",
                              icon = icon('undo'),
                              style = "margin-bottom:25px")
@@ -1354,16 +1354,16 @@ ui <- fixedPage(
             
             # RUN MODEL
             br(),
-            h5("Note: running PanelPRO generally takes about 2-3 minutes but may take 10 
+            h5("Note: running Fam3PRO generally takes about 2-3 minutes but may take 10 
                minutes or longer for large pedigree with many unknown ages. The blue 
                status bar at the top of the screen will stop cycling once the analysis 
                is complete."),
-            actionButton("runPP", label = "Run PanelPRO",
+            actionButton("runPP", label = "Run Fam3PRO",
                          icon = icon('play'))
-          ), # end of "Run" tab for PanelPRO
+          ), # end of "Run" tab for Fam3PRO
           
           ###### UI: Results ####
-          tabPanel(title = "PanelPRO Results",
+          tabPanel(title = "Fam3PRO Results",
             
             # top row for instructions and download button
             fluidRow(div(style = "margin-top:10px",
@@ -1427,26 +1427,26 @@ ui <- fixedPage(
               ## Settings
               tabPanel(title = "Run Settings",
                 h4("Run Settings"),
-                p("The PanelPRO results were obtained using the setting listed below. For a detailed explanation of 
-                  the settings, click the 'Show PanelPRO Documentation' button at the bottom of the screen."),
+                p("The Fam3PRO results were obtained using the setting listed below. For a detailed explanation of 
+                  the settings, click the 'Show Fam3PRO Documentation' button at the bottom of the screen."),
                 textOutput("ppTime"),
                 tableOutput("ppRunSettings"),
-                actionButton("showPPDocString2", label = "Show PanelPRO Documentation",
+                actionButton("showPPDocString2", label = "Show Fam3PRO Documentation",
                              icon = icon('book'))
               ),
               
               ## Console Output
               tabPanel(title = "Console Output",
-                h4("PanelPRO Function R Console Output"),
+                h4("Fam3PRO Function R Console Output"),
                 tags$div(
                   id = "ppMessageContainer",
                   style = "width:100%"
                 ),
               )
             ) # end of ppResultTabs tabsetPanel
-          ) # end of PanelPRO Results Tab in panelproTabs tabsetPanel
+          ) # end of Fam3PRO Results Tab in panelproTabs tabsetPanel
         ) # end of panelproTabs tabsetPanel
-      ), # end of PanelPRO tab in navbarTabs
+      ), # end of Fam3PRO tab in navbarTabs
       
       ##### UI: My Account ####
       tabPanel("My Account",
@@ -2122,7 +2122,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # text for panelpro screen
+  # text for Fam3PRO screen
   output$currentPed3 <- renderText({ 
     if(!is.null(currentPed())){
       return(currentPed())
@@ -2153,10 +2153,6 @@ server <- function(input, output, session) {
   output$waitLoad <- renderText({ need(!waitLoad(), "Please wait...") })
   observeEvent(input$newOrLoad, { shinyjs::reset("existingPed")}
 )
-  # page transition from start to preview
-  observeEvent(input$goNewOrLoad, {
-    updateTabsetPanel(session, inputId = "managePedsTab", selected = "Preview")
-  })
 
   # user's pedigrees that are available for loading
   userPeds <- reactiveVal(NULL)
@@ -2169,7 +2165,6 @@ server <- function(input, output, session) {
   # keep user tables and pedigrees available for loading updated at all times
   observe({
     if(loggedIn()){
-      
       
       # check if the user has a gene template table, if not (old users), create one for them
       tables <- dbListTables(conn)
@@ -2264,6 +2259,8 @@ server <- function(input, output, session) {
   }, ignoreInit = T, ignoreNULL = T)
   
   newOrLoadFlag <- reactiveVal("new")
+  completionFlag <- reactiveValues(done = FALSE)
+  resetFlag <- reactiveValues(done = FALSE)
   observeEvent(input$goNewOrLoad, {
     if(input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected"){
       
@@ -2274,6 +2271,8 @@ server <- function(input, output, session) {
       shinyjs::disable("existingPed")
       
       newOrLoadFlag("load")
+      completionFlag$done <- FALSE
+      resetFlag$done <- FALSE
       
       # for admins, load sub-table from the selected user's master table
       if(admin() | manager()){
@@ -2313,13 +2312,12 @@ server <- function(input, output, session) {
       master.can.df <- NULL
       master.gene.df <- NULL
       for(rl in PED()$ID){
-      
         ### 1: RESET
         # CANCERS, iterate through this relative's cancer hx dictionary, if there is at least one cancer
         if(any(names(canReactive$canNums) == as.character(rl))){
           if(!is.na(canReactive$canNums[[as.character(rl)]]$dict[1])){
             for(cMod in sort(as.numeric(names(canReactive$canNums[[as.character(rl)]]$dict)), decreasing = T)){
-              
+             
               # update the cancer reactive object, remove the cancerUI module and delete it from memory
               canReactive$canNums <-
                 removeCancer(cr = canReactive$canNums,
@@ -2327,7 +2325,7 @@ server <- function(input, output, session) {
                              inp = input,
                              ss = session,
                              trackMax = canReactive$canNums[[as.character(rl)]]$dict[cMod])
-              
+                
               # remove the module's inputs from memory
               remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
             }
@@ -2337,7 +2335,6 @@ server <- function(input, output, session) {
         } else {
           canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
-        
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
@@ -2369,11 +2366,10 @@ server <- function(input, output, session) {
         } else {
           geneReactive$GeneNums[[as.character(rl)]] <- relTemplate.trackGenes
         }
-
+        
         ### 2: ORGANIZE JSON DATA TO BE LOADED INTO DATA FRAMES
         ## CANCERS
         if(!is.na(PED()$cancersJSON[which(PED()$ID == rl)])){
-
           # convert JSON into a data frame of cancers
           mod.can.JSON <- gsub(pattern = "\'", replacement = "\"", PED()$cancersJSON[which(PED()$ID == rl)])
           can.df <- fromJSON(mod.can.JSON, simplifyDataFrame = T)
@@ -2385,7 +2381,9 @@ server <- function(input, output, session) {
             mutate(sex = recode(sex, "0" = "Female", "1" = "Male")) %>%
             mutate(cbc = "No") %>%
             mutate(cbcAge = NA) %>%
-            mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
+            mutate(age = if_else(!is.na(age), as.numeric(age), NA_real_),
+                   cbcAge = if_else(!is.na(cbcAge), as.numeric(cbcAge), NA_real_))
+            #mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
 
           # combine contralateral into same row as breast and drop the CBC row
           if(any(can.df$cancer == "Breast") & any(can.df$cancer == "Contralateral")){
@@ -2401,7 +2399,6 @@ server <- function(input, output, session) {
             master.can.df <- rbind(master.can.df, can.df)
           }
         } # end of if statement to check if there was any content in cancersJSON for this relative
-
         ## GENES
         if(!is.na(PED()$genesJSON[which(PED()$ID == rl)])){
       
@@ -2566,7 +2563,7 @@ server <- function(input, output, session) {
           }) # end of removePanel observeEvent
         } # end of if statement to prevent duplication panels
       }) # end of lapply for creating panelUI modules
-  
+      
         ## create the geneUI modules by iterating through the rows of the master table of gene results
         lapply(1:nrow(master.gene.df), function(y){
           rtype <- master.gene.df$result[y]
@@ -2603,7 +2600,7 @@ server <- function(input, output, session) {
           } # end of if statement checking if the result type is non-Negative
         }) # end of lapply for creating geneUI modules
       } # end of if statement to check if master.gene.df is not NULL
-
+      completionFlag$done <- TRUE
       # hide add relatives tab and visualize the pedigree
       hideTab("pedTabs", target = "Add Relatives", session = session)
       shinyjs::click("showPedButton")
@@ -2618,7 +2615,7 @@ server <- function(input, output, session) {
         shinyjs::enable("existingPed")
         shinybusy::hide_spinner()
       })
-      
+      updateTabsetPanel(session, inputId = "managePedsTab", selected = "Preview")
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
@@ -2710,11 +2707,10 @@ server <- function(input, output, session) {
           }
         }
       }
-      geneReactive$GeneNums <- trackGenes.init
+      #geneReactive$GeneNums <- trackGenes.init
       
       # show "add relatives" tab and don't display the pedigree tree & table
       showPed(FALSE)
-      
     } # end of else for creating a new pedigree
     
     # execute actions relevant to create new and load existing
@@ -2742,18 +2738,19 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
-      updateTabsetPanel(session, "panelproTabs", selected = "Run PanelPRO")
+      updateTabsetPanel(session, "panelproTabs", selected = "Run Fam3PRO")
       updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
     }
     
     # take user to the pedigree editor if they chose the create new option
     if(input$newOrLoad == "Create new"){
       updateNavlistPanel(session, "navbarTabs", selected = "Create/Modify Pedigree")
+      completionFlag$done <- TRUE
     }
     
     # notify user of load success
     if(input$newOrLoad == "Load existing"){
-      shinybusy::notify_success("Load Successful!", position = "center-bottom")
+      shinybusy::notify_success("Load Successful", position = "center-bottom")
     }
   }, ignoreInit = T)
   
@@ -2977,7 +2974,7 @@ server <- function(input, output, session) {
   output$showTblExistsErrorDownload <- reactive({ showTblExistsErrorDownload() })
   outputOptions(output, 'showTblExistsErrorDownload', suspendWhenHidden = FALSE)
   observe({
-    if(loggedIn()){
+    if(loggedIn() & completionFlag$done){
       
       # for admin, make all user tables available
       if(admin() | manager()){
@@ -3105,7 +3102,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # prepare the table of detailed cancer hx (includes non-PanelPRO cancers)
+  # prepare the table of detailed cancer hx (includes non-Fam3PRO cancers)
   downloadCanDetails <- reactive({
     
     # get the cancers JSONs for all pedigrees selected for download
@@ -3151,7 +3148,7 @@ server <- function(input, output, session) {
     }
   })
   
-  # prepare the table of detailed panel (includes non-PanelPRO genes, all result types, nuc/prot/zyg information)
+  # prepare the table of detailed panel (includes non-Fam3PRO genes, all result types, nuc/prot/zyg information)
   downloadPanelDetails <- reactive({
     
     # get the cancers JSONs for all pedigrees selected for download
@@ -3197,12 +3194,12 @@ server <- function(input, output, session) {
     }
   })
   
-  # table of PanelPRO cancers dictionary to link abbreviations to cancer names
+  # table of Fam3PRO cancers dictionary to link abbreviations to cancer names
   ppCancersDict <- reactive({
     as.data.frame(PanelPRO:::CANCER_NAME_MAP)
   })
   
-  # table of PanelPRO gene names
+  # table of Fam3PRO gene names
   ppGenes <- reactive({
     data.frame(PanelPRO_genes = PanelPRO:::GENE_TYPES)
   })
@@ -3211,7 +3208,7 @@ server <- function(input, output, session) {
   # as a zip file of CSV files
   output$downloadPedsCSV <- shiny::downloadHandler(
     filename = function(){
-      paste0("PanelPRO-pedigrees-", Sys.Date(), ".zip")
+      paste0("Fam3PRO-pedigrees-", Sys.Date(), ".zip")
     },
     content = function(file){
       
@@ -3225,8 +3222,8 @@ server <- function(input, output, session) {
       write.csv(downloadPedsTable(), file = "download-pedigrees/pedigrees.csv", row.names = F)
       write.csv(downloadCanDetails(), file = "download-pedigrees/cancer-details.csv", row.names = F)
       write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
-      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
       
       # include a png if 1 and only 1 pedigree is being downloaded
       if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
@@ -3236,24 +3233,26 @@ server <- function(input, output, session) {
         
         # create the png image
         png(filename = "download-pedigrees/pedigree-image.png")
-        print(plot(
-          kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
-        ))
-        if(sum(cans) > 0){
-          print(
-            pedigree.legend(kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))], 
-                            location = "bottomright", radius=0.1)
-          )
+        if(completionFlag$done){
+          print(plot(
+            kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
+          ))
+          if(sum(cans) > 0){
+            print(
+              pedigree.legend(kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))], 
+                              location = "bottomright", radius=0.1)
+            )
+          }
+          dev.off()
         }
-        dev.off()
       }
       
       new.files <- c(
         "download-pedigrees/pedigrees.csv",
         "download-pedigrees/cancer-details.csv",
         "download-pedigrees/panel-details.csv",
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv",
+        "data-dictionary/fam3pro-cancer-abbreviations.csv",
+        "data-dictionary/fam3pro-gene-list.csv",
         "download-pedigrees/pedigree-image.png"
       )
       
@@ -3285,7 +3284,7 @@ server <- function(input, output, session) {
   # as a .rds
   output$downloadPedsRDS <- downloadHandler(
     filename = function(){
-      paste0("PanelPRO-pedigrees-", Sys.Date(), ".zip")
+      paste0("Fam3PRO-pedigrees-", Sys.Date(), ".zip")
     },
     content = function(file){
       
@@ -3295,8 +3294,8 @@ server <- function(input, output, session) {
       saveRDS(downloadPanelDetails(), file = "download-pedigrees/panel-details.rds")
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
-      saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
-      saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
+      saveRDS(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.rds")
+      saveRDS(ppGenes(), file = "data-dictionary/fam3pro-gene-list.rds")
       
       # include a png if 1 and only 1 pedigree is being downloaded
       if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
@@ -3306,6 +3305,7 @@ server <- function(input, output, session) {
         
         # create the png image
         png(filename = "download-pedigrees/pedigree-image.png")
+        if(completionFlag$done){
         print(plot(
           kinship2.ped(downloadPedsTable())[paste0(unique(downloadPedsTable()$PedigreeID))]
         ))
@@ -3316,6 +3316,7 @@ server <- function(input, output, session) {
           )
         }
         dev.off()
+        }
       }
       
       # filenames of all the temporary files
@@ -3324,8 +3325,8 @@ server <- function(input, output, session) {
         "download-pedigrees/cancer-details.rds",
         "download-pedigrees/panel-details.rds",
         "data-dictionary/columns-and-codings-dictionary.rds",
-        "data-dictionary/panelpro-cancer-abbreviations.rds",
-        "data-dictionary/panelpro-gene-list.rds",
+        "data-dictionary/fam3pro-cancer-abbreviations.rds",
+        "data-dictionary/fam3pro-gene-list.rds",
         "download-pedigrees/pedigree-image.png"
       )
       
@@ -3870,7 +3871,6 @@ server <- function(input, output, session) {
   ##### Cancer History ####
   # save the number of cancers for each person in the pedigree
   canReactive <- reactiveValues(canNums = trackCans.init)
-  
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
     rel <- input$relSelect
@@ -3882,6 +3882,7 @@ server <- function(input, output, session) {
     canReactive$canNums <- out$cr
     trackMax <- out$trackMax
     id <- out$id
+    
     
     # add a server for checking the validity of the entered cancer age
     observeEvent(list(input[[paste0(id, "-CanAge")]], input$Age), {
@@ -3917,7 +3918,6 @@ server <- function(input, output, session) {
     
     ## observe for BC and CBC
     observeEvent(list(input[[paste0(id, '-Can')]], input[[paste0(id, '-CBC')]]), {
-      
       # reset CBC inputs if cancer is not BC
       if(input[[paste0(id, '-Can')]] != "Breast"){
         shinyjs::reset(id = paste0(id, '-CBC'))
@@ -3934,11 +3934,14 @@ server <- function(input, output, session) {
     ## create a cancer selection observer which will trigger an update of all of the cancer dropdown
     ## choices for each of the person's cancer UI modules
     observeEvent(input[[paste0(id, '-Can')]], {
-      updateCancerDropdowns(cr = canReactive$canNums,
-                            rel = rel,
-                            inp = input,
-                            ss = session,
-                            type = "cancer")
+
+        updateCancerDropdowns(cr = canReactive$canNums,
+                              rel = rel,
+                              inp = input,
+                              ss = session,
+                              type = "cancer")
+      
+
     })
 
     ## create an OTHER cancer selection observer which will trigger an update of all of the OTHER cancer dropdown
@@ -3949,16 +3952,16 @@ server <- function(input, output, session) {
                             inp = input,
                             ss = session,
                             type = "other")
+        
     })
-  })
+    })
   
   # add data to pedigree when user navigates off of the tab
   onCanTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    
     # consolidate cancer info into a data frame
     can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
-    
+  
     # transfer information to the pedigree
     if(onCanTab() & input$pedTabs != "Cancer Hx" & !is.null(PED())){
       PED(popPersonData(tmp.ped = PED(), id = input$relSelect, sx = input$Sex, cancers.and.ages = can.df))
@@ -3972,7 +3975,7 @@ server <- function(input, output, session) {
       if(showPed()){
         session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
       }
-    }
+  }
     
     # update the reactive value to detect if the current tab is the target tab
     if(input$pedTabs == "Cancer Hx"){
@@ -4027,10 +4030,10 @@ server <- function(input, output, session) {
   # add data to pedigree when user navigates off of the tab
   onCBCTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    
-    # consolidate cancer info into a data frame to check for BC and CBC
-    can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
-    
+    if(completionFlag$done){
+      # consolidate cancer info into a data frame to check for BC and CBC
+      can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
+    }
     # transfer information to the pedigree if conditions are met
     if(onCBCTab() & input$pedTabs != "CBC Risk" & !is.null(PED()) & 
        any(can.df$Cancer == "Breast") & all(can.df$Cancer != "Contralateral") & input$Sex == "Female"){
@@ -4251,7 +4254,7 @@ server <- function(input, output, session) {
   ###### Panels ####
   # get panel name choices from the database
   observe({
-    if (loggedIn()) {
+    if (loggedIn() & completionFlag$done) {
       tables <- dbListTables(conn)
       table_name <- paste0(credentials()$info[["user"]], "_gene_templates")
       if(table_name %in% tables){
@@ -4261,18 +4264,17 @@ server <- function(input, output, session) {
                                              "_gene_templates"))$panel_name)
         # update the panel selector
         updateSelectInput(session, "existingPanels", choices = c("No panel selected", "Create new", all.pans))
+        
       }
-      }
-      
+    }
     })
 
   # create a new panel
   observeEvent(input$createPanel, {
-    
     all.pans <- 
       dbGetQuery(conn = conn,
                  statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]], "_gene_templates"))$panel_name
-    if(input$newPanelName != "" &
+    if(length(input$newPanelName) != 0 &
        !input$newPanelName %in% all.pans &
        !is.null(input$newPanelGenes)){
       pan.genes <- paste0(input$newPanelGenes, collapse = ",")
@@ -4296,11 +4298,11 @@ server <- function(input, output, session) {
 
   # disable Create Panel button if conditions are not met
   observeEvent(list(input$newPanelName, input$newPanelGenes), {
-    if(loggedIn()){
+    if(loggedIn() & completionFlag$done){
       
       all.pans <- dbGetQuery(conn = conn,
                  statement = paste0("SELECT panel_name FROM ", credentials()$info[["user"]],  "_gene_templates"))$panel_name
-      if(input$newPanelName == "" | input$newPanelName %in% all.pans |
+      if(length(input$newPanelName) == 0 | input$newPanelName %in% all.pans |
        is.null(input$newPanelGenes)){
         waitNewPanel(FALSE)
         shinyjs::disable("createPanel")
@@ -4433,6 +4435,10 @@ server <- function(input, output, session) {
       geneReactive$GeneNums <- out$gr
       panel.module.id.num <- out$panel.module.id.num
       panMod.id <- out$panMod.id
+      
+      shinybusy::notify_warning("Genes with unspecified test results will be treated as test-negative.",
+                                position = "center-bottom")
+      
       ## panelUI Remove Observer
       # create a remove module button observer for each panelUI module created
       observeEvent(input[[paste0(panMod.id, '-removePanel')]], {
@@ -4730,7 +4736,6 @@ server <- function(input, output, session) {
   output$showPed <- reactive({ showPed() })
   outputOptions(output, 'showPed', suspendWhenHidden = FALSE)
   observeEvent(input$showPedButton, {
-    
     # update reactive value which triggers showing/hiding the visualized pedigree
     showPed(TRUE)
     
@@ -4908,9 +4913,9 @@ server <- function(input, output, session) {
     
     # create interactive pedigeejs pedigree if a any pedigree, even a different family,
     # has not been displayed yet, otherwise update pedigreeJS instead
-    if(showPedButtonCnt() == 1){
+    if(completionFlag$done & showPedButtonCnt() == 1){
       session$sendCustomMessage("createPedJSHandler", prepPedJSON(PED()))
-    } else if(showPedButtonCnt() > 1) {
+    } else if(completionFlag$done & showPedButtonCnt() > 1) {
       session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
     }
   }, ignoreInit = TRUE)
@@ -5182,7 +5187,7 @@ server <- function(input, output, session) {
   }, ignoreInit = T, ignoreNULL = T)
   
   ## cancer color legend plot
-  # check if there is at least one PanelPRO cancer in the pedigree 
+  # check if there is at least one Fam3PRO cancer in the pedigree 
   # which triggers whether to make the plot or not
   atLeastOnePPCancer <- reactiveVal(FALSE)
   output$atLeastOnePPCancer <- reactive({atLeastOnePPCancer()})
@@ -5245,7 +5250,7 @@ server <- function(input, output, session) {
   ## draw pedigree static image using kinship2
   # prepare the data
   treePed <- reactive({
-    if(!is.null(PED())){
+    if(completionFlag$done & (!is.null(PED()))){
       return(kinship2.ped(PED()))
     } else {
       return(NULL)
@@ -5255,9 +5260,8 @@ server <- function(input, output, session) {
   # display in the pedigree viewer
   output$treePedViewer <- renderPlot({
     shiny::validate(
-      need(!is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(completionFlag$done & !is.null(treePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
-    
     # check if there are any cancers which determines if the legend should be included
     cans <- select(PED(), starts_with("isAff"))
     
@@ -5271,7 +5275,7 @@ server <- function(input, output, session) {
   ###### Pedigree Table ####
   # prepare the data frame
   tablePed <- reactive({
-    if(!is.null(PED())){
+    if(completionFlag$done & !is.null(PED())){
       t.ped <- 
         PED() %>% 
         select(-c("PedigreeID", 
@@ -5312,11 +5316,12 @@ server <- function(input, output, session) {
   # display in the pedigree viewer
   output$tablePedViewer <- DT::renderDT({
     shiny::validate(
-      need(!is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
+      need(completionFlag$done & !is.null(tablePed()) & !is.null(PED()), "No pedigree has been loaded or created yet."),
     )
     tablePed()
   }, server = F)
   
+    
   ###### Cancer Details ####
   ## cancer details, convert JSONs into a data frame of cancer hx indexed by ID
   cancersTbl <- reactive({
@@ -5438,16 +5443,16 @@ server <- function(input, output, session) {
   # pedigree previewer
   output$downloadDD1 <- shiny::downloadHandler(
     filename = function(){
-      paste0("PanelPRO-data-dictionary-", Sys.Date(), ".zip")
+      paste0("Fam3PRO-data-dictionary-", Sys.Date(), ".zip")
     },
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
       new.files <- c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
+        "data-dictionary/fam3pro-cancer-abbreviations.csv",
+        "data-dictionary/fam3lpro-gene-list.csv"
       )
       tmp.zip <- 
         zip::zip(zipfile = file, 
@@ -5467,16 +5472,16 @@ server <- function(input, output, session) {
   # pedigree editor viewer
   output$downloadDD2 <- shiny::downloadHandler(
     filename = function(){
-      paste0("PanelPRO-data-dictionary-", Sys.Date(), ".zip")
+      paste0("Fam3PRO-data-dictionary-", Sys.Date(), ".zip")
     },
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
+      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
       new.files <- c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv"
+        "data-dictionary/fam3pro-cancer-abbreviations.csv",
+        "data-dictionary/fam3pro-gene-list.csv"
       )
       tmp.zip <- 
         zip::zip(zipfile = file, 
@@ -5495,7 +5500,7 @@ server <- function(input, output, session) {
   
   # Save data to pedigree when navbarTabs change or one of the viewer tabs in the editor
   observeEvent(list(input$navbarTabs), {
-    if(!is.null(PED())){
+    if(completionFlag$done & (!is.null(PED()))){
       PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
                            cr = canReactive$canNums,
                            sr = surgReactive$lst,
@@ -5664,21 +5669,21 @@ server <- function(input, output, session) {
   # on start-up, hide the non-Home navbarTabs (should not show until a pedigree is create as new or loaded)
   observe({
     hideTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-    hideTab("navbarTabs", target = "PanelPRO", session = session)
+    hideTab("navbarTabs", target = "Fam3PRO", session = session)
   })
   
-  # only show PanelPRO tab when a pedigree has been created or loaded
+  # only show Fam3PRO tab when a pedigree has been created or loaded
   observeEvent(PED(), {
     if(!is.null(PED())){
-      showTab("navbarTabs", target = "PanelPRO", session = session)
+      showTab("navbarTabs", target = "Fam3PRO", session = session)
     } else {
-      hideTab("navbarTabs", target = "PanelPRO", session = session)
+      hideTab("navbarTabs", target = "Fam3PRO", session = session)
     }
   }, ignoreNULL = F)
   
   # Save data to pedigree when one of the viewer tabs in the editor
   observeEvent(input$pedVisualsEditor, {
-    if(!is.null(PED())){
+    if(completionFlag$done & (!is.null(PED()))){
       PED(saveRelDatCurTab(tped = PED(), rel = input$relSelect, inp = input,
                            cr = canReactive$canNums,
                            sr = surgReactive$lst,
@@ -5706,7 +5711,7 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  #### PanelPRO ####
+  #### Fam3PRO ####
   # panelpro version number
   output$ppVersion <- renderText({
     paste0("version: ", packageVersion("PanelPRO"))
@@ -5809,11 +5814,11 @@ server <- function(input, output, session) {
                                frPlotStaticZoom = NULL, frPlotStaticFull = NULL,
                                settingsTbl = NULL)
   
-  # time the PanelPRO run
+  # time the Fam3PRO run
   ppTime <- reactiveVal(0)
   output$ppTime <- renderText({ paste0("Run time: ", round(ppTime(), 2),"s") })
   
-  # run PanelPRO and get results
+  # run Fam3PRO and get results
   observeEvent(input$runPP, {
     
     session_count <- globalCounter()
@@ -5872,7 +5877,7 @@ server <- function(input, output, session) {
       }
       
       # take user to results
-      updateTabsetPanel(session, "panelproTabs", selected = "PanelPRO Results")
+      updateTabsetPanel(session, "panelproTabs", selected = "Fam3PRO Results")
       
       # run the model, get the console output and check for warnings and error
       out <- 
@@ -5897,7 +5902,7 @@ server <- function(input, output, session) {
       pb <- as.character(PED()$ID[which(PED()$isProband == 1)])
       
       # settings table
-      settings <- c("PanelPRO Version" = NA,
+      settings <- c("Fam3PRO Version" = NA,
                     "PedigreeID" = "pedigree",
                     "Proband ID" = "proband",
                     "Model Spec" = "model_spec",
@@ -5918,7 +5923,7 @@ server <- function(input, output, session) {
       settingsTbl <- data.frame(Setting = names(settings),
                                 Argument = unname(settings),
                                 Value = rep(NA, length(settings)))
-      settingsTbl$Value[which(settingsTbl$Setting == "PanelPRO Version")] <- as.character(packageVersion("PanelPRO"))
+      settingsTbl$Value[which(settingsTbl$Setting == "Fam3PRO Version")] <- as.character(packageVersion("PanelPRO"))
       settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
       settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
       if(input$modelSpec != "Custom"){
@@ -5953,7 +5958,7 @@ server <- function(input, output, session) {
       settingsTbl$Value[which(settingsTbl$Setting == "Random seed for imputing missing ages")] <- randomSeed
       settingsTbl$Value[which(settingsTbl$Setting == "Provide net, instead of crude, future risk estimates?")] <- net.logical
       
-      # use PanelPRO defaults to populate the remainder of the table
+      # use Fam3PRO defaults to populate the remainder of the table
       def.vals <- formals(PanelPRO::PanelPRO)
       for(st in settings[which(!is.na(settings))]){
         def.vals[[st]] <- NULL
@@ -5985,7 +5990,7 @@ server <- function(input, output, session) {
           names(def.setting.names)[which(def.setting.names == ln)]
       }
       
-      # combine user specified settings and PanelPRO default settings
+      # combine user specified settings and Fam3PRO default settings
       tmp.tbl <- rbind(settingsTbl, add.settings)
       allow.age.impute.row <- which(tmp.tbl$Argument == "impute.missing.ages")
       iterations.row <- which(tmp.tbl$Argument == "iterations")
@@ -6155,7 +6160,7 @@ server <- function(input, output, session) {
                             textAlign = "right")
           ppReactive$frTbl <- frTbl
 
-          # PanelPRO did not return a cancer risk table
+          # Fam3PRO did not return a cancer risk table
         } else {
           ppReactive$frTblDF <- NULL
           ppReactive$frTbl <- NULL
@@ -6218,7 +6223,7 @@ server <- function(input, output, session) {
           emailUser(credentials()$info[["email"]], "result")
         }
         
-        # end of if statement to confirm PanelPRO output was not an error
+        # end of if statement to confirm Fam3PRO output was not an error
       } else {
         cpTbl <- NULL
         frTbl <- NULL
@@ -6316,17 +6321,17 @@ server <- function(input, output, session) {
   output$ppRunSettings <- renderTable({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$settingsTbl), "Run PanelPRO to see the results.")
+      need(!is.null(ppReactive$settingsTbl), "Run Fam3PROs to see the results.")
     )
     return(ppReactive$settingsTbl)
   }, striped = T)
   
   
-  # PanelPRO function doc string
+  # Fam3PRO function doc string
   observeEvent(list(input$showPPDocString1, input$showPPDocString2), {
     showModal(modalDialog(
       tagList(htmlOutput("ppDocString")),
-      title = "PanelPRO Function R Documentation",
+      title = "Fam3PRO Function R Documentation",
       footer = tagList(
         modalButton("Close")
       ),
@@ -6343,8 +6348,8 @@ server <- function(input, output, session) {
     ppDocString()
   })
   
-  ##### Download ####
-  # disable download button if PanelPRO has not been run yet
+  ##### Download #####
+  # disable download button if Fam3PRO has not been run yet
   observeEvent(ppReactive$cpTbl, {
     if(!is.null(ppReactive$cpTbl)){
       shinyjs::enable('downloadResults1')
@@ -6355,7 +6360,7 @@ server <- function(input, output, session) {
   
   # prepare cancersJSON for download as its own table
   canJSONToDF <- reactive({
-    
+    #req(completionFlag$done)
     # convert JSONs into a data frame of cancer hx indexed by PedigreeID and ID
     can.df <- NULL
     for(row in 1:nrow(PED())){
@@ -6384,7 +6389,6 @@ server <- function(input, output, session) {
   
   # prepare genesJSON for download as its own table
   genesJSONToDF <- reactive({
-  
     # convert JSONs into a data frame of gene results indexed by PedigreeID and ID
     gene.df <- NULL
     for(row in 1:nrow(PED())){
@@ -6438,7 +6442,7 @@ server <- function(input, output, session) {
   # download as .csv
   output$downloadResultsCSV <- shiny::downloadHandler(
     filename = function(){
-      paste0("PanelPRO-results-", 
+      paste0("Fam3PRO-results-", 
              ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
              "-",
              Sys.Date(), ".zip")
@@ -6452,9 +6456,9 @@ server <- function(input, output, session) {
       pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
       
       # data dictionary files
-      write.csv(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/panelpro-gene-list.csv", row.names = F)
-      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/fam3pro-function-documentation.html")
       
       # pedigree files
       write.csv(PED(), file = paste0("download-results/pedigree-", pedID, ".csv"), row.names = F)
@@ -6464,16 +6468,19 @@ server <- function(input, output, session) {
       # create the png image
       cans <- select(PED(), starts_with("isAff"))
       png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
-      print(plot(
-        kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
-      ))
-      if(sum(cans) > 0){
-        print(
-          pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
-                          location = "bottomright", radius=0.1)
-        )
+      if(completionFlag$done){
+        print("plot")
+        print(plot(
+          kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
+        ))
+        if(sum(cans) > 0){
+          print(
+            pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
+                            location = "bottomright", radius=0.1)
+          )
+        }
+        dev.off()
       }
-      dev.off()
       
       # run settings table
       write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
@@ -6518,9 +6525,9 @@ server <- function(input, output, session) {
       
       # zip them all together
       new.files <- c(
-        "data-dictionary/panelpro-cancer-abbreviations.csv",
-        "data-dictionary/panelpro-gene-list.csv",
-        "data-dictionary/panelpro-function-documentation.html",
+        "data-dictionary/fam3pro-cancer-abbreviations.csv",
+        "data-dictionary/fam3pro-gene-list.csv",
+        "data-dictionary/fam3pro-function-documentation.html",
         paste0("download-results/pedigree-", pedID, ".csv"),
         paste0("download-results/cancer-details-", pedID, ".csv"),
         paste0("download-results/panel-details-", pedID, ".csv"),
@@ -6568,7 +6575,7 @@ server <- function(input, output, session) {
   # download as .rds
   output$downloadResultsRDS <- shiny::downloadHandler(
     filename = function(){
-      paste0("PanelPRO-results-", 
+      paste0("Fam3PRO-results-", 
              ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
              "-",
              Sys.Date(), ".zip")
@@ -6584,9 +6591,9 @@ server <- function(input, output, session) {
       # data dictionary files
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
-      saveRDS(ppCancersDict(), file = "data-dictionary/panelpro-cancer-abbreviations.rds")
-      saveRDS(ppGenes(), file = "data-dictionary/panelpro-gene-list.rds")
-      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/panelpro-function-documentation.html")
+      saveRDS(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.rds")
+      saveRDS(ppGenes(), file = "data-dictionary/fam3pro-gene-list.rds")
+      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/fam3pro-function-documentation.html")
       
       # pedigree files
       saveRDS(PED(), file = paste0("download-results/pedigree-", pedID, ".rds"))
@@ -6596,16 +6603,18 @@ server <- function(input, output, session) {
       # create the png image
       cans <- select(PED(), starts_with("isAff"))
       png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
-      print(plot(
-        kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
-      ))
-      if(sum(cans) > 0){
-        print(
-          pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
-                          location = "bottomright", radius=0.1)
-        )
+      if(completionFlag$done){
+        print(plot(
+          kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
+        ))
+        if(sum(cans) > 0){
+          print(
+            pedigree.legend(kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))], 
+                            location = "bottomright", radius=0.1)
+          )
+        }
+        dev.off()
       }
-      dev.off()
       
       # run settings table
       saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
@@ -6651,9 +6660,9 @@ server <- function(input, output, session) {
       # zip them all together
       new.files <- c(
         "data-dictionary/columns-and-codings-dictionary.rds",
-        "data-dictionary/panelpro-cancer-abbreviations.rds",
-        "data-dictionary/panelpro-gene-list.rds",
-        "data-dictionary/panelpro-function-documentation.html",
+        "data-dictionary/fam3pro-cancer-abbreviations.rds",
+        "data-dictionary/fam3pro-gene-list.rds",
+        "data-dictionary/fam3pro-function-documentation.html",
         paste0("download-results/pedigree-", pedID, ".rds"),
         paste0("download-results/cancer-details-", pedID, ".rds"),
         paste0("download-results/panel-details-", pedID, ".rds"),

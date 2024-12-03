@@ -91,7 +91,7 @@ makeCancerDF <- function(rel, cr = canReactive$canNums, inp = input){
     can.df[1, ] <- c("No cancer selected", NA, "")
   }
   
-  can.df
+  return(can.df)
 }
 
 #' Add one cancerUI module to a relative's cancer hx
@@ -126,7 +126,6 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL,
 
   # increase total number of created cancer UI modules for this person
   trackMax <- trackMax + 1
-
   # update canNums for this person
   cr[[rel]] <- list(dict = trackInputs,
                     mx = trackMax)
@@ -138,7 +137,6 @@ addCancer <- function(cr = canReactive$canNums, rel, inp = input, values = NULL,
     where = "beforeEnd",
     ui = canUI(id = id, rel = rel, vals = values, sex = sex)
   )
-  
   return(list(cr = cr, trackMax = trackMax, id = id))
 }
 
@@ -195,7 +193,7 @@ removeCancer <- function(cr = canReactive$canNums, rel,
   ## re-add deleted OTHER cancer choice to dropdown choices of this person's OTHER cancer modules
   # get all of the cancers currently selected across this person's cancer UI modules
   cans.selected <- as.character()
-  if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
+  if(!is.na(tmp.trackInputs[1]) & length(tmp.trackInputs) == 1){
     for(cn in as.numeric(names(tmp.trackInputs))){
       tmp.id <- paste0("rel", rel,
                        "canModule", tmp.trackInputs[cn], "-CanOther")
@@ -229,9 +227,9 @@ removeCancer <- function(cr = canReactive$canNums, rel,
   ## decrease the active cancer module count by one
   ## shift remaining active cancer modules to different slots
   if(length(tmp.trackInputs) == 1 & !is.na(tmp.trackInputs[1])){
+    
     tmp.trackInputs[1] <- NA
   } else if(!(length(tmp.trackInputs) == 1 & is.na(tmp.trackInputs[1]))){
-
     # if the input to be removed is not the last one, iterate through the active inputs to update them
     if(which(tmp.trackInputs == trackMax) != length(tmp.trackInputs)){
       for(el in which(tmp.trackInputs == trackMax):(length(tmp.trackInputs) - 1)){
@@ -241,7 +239,6 @@ removeCancer <- function(cr = canReactive$canNums, rel,
     tmp.trackInputs <- tmp.trackInputs[1:(length(tmp.trackInputs) - 1)]
   }
   cr[[rel]]$dict <- tmp.trackInputs
-  
   # return updated cancer reactive
   return(cr)
 }

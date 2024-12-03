@@ -830,7 +830,6 @@ addFDRPlus <- function(t.ped, num.dau = 0, num.son = 0, num.sis = 0, num.bro = 0
 #' @param dupResultGene `dupResultGene()`
 #' @return updated pedigree
 saveRelDatCurTab <- function(tped, rel, inp, cr, sr, gr, dupResultGene, sx){
-  
   # demographics
   if(inp$pedTabs == "Demographics"){
     return(popPersonData(tmp.ped = tped, id = rel, 

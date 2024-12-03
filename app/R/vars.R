@@ -3,7 +3,7 @@
 # https://www.dana-farber.org/for-patients-and-families/care-and-treatment/cancer-types/
 non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
 
-app.title <- "Fam3PRO: Interface for PanelPRO"
+app.title <- "Fam3PRO Interface"
 
 # set universal delay execution time in milliseconds
 delay_ms <- 5000
