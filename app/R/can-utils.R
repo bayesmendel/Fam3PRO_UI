@@ -60,22 +60,26 @@ makeCancerDF <- function(rel, cr = canReactive$canNums, inp = input){
   # consolidate all cancer inputs into a single data frame by looping through each exiting module
   can.df <- cancer.inputs.store
   trackInputs <- cr[[rel]]$dict
+  
+  # check for CBC
+  hadCBC <- FALSE
+  CBCAge <- NA
+  
   if(!(length(trackInputs) == 1 & is.na(trackInputs[1]))){
     for(cn in as.numeric(names(trackInputs))){
       id <- paste0("rel", rel, "canModule", trackInputs[cn])
-      if(inp[[paste0(id, '-Can')]] != "No cancer selected"){
-        can.df[cn, ] <- c(inp[[paste0(id, '-Can')]],
-                          inp[[paste0(id, '-CanAge')]],
-                          inp[[paste0(id, '-CanOther')]])
-      }
-      
-      # check for CBC
-      hadCBC <- FALSE
-      CBCAge <- NA
-      if(inp[[paste0(id, '-Can')]] == "Breast" &
-         inp[[paste0(id, "-CBC")]] == "Yes"){
-        hadCBC <- TRUE
-        CBCAge <- inp[[paste0(id, "-CBCAge")]]
+      if(length(inp[[paste0(id, '-Can')]]) > 0){
+        if(inp[[paste0(id, '-Can')]] != "No cancer selected"){
+          can.df[cn, ] <- c(inp[[paste0(id, '-Can')]],
+                            inp[[paste0(id, '-CanAge')]],
+                            inp[[paste0(id, '-CanOther')]])
+        }
+
+        if(inp[[paste0(id, '-Can')]] == "Breast" &
+           inp[[paste0(id, "-CBC")]] == "Yes"){
+          hadCBC <- TRUE
+          CBCAge <- inp[[paste0(id, "-CBCAge")]]
+          }
       }
     }
     
@@ -259,10 +263,8 @@ updateCancerDropdowns <- function(cr = canReactive$canNums,
   
   # get current version of active cancer modules
   tmp.trackInputs <- cr[[rel]]$dict
-  
   # check if there are any cancers
   if(!is.na(tmp.trackInputs[1])){
-    
     # define relevant variables
     if(type == "cancer"){
       input.type <- "-Can"
@@ -286,23 +288,27 @@ updateCancerDropdowns <- function(cr = canReactive$canNums,
     cans.selected <- as.character()
     for(cn in as.numeric(names(tmp.trackInputs))){
       tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], input.type)
-      if(!inp[[tmp.id]] %in% filter.out.vals){
-        cans.selected <- c(cans.selected, inp[[tmp.id]])
+      if(length(inp[[tmp.id]]) > 0){
+        if(!inp[[tmp.id]] %in% filter.out.vals){
+          cans.selected <- c(cans.selected, inp[[tmp.id]])
+        }
       }
     }
     
     # update each of this person's cancer UI module cancer choice dropdowns to exclude the newly selected cancer
     for(cn in as.numeric(names(tmp.trackInputs))){
-      tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], input.type)
-      
-      # get cancer dropdown choices available for this cancer name input
-      mod.cans.selected <- cans.selected[which(cans.selected != inp[[tmp.id]])]
-      cans.avail <- all.can.choices[which(!all.can.choices %in% mod.cans.selected)]
-      
-      # update the input dropdown
-      updateSelectInput(ss, tmp.id,
-                        choices = cans.avail,
-                        selected = inp[[tmp.id]])
+      if(length(inp[[tmp.id]]) > 0){
+        tmp.id <- paste0("rel", rel, "canModule", tmp.trackInputs[cn], input.type)
+        
+        # get cancer dropdown choices available for this cancer name input
+        mod.cans.selected <- cans.selected[which(cans.selected != inp[[tmp.id]])]
+        cans.avail <- all.can.choices[which(!all.can.choices %in% mod.cans.selected)]
+        
+        # update the input dropdown
+        updateSelectInput(ss, tmp.id,
+                          choices = cans.avail,
+                          selected = inp[[tmp.id]])
+      }
     }
   }
 }

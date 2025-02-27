@@ -2272,7 +2272,6 @@ server <- function(input, output, session) {
       
       newOrLoadFlag("load")
       completionFlag$done <- FALSE
-      resetFlag$done <- FALSE
       
       # for admins, load sub-table from the selected user's master table
       if(admin() | manager()){
@@ -2330,11 +2329,11 @@ server <- function(input, output, session) {
               remove_shiny_inputs(paste0("rel", rl, "canModule", canReactive$canNums[[as.character(rl)]]$dict[cMod]), input)
             }
           }
-          
           # else, create an empty cancer tracked for this relative
         } else {
           canReactive$canNums[[as.character(rl)]] <- trackCans.rel
         }
+        
         # GENES, iterate through this relative's panel dictionary, if there is at least one panel
         if(any(names(geneReactive$GeneNums) == as.character(rl))){
           if(!is.na(geneReactive$GeneNums[[as.character(rl)]]$dict[1])){
@@ -2366,7 +2365,7 @@ server <- function(input, output, session) {
         } else {
           geneReactive$GeneNums[[as.character(rl)]] <- relTemplate.trackGenes
         }
-        
+        #resetFlag$done <- TRUE
         ### 2: ORGANIZE JSON DATA TO BE LOADED INTO DATA FRAMES
         ## CANCERS
         if(!is.na(PED()$cancersJSON[which(PED()$ID == rl)])){
@@ -2381,9 +2380,9 @@ server <- function(input, output, session) {
             mutate(sex = recode(sex, "0" = "Female", "1" = "Male")) %>%
             mutate(cbc = "No") %>%
             mutate(cbcAge = NA) %>%
-            mutate(age = if_else(!is.na(age), as.numeric(age), NA_real_),
-                   cbcAge = if_else(!is.na(cbcAge), as.numeric(cbcAge), NA_real_))
-            #mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
+            #mutate(age = if_else(!is.na(age), as.numeric(age), NA_real_),
+                   #cbcAge = if_else(!is.na(cbcAge), as.numeric(cbcAge), NA_real_))
+            mutate(across(.cols = c(age, cbcAge), ~as.numeric(.)))
 
           # combine contralateral into same row as breast and drop the CBC row
           if(any(can.df$cancer == "Breast") & any(can.df$cancer == "Contralateral")){
@@ -2487,6 +2486,9 @@ server <- function(input, output, session) {
           # create a cancer selection observer which will trigger an update of all of the cancer dropdown
           # choices for each of the person's cancer UI modules
           observeEvent(input[[paste0(id, '-Can')]], {
+            # print(paste0("input", input[[paste0(id, '-Can')]]))
+            # print(paste0("id: ", id, '-Can'))
+            # print(paste0("canReactive$canNums: ", canReactive$canNums))
             updateCancerDropdowns(cr = canReactive$canNums,
                                   rel = master.can.df$rel[x],
                                   inp = input,
@@ -2716,30 +2718,33 @@ server <- function(input, output, session) {
     # execute actions relevant to create new and load existing
     if(input$newOrLoad == "Create new" | 
        (input$newOrLoad == "Load existing" & input$existingPed != "No pedigree selected")){
-            
-      # reset add relative counts
-      for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
-        shinyjs::reset(paste0("num", relation))
-      }
       
-      # update selected users for loading, downloading, and deleting a pedigree
-      updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
-      updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
-      updateSelectInput(session, "selectUserForCopyTo", selected = credentials()$info[["user"]])
-      updateSelectInput(session, "selectUserForCopyFrom", selected = credentials()$info[["user"]])
-      updateSelectInput(session, "selectUserForDelete", selected = credentials()$info[["user"]])
-      
-      # show the pedigree edit/create tab when the button is clicked the first time
-      showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
-      
-      # update selected tabs
-      updateTabsetPanel(session, "pedTabs", selected = "Demographics")
-      updateTabsetPanel(session, "geneTabs", selected = "Instructions")
-      updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
-      updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
-      updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
-      updateTabsetPanel(session, "panelproTabs", selected = "Run Fam3PRO")
-      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+      if(completionFlag$done){
+        
+        # reset add relative counts
+        for(relation in c("Dau", "Son", "Sis", "Bro", "MAunt", "MUnc", "PAunt", "PUnc")){
+          shinyjs::reset(paste0("num", relation))
+        }
+        
+        # update selected users for loading, downloading, and deleting a pedigree
+        updateSelectInput(session, "selectUser", selected = credentials()$info[["user"]])
+        updateSelectInput(session, "selectUserForDownload", selected = credentials()$info[["user"]])
+        updateSelectInput(session, "selectUserForCopyTo", selected = credentials()$info[["user"]])
+        updateSelectInput(session, "selectUserForCopyFrom", selected = credentials()$info[["user"]])
+        updateSelectInput(session, "selectUserForDelete", selected = credentials()$info[["user"]])
+        
+        # show the pedigree edit/create tab when the button is clicked the first time
+        showTab("navbarTabs", target = "Create/Modify Pedigree", session = session)
+        
+        # update selected tabs
+        updateTabsetPanel(session, "pedTabs", selected = "Demographics")
+        updateTabsetPanel(session, "geneTabs", selected = "Instructions")
+        updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
+        updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
+        updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
+        updateTabsetPanel(session, "panelproTabs", selected = "Run Fam3PRO")
+        updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+        }
     }
     
     # take user to the pedigree editor if they chose the create new option
@@ -3871,6 +3876,7 @@ server <- function(input, output, session) {
   ##### Cancer History ####
   # save the number of cancers for each person in the pedigree
   canReactive <- reactiveValues(canNums = trackCans.init)
+  #completionFlag$done <- FALSE
   # add a cancer UI module on button click and advance the module counter
   observeEvent(input$addCan, {
     rel <- input$relSelect
@@ -3934,14 +3940,12 @@ server <- function(input, output, session) {
     ## create a cancer selection observer which will trigger an update of all of the cancer dropdown
     ## choices for each of the person's cancer UI modules
     observeEvent(input[[paste0(id, '-Can')]], {
-
-        updateCancerDropdowns(cr = canReactive$canNums,
+      updateCancerDropdowns(cr = canReactive$canNums,
                               rel = rel,
                               inp = input,
                               ss = session,
                               type = "cancer")
       
-
     })
 
     ## create an OTHER cancer selection observer which will trigger an update of all of the OTHER cancer dropdown
@@ -3954,12 +3958,14 @@ server <- function(input, output, session) {
                             type = "other")
         
     })
+    #completionFlag$done <- TRUE
     })
   
   # add data to pedigree when user navigates off of the tab
   onCanTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
     # consolidate cancer info into a data frame
+    if(completionFlag$done){
     can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
   
     # transfer information to the pedigree
@@ -3983,6 +3989,7 @@ server <- function(input, output, session) {
     } else {
       onCanTab(FALSE)
     }
+  }
   }, ignoreInit = TRUE)
   
   ##### CBC Risk ####
@@ -4030,10 +4037,8 @@ server <- function(input, output, session) {
   # add data to pedigree when user navigates off of the tab
   onCBCTab <- reactiveVal(FALSE)
   observeEvent(input$pedTabs, {
-    if(completionFlag$done){
-      # consolidate cancer info into a data frame to check for BC and CBC
-      can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
-    }
+    # consolidate cancer info into a data frame to check for BC and CBC
+    can.df <- makeCancerDF(rel = input$relSelect, cr = canReactive$canNums, inp = input)
     # transfer information to the pedigree if conditions are met
     if(onCBCTab() & input$pedTabs != "CBC Risk" & !is.null(PED()) & 
        any(can.df$Cancer == "Breast") & all(can.df$Cancer != "Contralateral") & input$Sex == "Female"){
@@ -6469,7 +6474,6 @@ server <- function(input, output, session) {
       cans <- select(PED(), starts_with("isAff"))
       png(filename = paste0("download-results/pedigree-image-", pedID,".png"))
       if(completionFlag$done){
-        print("plot")
         print(plot(
           kinship2.ped(PED())[paste0(unique(PED()$PedigreeID))]
         ))

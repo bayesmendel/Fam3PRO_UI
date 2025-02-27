@@ -43,7 +43,7 @@ makeGeneDF <- function(rel, gr = geneReactive$GeneNums,
           for(g.num in as.numeric(names(grpr$dict))){
             gene.module.id.num <- grpr$dict[g.num]
             geneMod.id <- paste0("rel", rel, "Pan", panel.module.id.num, rtype, "GeneModule", gene.module.id.num)
-            if(inp[[paste0(geneMod.id,"-Gene")]] != ""){
+            if(length(inp[[paste0(geneMod.id,"-Gene")]] > 0)){
               tmp.r[nrow(tmp.r)+1,] <- c(inp[[paste0(geneMod.id,"-Gene")]],                         # Gene
                                          ifelse(rtype == "PLP", "P/LP", 
                                                 ifelse(rtype == "BLB", "B/LB", rtype)),             # Result
