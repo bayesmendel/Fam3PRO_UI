@@ -1,7 +1,7 @@
 #### Set-up ####
-# load non-PanelPRO cancers list - modified version of list found at 
+# load non-Fam3PRO cancers list - modified version of list found at 
 # https://www.dana-farber.org/for-patients-and-families/care-and-treatment/cancer-types/
-non.pp.cancers <- as.character(read.csv("./non.pp.cancer.list.csv")$cancer)
+non.f3p.cancers <- as.character(read.csv("./non.f3p.cancer.list.csv")$cancer)
 
 app.title <- "Fam3PRO Interface"
 
@@ -37,11 +37,11 @@ ped.cols <- c("PedigreeID",
               "CK5.6", 
               "HER2", 
               "MSI",
-              paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short),
-              paste0("Age", PanelPRO:::CANCER_NAME_MAP$short),
+              paste0("isAff", Fam3PRO:::CANCER_NAME_MAP$short),
+              paste0("Age", Fam3PRO:::CANCER_NAME_MAP$short),
               "cancersJSON",
               cbcrisk.cols,
-              PanelPRO:::GENE_TYPES,
+              Fam3PRO:::GENE_TYPES,
               "panelNames",
               "genesJSON")
 
@@ -55,13 +55,13 @@ ped.col.dtypes <- c(
   rep("INT", 3), # paste0("riskmod", c("Mast","Hyst","Ooph"))
   rep("INT", 3), # paste0("interAge", c("Mast","Hyst","Ooph"))
   rep("INT", 6), # ER, PR, CK14, CK5_6, HER2, MSI
-  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)
-  rep("INT", length(PanelPRO:::CANCER_NAME_MAP$short)), # paste0("Age", PanelPRO:::CANCER_NAME_MAP$short)
+  rep("INT", length(Fam3PRO:::CANCER_NAME_MAP$short)), # paste0("isAff", Fam3PRO:::CANCER_NAME_MAP$short)
+  rep("INT", length(Fam3PRO:::CANCER_NAME_MAP$short)), # paste0("Age", Fam3PRO:::CANCER_NAME_MAP$short)
   "LONGTEXT", # cancersJSON
   "TEXT", # FirstBCType
   rep("INT", 2), # AntiEstrogen, HRPreneoplasia
   rep("TEXT", 2), # BreastDensity, FirstBCTumorSize
-  rep("INT", length(PanelPRO:::GENE_TYPES)), # PanelPRO:::GENE_TYPES
+  rep("INT", length(Fam3PRO:::GENE_TYPES)), # Fam3PRO:::GENE_TYPES
   "TEXT", # panelNames
   "LONGTEXT" # genesJSON
 )
@@ -71,7 +71,7 @@ ped.col.dtypes <- c(
 expireCode <- 10000
 
 #### Demographics ####
-# age range, although PanelPRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
+# age range, although Fam3PRO can handle ages up to 94, we cannot store ages above 89 for privacy reasons
 max.age <- 89
 min.age <- 1
 min.parent.child.age.diff <- 10
@@ -79,7 +79,7 @@ min.parent.child.age.diff <- 10
 # sex choices
 sex.choices <- c(" "=" ", "Female"="Female", "Male"="Male")
 
-# race choices (different from PanelPRO's race choices)
+# race choices (different from Fam3PRO's race choices)
 rc.choices <- c("Other/Unreported/Mixed Race" = "All_Races",
                 "American Indian/Alaskan Native" = "AIAN",
                 "Asian/Pacific Islander" = "Asian",
@@ -92,15 +92,15 @@ et.choices <- c("Unreported/Both" = "Other_Ethnicity",
                 "Non-Hispanic" = "Non-Hispanic")
 
 #### Cancers ####
-# cancer choices from PanelPRO
-CANCER.CHOICES <- PanelPRO:::CANCER_NAME_MAP
+# cancer choices from Fam3PRO
+CANCER.CHOICES <- Fam3PRO:::CANCER_NAME_MAP
 CANCER.CHOICES$short <- c("No cancer selected", setdiff(CANCER.CHOICES$short, "CBC"), "Other")
 CANCER.CHOICES$long <- c("No cancer selected", setdiff(CANCER.CHOICES$long, "Contralateral"), "Other")
 MALE.CANCERS <- c("Prostate", "Penile", "Testicular")
 FEMALE.CANCERS <- c("Endometrial", "Ovarian", "Cervical", "Vaginal", "Vulvar")
 
-# see the non-PanelPRO cancers loaded as a csv at the top of this file
-OTHER.CANCER.CHOICES <- c("Unknown/Not Listed", non.pp.cancers)
+# see the non-Fam3PRO cancers loaded as a csv at the top of this file
+OTHER.CANCER.CHOICES <- c("Unknown/Not Listed", non.f3p.cancers)
 
 # template data frame for storing cancer history
 cancer.inputs.store <- as.data.frame(matrix(NA, nrow = 0, ncol = 3))
@@ -248,7 +248,7 @@ all.genes <- c('AIP', 'ALK', 'APC', 'ATM', 'AXIN2', 'BAP1', 'BARD1', 'BLM', 'BMP
                'SDHAF2', 'SDHB', 'SDHC', 'SDHD', 'SMAD4', 'SMARCA4', 'SMARCB1', 
                'SMARCE1', 'STK11', 'SUFU', 'TERC', 'TERT', 'TMEM127', 'TP53', 'TSC1', 
                'TSC2', 'VHL', 'WRN', 'WT1')
-non.pp.genes <- setdiff(all.genes, PanelPRO:::GENE_TYPES)
+non.f3p.genes <- setdiff(all.genes, Fam3PRO:::GENE_TYPES)
 
 # genes with specific nucleotides
 nucCHEK2plp <- "1100delC"

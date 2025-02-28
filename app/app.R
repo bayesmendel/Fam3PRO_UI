@@ -10,7 +10,7 @@ library(shinybusy)  # success notifications and waiting on calc spinner
 # pedigrees and models
 library(kinship2)   # draws pedigrees (this is temporary only)
 #library(cbcrisk)    # Swati's cbcrisk model - provided in FAM3PRO package
-library(PanelPRO)
+library(Fam3PRO)
 
 # database and user accounts
 library(DBI)        # read/write tables in database
@@ -62,7 +62,7 @@ ui <- fixedPage(
   tags$head(tags$link(rel = "stylesheet", type = "text/css",
                       href = "https://cdn.jsdelivr.net/npm/font-awesome@4.7/css/font-awesome.min.css", media="all")),
   tags$head(includeScript(path="www//pedigreejs//d3.min.js")),
-  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-PPI-4.js")),
+  tags$head(includeScript(path="www//pedigreejs//build//pedigreejs.v2.1.0-rc9-customized-for-F3PI-4.js")),
   
   # wait bars/spinners
   shinybusy::add_busy_bar(color = "blue", height = "8px"),
@@ -214,9 +214,9 @@ ui <- fixedPage(
           is a multi-cancer/multi-gene risk prediction model which utilizes family history
           to estimate the probability that a patient has a pathogenic or likely
           pathogenic variant (P/LP) gene variant on up to 24 different cancer suseptibility genes and,
-          estimates a patient's future risk of cancer for up to ",length(PanelPRO:::CANCER_NAME_MAP$long)-1,
+          estimates a patient's future risk of cancer for up to ",length(Fam3PRO:::CANCER_NAME_MAP$long)-1,
           " different cancer types.
-          Fam3PRO also includes the BRCApro, MMRpro, and MelaPRO risk models and users
+          Fam3PRO exports two prespecified models: Fam3PRO11 and Fam3PRO22 (22 genes and 17 cancers) and users
           have the ability to create customized models focused on specific cancers and genes.
           The Fam3PRO software package was written in the statistical
           programming language R. You can learn more about Fam3PRO at the ",
@@ -267,10 +267,10 @@ ui <- fixedPage(
         br(),
         
         h4("Which cancers and genes does Fam3PRO consider?"),
-        p(length(PanelPRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
-          paste0(paste0(setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
+        p(length(Fam3PRO:::CANCER_NAME_MAP$long)-1," Cancers: ", 
+          paste0(paste0(setdiff(Fam3PRO:::CANCER_NAME_MAP$long, "Contralateral"), collapse = ", "), "."), 
           "Contralateral Breast Cancer (CBC) is also analyzed."),
-        p(length(PanelPRO:::GENE_TYPES), " Genes: ", paste0(paste0(PanelPRO:::GENE_TYPES, collapse = ", "), ".")),
+        p(length(Fam3PRO:::GENE_TYPES), " Genes: ", paste0(paste0(Fam3PRO:::GENE_TYPES, collapse = ", "), ".")),
         p("Users can customize their analysis by running a model with a subset of these cancers 
           and genes."),
         br(),
@@ -575,7 +575,7 @@ ui <- fixedPage(
                      history, and tumor markers are not displayed."),
                   # uiOutput("canColorKeyUI"),
                   br(),
-                  # conditionalPanel(condition = "output.atLeastOnePPCancer",
+                  # conditionalPanel(condition = "output.atLeastOneF3PCancer",
                   #   downloadButton("downloadCanColorKey", 
                   #                  label = "Download Cancer Legend",
                   #                  icon = icon('download'))
@@ -1191,7 +1191,7 @@ ui <- fixedPage(
         h3("Fam3PRO", style = "margin-bottom:0px"),
         
         # Fam3PRO version
-        div(textOutput("ppVersion"), style = "margin-left:10px"),
+        div(textOutput("f3pVersion"), style = "margin-left:10px"),
         
         # show the current pedigree
         p(strong("Working pedigree: "), 
@@ -1199,7 +1199,7 @@ ui <- fixedPage(
           style = "font-size:17px;margin-top:5px"),
         
         # split into settings and results tabs
-        tabsetPanel(id = "panelproTabs",
+        tabsetPanel(id = "fam3proTabs",
           
           ###### UI: Run / Settings ####
           tabPanel(title = "Run Fam3PRO",
@@ -1207,8 +1207,8 @@ ui <- fixedPage(
             p("Specify the model parameters below then hit the 'Run Fam3PRO' button at the bottom of the page. For more information on the parameters click on the 
               'Show Fam3PRO Documentation' button."),
             
-            # show panelpro doc string
-            actionButton("showPPDocString1", label = "Show Fam3PRO Documentation",
+            # show Fam3PRO doc string
+            actionButton("showF3PDocString1", label = "Show Fam3PRO Documentation",
                          icon = icon('book'),
                          style = "margin-bottom:25px"),
             
@@ -1218,8 +1218,8 @@ ui <- fixedPage(
             # model_spec
             h5("Model Specification ('model_spec'):"),
             selectInput("modelSpec", label = NULL, 
-                        selected = formals(PanelPRO::PanelPRO)$model_spec,
-                        choices = c("Custom", names(PanelPRO:::MODELPARAMS)),
+                        selected = formals(Fam3PRO::Fam3PRO)$model_spec,
+                        choices = c("Custom", names(Fam3PRO:::MODELPARAMS)),
                         width = "150px"),
             
             # show genes and cancer for a pre-specified model
@@ -1240,7 +1240,7 @@ ui <- fixedPage(
                 #  genes
                 h5("Custom Gene List ('genes'):"),
                 selectInput("genes", label = NULL,
-                            choices = PanelPRO:::GENE_TYPES,
+                            choices = Fam3PRO:::GENE_TYPES,
                             multiple = T,
                             width = "400px"),
                 div(style = "margin-left:25px;margin-top:-10px",
@@ -1251,7 +1251,7 @@ ui <- fixedPage(
                 # cancers
                 h5("Custom Cancer List ('cancers'):"),
                 selectInput("cancers", label = NULL,
-                            choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                            choices = setdiff(Fam3PRO:::CANCER_NAME_MAP$long, "Contralateral"),
                             multiple = T,
                             width = "400px"),
                 div(style = "margin-left:25px;margin-top:-10px",
@@ -1272,13 +1272,13 @@ ui <- fixedPage(
             h5("Year interval for future cancer risk (1 to 10) ('age.by'):"),
             numericInput("ageBy", label = NULL,
                          min = 1, max = 10, step = 1, 
-                         value = formals(PanelPRO::PanelPRO)$age.by,
+                         value = formals(Fam3PRO::Fam3PRO)$age.by,
                          width = "150px"),
             textOutput("validYearInterval"),
             br(),
             
             # advanced settings
-            bsCollapse(id = "PanelPROAdvanced",
+            bsCollapse(id = "Fam3PROAdvanced",
               bsCollapsePanel(title = "Advanced Settings", 
                               
                 # not currently supported (default values used): 
@@ -1289,50 +1289,65 @@ ui <- fixedPage(
                 # unknown.race
                 h5("Assume all unknown races to be ('unknown.race'):"),
                 selectInput("unknownRace", label = NULL,
-                            selected = PanelPRO:::UNKNOWN_RACE,
-                            choices = PanelPRO:::RACE_TYPES,
+                            selected = Fam3PRO:::UNKNOWN_RACE,
+                            choices = Fam3PRO:::RACE_TYPES,
                             width = "150px"),
                 
                 # unknown.ancestry
                 h5("Assume all unknown ancestries to be ('unknown.ancestry'):"),
                 selectInput("unknownAncestry", label = NULL,
-                            selected = PanelPRO:::UNKNOWN_ANCESTRY,
-                            choices = PanelPRO:::ANCESTRY_TYPES,
+                            selected = Fam3PRO:::UNKNOWN_ANCESTRY,
+                            choices = Fam3PRO:::ANCESTRY_TYPES,
                             width = "150px"),
                 
                 # allow.intervention
                 h5("Should cancer prevention risk modifiers be considered ('allow.intervention')?"),
                 div(style = "margin-left:25px",
                   checkboxInput("allowInter", label = "Allow Interventions", 
-                                value = formals(PanelPRO::PanelPRO)$allow.intervention)
+                                value = formals(Fam3PRO::Fam3PRO)$allow.intervention)
                 ),
                 
                 # ignore.proband.germ
                 h5("Should the proband's germline testing results be ignored ('ignore.proband.germ')?"),
                 div(style = "margin-left:25px",
                   checkboxInput("ignorePbGerm", label = "Ignore Germline Results", 
-                                value = formals(PanelPRO::PanelPRO)$ignore.proband.germ)
+                                value = formals(Fam3PRO::Fam3PRO)$ignore.proband.germ)
+                ),
+                
+                # multiple variants in the BRCA1 and BRCA2 genes
+                h5("Consider multiple variants in the BRCA1 and BRCA2 genes ('use.mult.variants')?"),
+                div(style = "margin-left:25px",
+                    checkboxInput("use.mult.variants", label = "Consider Multiple Variants", 
+                                  value = formals(Fam3PRO::Fam3PRO)$use.mult.variants)
+                ),
+                
+                # multiple variants in the BRCA1 and BRCA2 genes
+                h5("Allow Fam3PRO to automatically detect loops in the pedigree and breaks
+                   them by creating clone entries where necessary ('breakloop')?"),
+                div(style = "margin-left:25px",
+                    checkboxInput("breakloop", label = "Allow Automatic Loop Breaks", 
+                                  value = formals(Fam3PRO::Fam3PRO)$breakloop)
                 ),
                 
                 # iterations
                 h5("The number of iterations to be run when multiply imputing missing ages (1 to 100; excludes failed iterations; 'iterations'):"),
                 numericInput("missAgeIters", label = NULL, 
                              min = 1, max = 100, step = 1, 
-                             value = formals(PanelPRO::PanelPRO)$iterations,
+                             value = formals(Fam3PRO::Fam3PRO)$iterations,
                              width = "150px"),
                 
                 # max.iter.tries
                 h5("The maximum number of iterations, including failed iterations, to be run when multiply imputing missing ages (1 to 500; 'max.iter.tries'):"),
                 numericInput("missAgeMaxIters", label = NULL, 
                              min = 1, max = 500, step = 1, 
-                             value = formals(PanelPRO::PanelPRO)$iterations * 5,
+                             value = formals(Fam3PRO::Fam3PRO)$iterations * 5,
                              width = "150px"),
                 
                 # random.seed
                 h5("Random seed for age imputation: (>0; 'random.seed')"),
                 numericInput("randomSeed", label = NULL,
                              min = 1, max = NA, step = 1,
-                             value = formals(PanelPRO::PanelPRO)$random.seed,
+                             value = formals(Fam3PRO::Fam3PRO)$random.seed,
                              width = "150px"),
                 
                 # net
@@ -1346,7 +1361,7 @@ ui <- fixedPage(
                 
                 # reset settings to defaults
                 h5("Reset all settings to Fam3PRO default values"),
-                actionButton("resetPanelPROInputs", label = "Reset to Defaults",
+                actionButton("resetFam3PROInputs", label = "Reset to Defaults",
                              icon = icon('undo'),
                              style = "margin-bottom:25px")
               )
@@ -1358,7 +1373,7 @@ ui <- fixedPage(
                minutes or longer for large pedigree with many unknown ages. The blue 
                status bar at the top of the screen will stop cycling once the analysis 
                is complete."),
-            actionButton("runPP", label = "Run Fam3PRO",
+            actionButton("runF3P", label = "Run Fam3PRO",
                          icon = icon('play'))
           ), # end of "Run" tab for Fam3PRO
           
@@ -1378,21 +1393,21 @@ ui <- fixedPage(
               )
             )),
             
-            tabsetPanel(id = "ppResultTabs",
+            tabsetPanel(id = "f3pResultTabs",
               ## Cancer Risk
               # plot
               tabPanel(title = "Cancer Risk Plots",
                 h4("Future Cancer Risk"),
-                radioButtons("ppFRPlotView1", label = "Select a plot type:",
+                radioButtons("f3pFRPlotView1", label = "Select a plot type:",
                              choices = c("Standard", "Zoomed Y-axis", "Compare risks to an average person"),
                              inline = F),
-                conditionalPanel(condition = "input.ppFRPlotView1 == 'Zoomed Y-axis'",
-                  plotly::plotlyOutput("ppFRPlotZoom", width = "1000px", height = "750px")
+                conditionalPanel(condition = "input.f3pFRPlotView1 == 'Zoomed Y-axis'",
+                  plotly::plotlyOutput("f3pFRPlotZoom", width = "1000px", height = "750px")
                 ),
-                conditionalPanel(condition = "input.ppFRPlotView1 == 'Standard'",
-                  plotly::plotlyOutput("ppFRPlotFull", width = "1000px", height = "750px")
+                conditionalPanel(condition = "input.f3pFRPlotView1 == 'Standard'",
+                  plotly::plotlyOutput("f3pFRPlotFull", width = "1000px", height = "750px")
                 ),
-                conditionalPanel(condition = "input.ppFRPlotView1 == 'Compare risks to an average person'",
+                conditionalPanel(condition = "input.f3pFRPlotView1 == 'Compare risks to an average person'",
                   uiOutput("comparisonPlotH")
                 )
               ),
@@ -1400,28 +1415,28 @@ ui <- fixedPage(
               # table
               tabPanel(title = "Cancer Risk Table",
                 h4("Future Cancer Risk"),
-                DT::DTOutput("ppFRTbl", width = "450px")
+                DT::DTOutput("f3pFRTbl", width = "450px")
               ),
               
               ## Carrier Probs
               # plot
               tabPanel(title = "Carrier Prob. Plot",
                 h4("Posterior Carrier Probabilities"),
-                radioButtons("ppCPPlotView", label = "Select a Y-axis Scale:",
+                radioButtons("f3pCPPlotView", label = "Select a Y-axis Scale:",
                              choices = c("Full (0 to 1)", "Zoomed"),
                              inline = T),
-                conditionalPanel(condition = "input.ppCPPlotView == 'Zoomed'",
-                  plotly::plotlyOutput("ppCPPlotZoom", width = "1000px", height = "500px")
+                conditionalPanel(condition = "input.f3pCPPlotView == 'Zoomed'",
+                  plotly::plotlyOutput("f3pCF3PlotZoom", width = "1000px", height = "500px")
                 ),
-                conditionalPanel(condition = "input.ppCPPlotView != 'Zoomed'",
-                  plotly::plotlyOutput("ppCPPlotFull", width = "1000px", height = "500px")
+                conditionalPanel(condition = "input.f3pCPPlotView != 'Zoomed'",
+                  plotly::plotlyOutput("f3pCF3PlotFull", width = "1000px", height = "500px")
                 )
               ),
               
               # table
               tabPanel(title = "Carrier Prob. Table",
                 h4("Posterior Carrier Probabilities"),
-                DT::DTOutput("ppCPTbl", width = "500px")
+                DT::DTOutput("f3pCPTbl", width = "500px")
               ),
               
               ## Settings
@@ -1429,9 +1444,9 @@ ui <- fixedPage(
                 h4("Run Settings"),
                 p("The Fam3PRO results were obtained using the setting listed below. For a detailed explanation of 
                   the settings, click the 'Show Fam3PRO Documentation' button at the bottom of the screen."),
-                textOutput("ppTime"),
-                tableOutput("ppRunSettings"),
-                actionButton("showPPDocString2", label = "Show Fam3PRO Documentation",
+                textOutput("f3pTime"),
+                tableOutput("f3pRunSettings"),
+                actionButton("showF3PDocString2", label = "Show Fam3PRO Documentation",
                              icon = icon('book'))
               ),
               
@@ -1439,13 +1454,13 @@ ui <- fixedPage(
               tabPanel(title = "Console Output",
                 h4("Fam3PRO Function R Console Output"),
                 tags$div(
-                  id = "ppMessageContainer",
+                  id = "f3pMessageContainer",
                   style = "width:100%"
                 ),
               )
-            ) # end of ppResultTabs tabsetPanel
-          ) # end of Fam3PRO Results Tab in panelproTabs tabsetPanel
-        ) # end of panelproTabs tabsetPanel
+            ) # end of f3pResultTabs tabsetPanel
+          ) # end of Fam3PRO Results Tab in fam3proTabs tabsetPanel
+        ) # end of fam3proTabs tabsetPanel
       ), # end of Fam3PRO tab in navbarTabs
       
       ##### UI: My Account ####
@@ -2486,9 +2501,6 @@ server <- function(input, output, session) {
           # create a cancer selection observer which will trigger an update of all of the cancer dropdown
           # choices for each of the person's cancer UI modules
           observeEvent(input[[paste0(id, '-Can')]], {
-            # print(paste0("input", input[[paste0(id, '-Can')]]))
-            # print(paste0("id: ", id, '-Can'))
-            # print(paste0("canReactive$canNums: ", canReactive$canNums))
             updateCancerDropdowns(cr = canReactive$canNums,
                                   rel = master.can.df$rel[x],
                                   inp = input,
@@ -2621,7 +2633,7 @@ server <- function(input, output, session) {
       ###### CREATE NEW PEDIGREE
     } else if(input$newOrLoad == "Create new"){
       newOrLoadFlag("new")
-      
+      completionFlag$done <- TRUE
       ## reset inputs and input reactives
       shinyjs::reset("relSelect")
       lastRel(1)
@@ -2663,7 +2675,7 @@ server <- function(input, output, session) {
       }
       
       # markers
-      for(mtype in c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)){
+      for(mtype in c(Fam3PRO:::MARKER_TESTING$BC$MARKERS, Fam3PRO:::MARKER_TESTING$COL$MARKERS)){
         m <- ifelse(mtype == "CK5.6", "CK56", mtype)
         shinyjs::reset(m)
       }
@@ -2742,8 +2754,8 @@ server <- function(input, output, session) {
         updateTabsetPanel(session, "geneResultTabs", selected = "P/LP")
         updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
         updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
-        updateTabsetPanel(session, "panelproTabs", selected = "Run Fam3PRO")
-        updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+        updateTabsetPanel(session, "fam3proTabs", selected = "Run Fam3PRO")
+        updateTabsetPanel(session, "f3pResultTabs", selected = "Carrier Prob. Plot")
         }
     }
     
@@ -3200,13 +3212,13 @@ server <- function(input, output, session) {
   })
   
   # table of Fam3PRO cancers dictionary to link abbreviations to cancer names
-  ppCancersDict <- reactive({
-    as.data.frame(PanelPRO:::CANCER_NAME_MAP)
+  f3pCancersDict <- reactive({
+    as.data.frame(Fam3PRO:::CANCER_NAME_MAP)
   })
   
   # table of Fam3PRO gene names
-  ppGenes <- reactive({
-    data.frame(PanelPRO_genes = PanelPRO:::GENE_TYPES)
+  f3pGenes <- reactive({
+    data.frame(Fam3PRO_genes = Fam3PRO:::GENE_TYPES)
   })
   
   # download one or more pedigrees from the user account from the "Manage Pedigrees" tab
@@ -3227,8 +3239,8 @@ server <- function(input, output, session) {
       write.csv(downloadPedsTable(), file = "download-pedigrees/pedigrees.csv", row.names = F)
       write.csv(downloadCanDetails(), file = "download-pedigrees/cancer-details.csv", row.names = F)
       write.csv(downloadPanelDetails(), file = "download-pedigrees/panel-details.csv", row.names = F)
-      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
+      write.csv(f3pCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(f3pGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
       
       # include a png if 1 and only 1 pedigree is being downloaded
       if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
@@ -3299,8 +3311,8 @@ server <- function(input, output, session) {
       saveRDS(downloadPanelDetails(), file = "download-pedigrees/panel-details.rds")
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
-      saveRDS(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.rds")
-      saveRDS(ppGenes(), file = "data-dictionary/fam3pro-gene-list.rds")
+      saveRDS(f3pCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.rds")
+      saveRDS(f3pGenes(), file = "data-dictionary/fam3pro-gene-list.rds")
       
       # include a png if 1 and only 1 pedigree is being downloaded
       if(length(unique(downloadPedsTable()$PedigreeID)) == 1){
@@ -3584,7 +3596,7 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
-      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+      updateTabsetPanel(session, "f3pResultTabs", selected = "Carrier Prob. Plot")
       
       # send pedigree to pedigreeJS
       session$sendCustomMessage("updatePedJSHandler", prepPedJSON(PED()))
@@ -4100,17 +4112,17 @@ server <- function(input, output, session) {
       # check if any previously recorded markers need to be removed and update the inputs
       rmBCmarks <- FALSE
       rmCRCmarks <- FALSE
-      if(!hadBC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$BC$MARKERS]))){
+      if(!hadBC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), Fam3PRO:::MARKER_TESTING$BC$MARKERS]))){
         rmBCmarks <- TRUE
-        for(m in PanelPRO:::MARKER_TESTING$BC$MARKERS){
+        for(m in Fam3PRO:::MARKER_TESTING$BC$MARKERS){
           m <- ifelse(m == "CK5.6", "CK56", m)
           updateSelectInput(session, m, selected = "Not Tested")
         }
       }
       
-      if(!hadCRC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), PanelPRO:::MARKER_TESTING$COL$MARKERS]))){
+      if(!hadCRC & any(!is.na(PED()[which(PED()$ID == as.numeric(input$relSelect)), Fam3PRO:::MARKER_TESTING$COL$MARKERS]))){
         rmCRCmarks <- TRUE
-        for(m in PanelPRO:::MARKER_TESTING$COL$MARKERS){
+        for(m in Fam3PRO:::MARKER_TESTING$COL$MARKERS){
           updateSelectInput(session, m, selected = "Not Tested")
         }
       }
@@ -5194,26 +5206,26 @@ server <- function(input, output, session) {
   ## cancer color legend plot
   # check if there is at least one Fam3PRO cancer in the pedigree 
   # which triggers whether to make the plot or not
-  atLeastOnePPCancer <- reactiveVal(FALSE)
-  output$atLeastOnePPCancer <- reactive({atLeastOnePPCancer()})
-  outputOptions(output, 'atLeastOnePPCancer', suspendWhenHidden = FALSE)
+  atLeastOneF3PCancer <- reactiveVal(FALSE)
+  output$atLeastOneF3PCancer <- reactive({atLeastOneF3PCancer()})
+  outputOptions(output, 'atLeastOneF3PCancer', suspendWhenHidden = FALSE)
   observeEvent(PED(), {
     ctable <- cancersTbl()
     if(nrow(ctable) > 0){
       cans.used <- setdiff(unique(ctable$Cancer), "Other")
       if(length(cans.used) > 0){
-        atLeastOnePPCancer(TRUE)
+        atLeastOneF3PCancer(TRUE)
       } else {
-        atLeastOnePPCancer(FALSE)
+        atLeastOneF3PCancer(FALSE)
       }
     } else {
-      atLeastOnePPCancer(FALSE)
+      atLeastOneF3PCancer(FALSE)
     }
   }, ignoreNULL = T, ignoreInit = T)
   
   # # create the plot object
   # output$canColorKey <- renderPlot({
-  #   if(atLeastOnePPCancer()){
+  #   if(atLeastOneF3PCancer()){
   #     ctable <- cancersTbl()
   #     cans.used <- setdiff(unique(ctable$Cancer), "Other")
   #     return(PJS_can_colors(cans.used))
@@ -5224,7 +5236,7 @@ server <- function(input, output, session) {
   # 
   # # set the plot height
   # canColorKeyHeight <- reactive({
-  #   if(atLeastOnePPCancer()){
+  #   if(atLeastOneF3PCancer()){
   #     ctable <- cancersTbl()
   #     ht <- round(length(unique(ctable$Cancer)) * 18.3, 0)
   #     ht <- ifelse(ht < 60, 60, ht)
@@ -5292,7 +5304,7 @@ server <- function(input, output, session) {
                   "cancersJSON",
                   "panelNames",
                   "genesJSON")) %>%
-        select(-any_of(PanelPRO:::GENE_TYPES)) %>%
+        select(-any_of(Fam3PRO:::GENE_TYPES)) %>%
         relocate(name, .after = "ID") %>%
         relocate(Sex, .after = "name") %>%
         relocate(Twins, .after = "isDead")
@@ -5453,8 +5465,8 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
+      write.csv(f3pCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(f3pGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
       new.files <- c(
         "data-dictionary/fam3pro-cancer-abbreviations.csv",
         "data-dictionary/fam3lpro-gene-list.csv"
@@ -5482,8 +5494,8 @@ server <- function(input, output, session) {
     content = function(file){
       
       # create .csv files and zip them together
-      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
+      write.csv(f3pCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(f3pGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
       new.files <- c(
         "data-dictionary/fam3pro-cancer-abbreviations.csv",
         "data-dictionary/fam3pro-gene-list.csv"
@@ -5530,7 +5542,7 @@ server <- function(input, output, session) {
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
       updateTabsetPanel(session, "pedVisualsEditor", selected = "Tree")
-      updateTabsetPanel(session, "ppResultTabs", selected = "Cancer Risk Plots")
+      updateTabsetPanel(session, "f3pResultTabs", selected = "Cancer Risk Plots")
     }
   }, ignoreInit = TRUE)
   
@@ -5712,19 +5724,19 @@ server <- function(input, output, session) {
       # avoid bug when a pedigree is loaded when the tabs that are displaying a data table are selected
       updateTabsetPanel(session, "geneTabs", selected = "Instructions")
       updateTabsetPanel(session, "pedVisualsViewer", selected = "Tree")
-      updateTabsetPanel(session, "ppResultTabs", selected = "Carrier Prob. Plot")
+      updateTabsetPanel(session, "f3pResultTabs", selected = "Carrier Prob.Plot")
     }
   }, ignoreInit = TRUE)
   
   #### Fam3PRO ####
-  # panelpro version number
-  output$ppVersion <- renderText({
-    paste0("version: ", packageVersion("PanelPRO"))
+  # fam3pro version number
+  output$f3pVersion <- renderText({
+    paste0("version: ", packageVersion("Fam3PRO"))
   })
   
   ##### Settings ####
   # reset to default input values
-  observeEvent(input$resetPanelPROInputs, {
+  observeEvent(input$resetFam3PROInputs, {
     settingInputs <- c("modelSpec", "genes", "cancers",
                        "maxMut", "ageBy",
                        "unknownRace", "unknownAncestry",
@@ -5749,7 +5761,7 @@ server <- function(input, output, session) {
     if(input$modelSpec == "Custom"){
       return(NULL)
     } else {
-      mcans <- PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS
+      mcans <- Fam3PRO:::MODELPARAMS[[input$modelSpec]]$CANCERS
       ncans <- length(mcans)
       return(paste(ncans, "Cancers:", paste0(mcans, collapse = ", ")))
     }
@@ -5760,7 +5772,7 @@ server <- function(input, output, session) {
     if(input$modelSpec == "Custom"){
       return(NULL)
     } else {
-      mgenes <- PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES
+      mgenes <- Fam3PRO:::MODELPARAMS[[input$modelSpec]]$GENES
       ngenes <- length(mgenes)
       return(paste(ngenes, "Genes:", paste0(mgenes, collapse = ", ")))
     }
@@ -5770,11 +5782,11 @@ server <- function(input, output, session) {
   observeEvent(input$allGenes, {
     if(input$allGenes){
       updateSelectInput(session, "genes", 
-                        selected = PanelPRO:::GENE_TYPES, 
-                        choices = PanelPRO:::GENE_TYPES)
+                        selected = Fam3PRO:::GENE_TYPES, 
+                        choices = Fam3PRO:::GENE_TYPES)
     } else {
       updateSelectInput(session, "genes", 
-                        choices = PanelPRO:::GENE_TYPES)
+                        choices = Fam3PRO:::GENE_TYPES)
     }
   })
   
@@ -5782,11 +5794,11 @@ server <- function(input, output, session) {
   observeEvent(input$allCancers, {
     if(input$allCancers){
       updateSelectInput(session, "cancers", 
-                        selected = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"),
-                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+                        selected = setdiff(Fam3PRO:::CANCER_NAME_MAP$long, "Contralateral"),
+                        choices = setdiff(Fam3PRO:::CANCER_NAME_MAP$long, "Contralateral"))
     } else {
       updateSelectInput(session, "cancers", 
-                        choices = setdiff(PanelPRO:::CANCER_NAME_MAP$long, "Contralateral"))
+                        choices = setdiff(Fam3PRO:::CANCER_NAME_MAP$long, "Contralateral"))
     }
   })
   
@@ -5802,14 +5814,14 @@ server <- function(input, output, session) {
   # enable/disable run button if conditions are not met
   observeEvent(PED(), {
     if(is.null(PED())){
-      shinyjs::disable("runPP")
+      shinyjs::disable("runF3P")
     } else {
-      shinyjs::enable("runPP")
+      shinyjs::enable("runF3P")
     }
   }, ignoreNULL = F, ignoreInit = F)
   
   ##### Results ####
-  ppReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, 
+  f3pReactive <- reactiveValues(cpTbl = NULL, frTbl = NULL, 
                                cpTblDF = NULL, frTblDF = NULL,
                                cpPlotZoom = NULL, cpPlotFull = NULL,
                                frPlotZoom = NULL, frPlotFull = NULL, 
@@ -5820,11 +5832,11 @@ server <- function(input, output, session) {
                                settingsTbl = NULL)
   
   # time the Fam3PRO run
-  ppTime <- reactiveVal(0)
-  output$ppTime <- renderText({ paste0("Run time: ", round(ppTime(), 2),"s") })
+  f3pTime <- reactiveVal(0)
+  output$f3pTime <- renderText({ paste0("Run time: ", round(f3pTime(), 2),"s") })
   
   # run Fam3PRO and get results
-  observeEvent(input$runPP, {
+  observeEvent(input$runF3P, {
     
     session_count <- globalCounter()
     message <- if (session_count < 5) {
@@ -5854,22 +5866,22 @@ server <- function(input, output, session) {
         maxMut <- as.numeric(input$maxMut)
       }
       if(is.na(input$ageBy)){
-        ageBy <- as.numeric(formals(PanelPRO::PanelPRO)$age.by)
+        ageBy <- as.numeric(formals(Fam3PRO::Fam3PRO)$age.by)
       } else {
         ageBy <- as.numeric(input$ageBy)
       }
       if(is.na(input$missAgeIters)){
-        missAgeIters <- as.numeric(formals(PanelPRO::PanelPRO)$iterations)
+        missAgeIters <- as.numeric(formals(Fam3PRO::Fam3PRO)$iterations)
       } else {
         missAgeIters <- as.numeric(input$missAgeIters)
       }
       if(is.na(input$missAgeMaxIters)){
-        missAgeMaxIters <- as.numeric(formals(PanelPRO::PanelPRO)$max.iter.tries) * 5
+        missAgeMaxIters <- as.numeric(formals(Fam3PRO::Fam3PRO)$max.iter.tries) * 5
       } else {
         missAgeMaxIters <- as.numeric(input$missAgeMaxIters)
       }
       if(is.na(input$randomSeed)){
-        randomSeed <- as.numeric(formals(PanelPRO::PanelPRO)$random.seed)
+        randomSeed <- as.numeric(formals(Fam3PRO::Fam3PRO)$random.seed)
       } else {
         randomSeed <- as.numeric(input$randomSeed)
       }
@@ -5882,17 +5894,19 @@ server <- function(input, output, session) {
       }
       
       # take user to results
-      updateTabsetPanel(session, "panelproTabs", selected = "Fam3PRO Results")
+      updateTabsetPanel(session, "fam3proTabs", selected = "Fam3PRO Results")
       
       # run the model, get the console output and check for warnings and error
       out <- 
-        ppResultsAndConsole(
+        f3pResultsAndConsole(
           pedigree = PED(),
           model_spec = input$modelSpec,
           genes = input$genes,
           cancers = input$cancers,
           max.mut = maxMut,
           age.by = ageBy,
+          use.mult.variants = input$use.mult.variants,
+          breakloop = input$breakloop,
           unknown.race = input$unknownRace,
           unknown.ancestry = input$unknownAncestry,
           allow.intervention = input$allowInter,
@@ -5917,6 +5931,8 @@ server <- function(input, output, session) {
                     "Genes" = "genes",
                     "Max. Mutations" = "max.mut",
                     "Future Risk Year Interval" = "age.by",
+                    "Consider Multiple Variants in BRCA1 & BRCA2" = "use.mult.variants",
+                    "Detect and Break Pedigree Loops" = "breakloop",
                     "Assume Missing Race As" = "unknown.race",
                     "Assume Missing Ancestry As" = "unknown.ancestry",
                     "Allow surgical interventions?" = "allow.intervention",
@@ -5928,19 +5944,19 @@ server <- function(input, output, session) {
       settingsTbl <- data.frame(Setting = names(settings),
                                 Argument = unname(settings),
                                 Value = rep(NA, length(settings)))
-      settingsTbl$Value[which(settingsTbl$Setting == "Fam3PRO Version")] <- as.character(packageVersion("PanelPRO"))
+      settingsTbl$Value[which(settingsTbl$Setting == "Fam3PRO Version")] <- as.character(packageVersion("Fam3PRO"))
       settingsTbl$Value[which(settingsTbl$Setting == "PedigreeID")] <- PED()$PedigreeID[1]
       settingsTbl$Value[which(settingsTbl$Setting == "Proband ID")] <- PED()$ID[which(PED()$isProband == 1)]
       if(input$modelSpec != "Custom"){
         settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- input$modelSpec
         settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
-          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
+          length(Fam3PRO:::MODELPARAMS[[input$modelSpec]]$CANCERS)
         settingsTbl$Value[which(settingsTbl$Setting == "Cancers")] <-
-          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
+          paste0(Fam3PRO:::MODELPARAMS[[input$modelSpec]]$CANCERS, collapse = ", ")
         settingsTbl$Value[which(settingsTbl$Setting == "Num. Genes")] <-
-          length(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES)
+          length(Fam3PRO:::MODELPARAMS[[input$modelSpec]]$GENES)
         settingsTbl$Value[which(settingsTbl$Setting == "Genes")] <-
-          paste0(PanelPRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
+          paste0(Fam3PRO:::MODELPARAMS[[input$modelSpec]]$GENES, collapse = ", ")
       } else {
         settingsTbl$Value[which(settingsTbl$Setting == "Model Spec")] <- NA
         settingsTbl$Value[which(settingsTbl$Setting == "Num. Cancers")] <-
@@ -5954,6 +5970,8 @@ server <- function(input, output, session) {
       }
       settingsTbl$Value[which(settingsTbl$Setting == "Max. Mutations")] <- maxMut
       settingsTbl$Value[which(settingsTbl$Setting == "Future Risk Year Interval")] <- ageBy
+      settingsTbl$Value[which(settingsTbl$Setting == "Consider Multiple Variants in BRCA1 & BRCA2")] <- input$use.mult.variants
+      settingsTbl$Value[which(settingsTbl$Setting == "Detect and Break Pedigree Loops")] <- input$breakloop
       settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Race As")] <- input$unknownRace
       settingsTbl$Value[which(settingsTbl$Setting == "Assume Missing Ancestry As")] <- input$unknownAncestry
       settingsTbl$Value[which(settingsTbl$Setting == "Allow surgical interventions?")] <- input$allowInter
@@ -5964,7 +5982,7 @@ server <- function(input, output, session) {
       settingsTbl$Value[which(settingsTbl$Setting == "Provide net, instead of crude, future risk estimates?")] <- net.logical
       
       # use Fam3PRO defaults to populate the remainder of the table
-      def.vals <- formals(PanelPRO::PanelPRO)
+      def.vals <- formals(Fam3PRO::Fam3PRO)
       for(st in settings[which(!is.na(settings))]){
         def.vals[[st]] <- NULL
       }
@@ -6003,7 +6021,7 @@ server <- function(input, output, session) {
                            allow.age.impute.row,
                            iterations.row:(allow.age.impute.row-1),
                            (allow.age.impute.row+1):nrow(tmp.tbl)),]
-      ppReactive$settingsTbl <- tmp.tbl
+      f3pReactive$settingsTbl <- tmp.tbl
       
       ## create tables and graphs from results
       # only execute if the result was not an error
@@ -6014,7 +6032,7 @@ server <- function(input, output, session) {
           cpTbl <-
             out$posterior.prob[[pb]] %>%
             mutate(NumMuts = 1 + stringr::str_count(genes, pattern = "\\."), .after = "genes") %>%
-            mutate(genes = PanelPRO:::formatGeneNames(gene_names = genes, format = "drop_hetero_anyPV")) %>%
+            mutate(genes = Fam3PRO:::formatGeneNames(gene_names = genes, format = "drop_hetero_anyPV")) %>%
             mutate(genes = ifelse(grepl(pattern = "\\.", genes),
                                   sub(pattern = "\\.", replacement = " & ", genes),
                                   genes)) %>%
@@ -6061,7 +6079,7 @@ server <- function(input, output, session) {
                    "Upper" = "upper")
   
           # save data frame version for download
-          ppReactive$cpTblDF <- cpTbl
+          f3pReactive$cpTblDF <- cpTbl
   
           # format as a data.table
           cpTbl <-
@@ -6076,11 +6094,11 @@ server <- function(input, output, session) {
                             textAlign = "center") %>%
             DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
                             textAlign = "right")
-          ppReactive$cpTbl <- cpTbl
+          f3pReactive$cpTbl <- cpTbl
           
         } else {
-          ppReactive$cpTblDF <- NULL
-          ppReactive$cpTbl <- NULL
+          f3pReactive$cpTblDF <- NULL
+          f3pReactive$cpTbl <- NULL
         }
 
         ## table of cancer risks
@@ -6107,7 +6125,7 @@ server <- function(input, output, session) {
           ## get average person risks
           nc.pens <-
             as.data.frame(
-              PanelPRO::PanelPRODatabase$Penetrance[, # Cancer
+              Fam3PRO::Fam3PRODatabase$Penetrance[, # Cancer
                                                     "SEER", # Gene
                                                     ifelse(is.na(PED()$race[which(PED()$isProband == 1)]), "All_Races", 
                                                            PED()$race[which(PED()$isProband == 1)]), #Race
@@ -6129,7 +6147,7 @@ server <- function(input, output, session) {
           pb.age <- PED()$CurAge[which(PED()$isProband == 1)]
           for(c in unique(nc.pens$Cancer)){
             tmp.pens <- nc.pens[which(nc.pens$Cancer == c),]
-            for(a in (pb.age+1):(PanelPRO:::MAXAGE)){
+            for(a in (pb.age+1):(Fam3PRO:::MAXAGE)){
               nc.pens$Estimate[which(nc.pens$Cancer == c & nc.pens$ByAge == a)] <- 
                 sum(tmp.pens$Penetrance[(pb.age+1):a]) / nc.pens$Survival[pb.age]
             }
@@ -6146,7 +6164,7 @@ server <- function(input, output, session) {
             rename("By Age" = "ByAge")
 
           # save data frame version for download
-          ppReactive$frTblDF <- frTbl
+          f3pReactive$frTblDF <- frTbl
 
           # format as a data.table
           frTbl <-
@@ -6163,16 +6181,16 @@ server <- function(input, output, session) {
                             textAlign = "center") %>%
             DT::formatStyle(columns = c("Estimate", "Lower", "Upper"),
                             textAlign = "right")
-          ppReactive$frTbl <- frTbl
+          f3pReactive$frTbl <- frTbl
 
           # Fam3PRO did not return a cancer risk table
         } else {
-          ppReactive$frTblDF <- NULL
-          ppReactive$frTbl <- NULL
+          f3pReactive$frTblDF <- NULL
+          f3pReactive$frTbl <- NULL
         }
 
         ### plots
-        vr.plots <- visRiskPPI(pp_output = out,
+        vr.plots <- visRiskF3PI(f3p_output = out,
                                markdown = NULL,
                                return_obj = TRUE,
                                prob_threshold = 0.01,
@@ -6185,38 +6203,38 @@ server <- function(input, output, session) {
         
         ## carrier prob plots
         if(class(out$posterior.prob[[pb]]) == "data.frame"){
-          ppReactive$cpPlotZoom <- vr.plots$cp.zoom
-          ppReactive$cpPlotFull <- vr.plots$cp.full
-          ppReactive$cpPlotStaticZoom <- vr.plots$cpStatic.zoom     # for download
-          ppReactive$cpPlotStaticFull <- vr.plots$cpStatic.full     # for download
+          f3pReactive$cpPlotZoom <- vr.plots$cp.zoom
+          f3pReactive$cpPlotFull <- vr.plots$cp.full
+          f3pReactive$cpPlotStaticZoom <- vr.plots$cpStatic.zoom     # for download
+          f3pReactive$cpPlotStaticFull <- vr.plots$cpStatic.full     # for download
         } else {
-          ppReactive$cpPlotZoom <- NULL
-          ppReactive$cpPlotFull <- NULL
-          ppReactive$cpPlotStaticZoom <- NULL
-          ppReactive$cpPlotStaticFull <- NULL
+          f3pReactive$cpPlotZoom <- NULL
+          f3pReactive$cpPlotFull <- NULL
+          f3pReactive$cpPlotStaticZoom <- NULL
+          f3pReactive$cpPlotStaticFull <- NULL
         }
         
         ## cancer risk plots
         if(!any(lapply(out$future.risk[[pb]], class) == "character")){
-          ppReactive$frPlotZoom <- vr.plots$fr.zoom
-          ppReactive$frPlotFull <- vr.plots$fr.full
-          ppReactive$frPlotStaticZoom <- vr.plots$frStatic.zoom   # for download
-          ppReactive$frPlotStaticFull <- vr.plots$frStatic.full   # for download
-          ppReactive$comparisonPlot <- vr.plots$comparison
-          ppReactive$grows <- vr.plots$grows
-          ppReactive$gcols <- vr.plots$gcols
+          f3pReactive$frPlotZoom <- vr.plots$fr.zoom
+          f3pReactive$frPlotFull <- vr.plots$fr.full
+          f3pReactive$frPlotStaticZoom <- vr.plots$frStatic.zoom   # for download
+          f3pReactive$frPlotStaticFull <- vr.plots$frStatic.full   # for download
+          f3pReactive$comparisonPlot <- vr.plots$comparison
+          f3pReactive$grows <- vr.plots$grows
+          f3pReactive$gcols <- vr.plots$gcols
         } else {
-          ppReactive$frPlotZoom <- NULL
-          ppReactive$frPlotFull <- NULL
-          ppReactive$frPlotStaticZoom <- NULL
-          ppReactive$frPlotStaticFull <- NULL
-          ppReactive$comparisonPlot <- NULL
-          ppReactive$grows <- NULL
-          ppReactive$gcols <- NULL
+          f3pReactive$frPlotZoom <- NULL
+          f3pReactive$frPlotFull <- NULL
+          f3pReactive$frPlotStaticZoom <- NULL
+          f3pReactive$frPlotStaticFull <- NULL
+          f3pReactive$comparisonPlot <- NULL
+          f3pReactive$grows <- NULL
+          f3pReactive$gcols <- NULL
         }
         
         ## combined prob and cancer risk plot
-        ppReactive$cpAndfrPlots <- vr.plots$both
+        f3pReactive$cpAndfrPlots <- vr.plots$both
         
         # Decrease the number of active sessions by 1 after a process is done
         isolate({
@@ -6250,92 +6268,92 @@ server <- function(input, output, session) {
     } # end of if statement to check if pedigree was present
     
     # record the calculation time
-    ppTime((proc.time() - start.time)[3])
+    f3pTime((proc.time() - start.time)[3])
     
   }, ignoreNULL = F, ignoreInit = T)
   
   # carrier probabilities table
-  output$ppCPTbl <- renderDT({
+  output$f3pCPTbl <- renderDT({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$cpTbl), "A carrier probability table could not be generated.")
+      need(!is.null(f3pReactive$cpTbl), "A carrier probability table could not be generated.")
     )
-    return(ppReactive$cpTbl)
+    return(f3pReactive$cpTbl)
   }, server = F)
   
   # cancer risk table
-  output$ppFRTbl <- renderDT({
+  output$f3pFRTbl <- renderDT({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$frTbl), "A cancer risk table could not be generated.")
+      need(!is.null(f3pReactive$frTbl), "A cancer risk table could not be generated.")
     )
-    return(ppReactive$frTbl)
+    return(f3pReactive$frTbl)
   }, server = F)
   
   # carrier prob. plot, zoomed y-axis
-  output$ppCPPlotZoom <- plotly::renderPlotly({
+  output$f3pCF3PlotZoom <- plotly::renderPlotly({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$cpPlotZoom), "A carrier probability plot could not be generated.")
+      need(!is.null(f3pReactive$cpPlotZoom), "A carrier probability plot could not be generated.")
     )
-    return(ppReactive$cpPlotZoom)
+    return(f3pReactive$cpPlotZoom)
   })
   
   # carrier prob. plot, full y-axis
-  output$ppCPPlotFull <- plotly::renderPlotly({
+  output$f3pCF3PlotFull <- plotly::renderPlotly({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$cpPlotFull), "A carrier probability plot could not be generated.")
+      need(!is.null(f3pReactive$cpPlotFull), "A carrier probability plot could not be generated.")
     )
-    return(ppReactive$cpPlotFull)
+    return(f3pReactive$cpPlotFull)
   })
   
   # carrier prob. plot
-  output$ppFRPlotZoom <- plotly::renderPlotly({
+  output$f3pFRPlotZoom <- plotly::renderPlotly({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$frPlotZoom), "A cancer risk plot could not be generated.")
+      need(!is.null(f3pReactive$frPlotZoom), "A cancer risk plot could not be generated.")
     )
-    return(ppReactive$frPlotZoom)
+    return(f3pReactive$frPlotZoom)
   })
   
   # carrier prob. plot
-  output$ppFRPlotFull <- plotly::renderPlotly({
+  output$f3pFRPlotFull <- plotly::renderPlotly({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$frPlotFull), "A cancer risk plot could not be generated.")
+      need(!is.null(f3pReactive$frPlotFull), "A cancer risk plot could not be generated.")
     )
-    return(ppReactive$frPlotFull)
+    return(f3pReactive$frPlotFull)
   })
   
   # comparison to average person cancer risks
   output$comparisonPlot <- renderPlot({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$comparisonPlot), "A cancer risk plot could not be generated.")
+      need(!is.null(f3pReactive$comparisonPlot), "A cancer risk plot could not be generated.")
     )
-    return(grid::grid.draw(ppReactive$comparisonPlot))
+    return(grid::grid.draw(f3pReactive$comparisonPlot))
   })
   output$comparisonPlotH <- renderUI({
-    h <- paste0(300*as.numeric(ppReactive$grows), "px")
-    w <- paste0(360*as.numeric(ppReactive$gcols), "px")
+    h <- paste0(300*as.numeric(f3pReactive$grows), "px")
+    w <- paste0(360*as.numeric(f3pReactive$gcols), "px")
     plotOutput("comparisonPlot", height = h, width = w)
   })
   
   # run settings table
-  output$ppRunSettings <- renderTable({
+  output$f3pRunSettings <- renderTable({
     shiny::validate(
       need(!is.null(PED()), "No pedigree has been loaded or created yet."),
-      need(!is.null(ppReactive$settingsTbl), "Run Fam3PROs to see the results.")
+      need(!is.null(f3pReactive$settingsTbl), "Run Fam3PROs to see the results.")
     )
-    return(ppReactive$settingsTbl)
+    return(f3pReactive$settingsTbl)
   }, striped = T)
   
   
   # Fam3PRO function doc string
-  observeEvent(list(input$showPPDocString1, input$showPPDocString2), {
+  observeEvent(list(input$showF3PDocString1, input$showF3PDocString2), {
     showModal(modalDialog(
-      tagList(htmlOutput("ppDocString")),
+      tagList(htmlOutput("f3pDocString")),
       title = "Fam3PRO Function R Documentation",
       footer = tagList(
         modalButton("Close")
@@ -6343,20 +6361,20 @@ server <- function(input, output, session) {
       easyClose = T
     ))
   }, ignoreInit = T)
-  ppDocString <- reactive({
-    temp = Rd2HTML(Rd_fun("PanelPRO"), out = tempfile("docs"))
+  f3pDocString <- reactive({
+    temp = Rd2HTML(Rd_fun("Fam3PRO"), out = tempfile("docs"))
     content = read_file(temp)
     file.remove(temp)
     content
   })
-  output$ppDocString <- renderText({
-    ppDocString()
+  output$f3pDocString <- renderText({
+    f3pDocString()
   })
   
   ##### Download #####
   # disable download button if Fam3PRO has not been run yet
-  observeEvent(ppReactive$cpTbl, {
-    if(!is.null(ppReactive$cpTbl)){
+  observeEvent(f3pReactive$cpTbl, {
+    if(!is.null(f3pReactive$cpTbl)){
       shinyjs::enable('downloadResults1')
     } else {
       shinyjs::disable('downloadResults1')
@@ -6448,7 +6466,7 @@ server <- function(input, output, session) {
   output$downloadResultsCSV <- shiny::downloadHandler(
     filename = function(){
       paste0("Fam3PRO-results-", 
-             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             f3pReactive$settingsTbl$Value[which(f3pReactive$settingsTbl$Setting == "PedigreeID")], 
              "-",
              Sys.Date(), ".zip")
     },
@@ -6458,12 +6476,12 @@ server <- function(input, output, session) {
       on.exit(removeModal())
       
       # pedigreeID
-      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      pedID <- f3pReactive$settingsTbl$Value[which(f3pReactive$settingsTbl$Setting == "PedigreeID")]
       
       # data dictionary files
-      write.csv(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
-      write.csv(ppGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
-      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/fam3pro-function-documentation.html")
+      write.csv(f3pCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.csv", row.names = F)
+      write.csv(f3pGenes(), file = "data-dictionary/fam3pro-gene-list.csv", row.names = F)
+      Rd2HTML(Rd_fun("Fam3PRO"), out = "data-dictionary/fam3pro-function-documentation.html")
       
       # pedigree files
       write.csv(PED(), file = paste0("download-results/pedigree-", pedID, ".csv"), row.names = F)
@@ -6487,41 +6505,41 @@ server <- function(input, output, session) {
       }
       
       # run settings table
-      write.csv(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
+      write.csv(f3pReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".csv"), row.names = F)
       
       # result tables
-      if(!is.null(ppReactive$cpTblDF)){
-        write.csv(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".csv"), row.names = F)
+      if(!is.null(f3pReactive$cpTblDF)){
+        write.csv(f3pReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".csv"), row.names = F)
       }
-      if(!is.null(ppReactive$frTblDF)){
-        write.csv(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".csv"), row.names = F)
+      if(!is.null(f3pReactive$frTblDF)){
+        write.csv(f3pReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".csv"), row.names = F)
       }
       
       # result images and other
-      if(!is.null(ppReactive$cpPlotStaticZoom)){
-        ggsave(plot = ppReactive$cpPlotStaticZoom, 
+      if(!is.null(f3pReactive$cpPlotStaticZoom)){
+        ggsave(plot = f3pReactive$cpPlotStaticZoom, 
                path = "./download-results", 
                filename = paste0("posterior-probs-zoom-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$cpPlotStaticFull)){
-        ggsave(plot = ppReactive$cpPlotStaticFull, 
+      if(!is.null(f3pReactive$cpPlotStaticFull)){
+        ggsave(plot = f3pReactive$cpPlotStaticFull, 
                path = "./download-results", 
                filename = paste0("posterior-probs-full-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStaticZoom)){
-        ggsave(plot = ppReactive$frPlotStaticZoom, 
+      if(!is.null(f3pReactive$frPlotStaticZoom)){
+        ggsave(plot = f3pReactive$frPlotStaticZoom, 
                path = "./download-results", 
                filename = paste0("cancer-risks-zoomed-y-axis-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStaticFull)){
-        ggsave(plot = ppReactive$frPlotStaticFull, 
+      if(!is.null(f3pReactive$frPlotStaticFull)){
+        ggsave(plot = f3pReactive$frPlotStaticFull, 
                path = "./download-results", 
                filename = paste0("cancer-risks-standard-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$comparisonPlot)){
-        ggsave(plot = ppReactive$comparisonPlot,
-               width = 1667*as.numeric(ppReactive$gcols),
-               height = 1250*as.numeric(ppReactive$grows),
+      if(!is.null(f3pReactive$comparisonPlot)){
+        ggsave(plot = f3pReactive$comparisonPlot,
+               width = 1667*as.numeric(f3pReactive$gcols),
+               height = 1250*as.numeric(f3pReactive$grows),
                units = "px",
                path = "./download-results", 
                filename = paste0("cancer-risks-compared-to-ave-person-", pedID, ".png"))
@@ -6538,25 +6556,25 @@ server <- function(input, output, session) {
         paste0("download-results/pedigree-image-", pedID,".png"),
         paste0("download-results/run-settings-", pedID, ".csv")
       )
-      if(!is.null(ppReactive$cpTblDF)){
+      if(!is.null(f3pReactive$cpTblDF)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".csv"))
       }
-      if(!is.null(ppReactive$cpPlotStaticZoom)){
+      if(!is.null(f3pReactive$cpPlotStaticZoom)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-zoom-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$cpPlotStaticFull)){
+      if(!is.null(f3pReactive$cpPlotStaticFull)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-full-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frTblDF)){
+      if(!is.null(f3pReactive$frTblDF)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".csv"))
       }
-      if(!is.null(ppReactive$frPlotStaticZoom)){
+      if(!is.null(f3pReactive$frPlotStaticZoom)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-zoomed-y-axis-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStaticFull)){
+      if(!is.null(f3pReactive$frPlotStaticFull)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-standard-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$comparisonPlot)){
+      if(!is.null(f3pReactive$comparisonPlot)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-compared-to-ave-person-", pedID, ".png"))
       }
       
@@ -6580,7 +6598,7 @@ server <- function(input, output, session) {
   output$downloadResultsRDS <- shiny::downloadHandler(
     filename = function(){
       paste0("Fam3PRO-results-", 
-             ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")], 
+             f3pReactive$settingsTbl$Value[which(f3pReactive$settingsTbl$Setting == "PedigreeID")], 
              "-",
              Sys.Date(), ".zip")
     },
@@ -6590,14 +6608,14 @@ server <- function(input, output, session) {
       on.exit(removeModal())
       
       # pedigreeID
-      pedID <- ppReactive$settingsTbl$Value[which(ppReactive$settingsTbl$Setting == "PedigreeID")]
+      pedID <- f3pReactive$settingsTbl$Value[which(f3pReactive$settingsTbl$Setting == "PedigreeID")]
       
       # data dictionary files
       saveRDS(read.csv(file = "data-dictionary/columns-and-codings-dictionary.csv"), 
               file = "data-dictionary/columns-and-codings-dictionary.rds")
-      saveRDS(ppCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.rds")
-      saveRDS(ppGenes(), file = "data-dictionary/fam3pro-gene-list.rds")
-      Rd2HTML(Rd_fun("PanelPRO"), out = "data-dictionary/fam3pro-function-documentation.html")
+      saveRDS(f3pCancersDict(), file = "data-dictionary/fam3pro-cancer-abbreviations.rds")
+      saveRDS(f3pGenes(), file = "data-dictionary/fam3pro-gene-list.rds")
+      Rd2HTML(Rd_fun("Fam3PRO"), out = "data-dictionary/fam3pro-function-documentation.html")
       
       # pedigree files
       saveRDS(PED(), file = paste0("download-results/pedigree-", pedID, ".rds"))
@@ -6621,41 +6639,41 @@ server <- function(input, output, session) {
       }
       
       # run settings table
-      saveRDS(ppReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
+      saveRDS(f3pReactive$settingsTbl, file = paste0("download-results/run-settings-", pedID, ".rds"))
       
       # result tables
-      if(!is.null(ppReactive$cpTblDF)){
-        saveRDS(ppReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".rds"))
+      if(!is.null(f3pReactive$cpTblDF)){
+        saveRDS(f3pReactive$cpTblDF, file = paste0("download-results/posterior-probs-", pedID, ".rds"))
       }
-      if(!is.null(ppReactive$frTblDF)){
-        saveRDS(ppReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".rds"))
+      if(!is.null(f3pReactive$frTblDF)){
+        saveRDS(f3pReactive$frTblDF, file = paste0("download-results/cancer-risks-", pedID, ".rds"))
       }
       
       # result images and other
-      if(!is.null(ppReactive$cpPlotStaticZoom)){
-        ggsave(plot = ppReactive$cpPlotStaticZoom, 
+      if(!is.null(f3pReactive$cpPlotStaticZoom)){
+        ggsave(plot = f3pReactive$cpPlotStaticZoom, 
                path = "./download-results", 
                filename = paste0("posterior-probs-zoom-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$cpPlotStaticFull)){
-        ggsave(plot = ppReactive$cpPlotStaticFull, 
+      if(!is.null(f3pReactive$cpPlotStaticFull)){
+        ggsave(plot = f3pReactive$cpPlotStaticFull, 
                path = "./download-results", 
                filename = paste0("posterior-probs-full-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStaticZoom)){
-        ggsave(plot = ppReactive$frPlotStaticZoom, 
+      if(!is.null(f3pReactive$frPlotStaticZoom)){
+        ggsave(plot = f3pReactive$frPlotStaticZoom, 
                path = "./download-results", 
                filename = paste0("cancer-risks-zoomed-y-axis-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStaticFull)){
-        ggsave(plot = ppReactive$frPlotStaticFull, 
+      if(!is.null(f3pReactive$frPlotStaticFull)){
+        ggsave(plot = f3pReactive$frPlotStaticFull, 
                path = "./download-results", 
                filename = paste0("cancer-risks-standard-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$comparisonPlot)){
-        ggsave(plot = ppReactive$comparisonPlot,
-               width = 1667*as.numeric(ppReactive$gcols),
-               height = 1250*as.numeric(ppReactive$grows),
+      if(!is.null(f3pReactive$comparisonPlot)){
+        ggsave(plot = f3pReactive$comparisonPlot,
+               width = 1667*as.numeric(f3pReactive$gcols),
+               height = 1250*as.numeric(f3pReactive$grows),
                units = "px",
                path = "./download-results", 
                filename = paste0("cancer-risks-compared-to-ave-person-", pedID, ".png"))
@@ -6673,25 +6691,25 @@ server <- function(input, output, session) {
         paste0("download-results/pedigree-image-", pedID,".png"),
         paste0("download-results/run-settings-", pedID, ".rds")
       )
-      if(!is.null(ppReactive$cpTblDF)){
+      if(!is.null(f3pReactive$cpTblDF)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-", pedID, ".rds"))
       }
-      if(!is.null(ppReactive$cpPlotStaticZoom)){
+      if(!is.null(f3pReactive$cpPlotStaticZoom)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-zoom-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$cpPlotStaticFull)){
+      if(!is.null(f3pReactive$cpPlotStaticFull)){
         new.files <- c(new.files, paste0("download-results/posterior-probs-full-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frTblDF)){
+      if(!is.null(f3pReactive$frTblDF)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-", pedID, ".rds"))
       }
-      if(!is.null(ppReactive$frPlotStaticZoom)){
+      if(!is.null(f3pReactive$frPlotStaticZoom)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-zoomed-y-axis-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$frPlotStaticFull)){
+      if(!is.null(f3pReactive$frPlotStaticFull)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-standard-", pedID, ".png"))
       }
-      if(!is.null(ppReactive$comparisonPlot)){
+      if(!is.null(f3pReactive$comparisonPlot)){
         new.files <- c(new.files, paste0("download-results/cancer-risks-compared-to-ave-person-", pedID, ".png"))
       }
       
@@ -6712,7 +6730,7 @@ server <- function(input, output, session) {
   
   #### Terms and Conditions ####
   output$termsOut <- renderText({
-    lines <- read_lines(system.file("LICENSE", package="PanelPRO"))
+    lines <- read_lines(system.file("LICENSE", package="Fam3PRO"))
     paste0(lines[which(lines != "")], collapse = "\n\n")
   })
   observeEvent(input$terms, {

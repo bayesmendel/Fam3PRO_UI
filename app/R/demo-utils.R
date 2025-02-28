@@ -1,42 +1,42 @@
-#' Combine race and ethnicity into PanelPRO race categories
+#' Combine race and ethnicity into Fam3PRO race categories
 #' 
 #' @param race string, one of the values from `rc.choices`.
 #' @param ethnicity string, one of values from `an.choices`.
-#' @returns a string with the PanelPRO race category which is one of 
-#' `PanelPRO:::RACE_TYPES`
+#' @returns a string with the Fam3PRO race category which is one of 
+#' `Fam3PRO:::RACE_TYPES`
 getPPRace <- function(race, ethnicity){
   if(race == "All_Races"){
     if(ethnicity %in% c("Other_Ethnicity", "Non-Hispanic")){
-      pp.race <- "All_Races"
+      f3p.race <- "All_Races"
     } else if(ethnicity == "Hispanic"){
-      pp.race <- "Hispanic"
+      f3p.race <- "Hispanic"
     }
   } else if(race %in% c("AIAN", "Asian", "Black")){
     if(ethnicity %in% c("Other_Ethnicity", "Non-Hispanic")){
-      pp.race <- race
+      f3p.race <- race
     } else if(ethnicity == "Hispanic"){
-      pp.race <- "All_Races"
+      f3p.race <- "All_Races"
     }
   } else if(race == "White"){
     if(ethnicity == "Non-Hispanic"){
-      pp.race <- "WNH"
+      f3p.race <- "WNH"
     } else if(ethnicity == "Hispanic"){
-      pp.race <- "WH"
+      f3p.race <- "WH"
     } else if(ethnicity == "Other_Ethnicity"){
-      pp.race <- "All_Races"
+      f3p.race <- "All_Races"
     }
   }
-  return(pp.race)
+  return(f3p.race)
 }
 
-#' Combine PanelPRO race categories of parents to get child's race
+#' Combine Fam3PRO race categories of parents to get child's race
 #' 
-#' @param r1 string, parent 1's PanelPRO race categories. 
-#' One of `PanelPRO:::RACE_TYPES`. If `NULL`, `"All_Races"` is assumed.
-#' @param r2 string, parent 2's PanelPRO race categories. 
-#' One of `PanelPRO:::RACE_TYPES`. If `NULL`, `"All_Races"` is assumed.
+#' @param r1 string, parent 1's Fam3PRO race categories. 
+#' One of `Fam3PRO:::RACE_TYPES`. If `NULL`, `"All_Races"` is assumed.
+#' @param r2 string, parent 2's Fam3PRO race categories. 
+#' One of `Fam3PRO:::RACE_TYPES`. If `NULL`, `"All_Races"` is assumed.
 #' 
-#' @returns a string with the combined PanelPRO race categories. One of `PanelPRO:::RACE_TYPES`.
+#' @returns a string with the combined Fam3PRO race categories. One of `Fam3PRO:::RACE_TYPES`.
 combinePPrace <- function(r1 = NULL, r2 = NULL){
   
   # assume All_Races if inputs are NULL
@@ -62,12 +62,12 @@ combinePPrace <- function(r1 = NULL, r2 = NULL){
   }
 }
 
-#' Combine AJ and Italian Ancestry into PanelPRO Ancestry categories
+#' Combine AJ and Italian Ancestry into Fam3PRO Ancestry categories
 #' 
 #' @param aj.anc logical, Ashkenazi Jewish ancestry
 #' @param it.anc logical, Italian ancestry
-#' @returns a string with the PanelPRO Ancestry category which is one of 
-#' `PanelPRO:::ANCESTRY_TYPES`
+#' @returns a string with the Fam3PRO Ancestry category which is one of 
+#' `Fam3PRO:::ANCESTRY_TYPES`
 getPPAncestry <- function(aj.anc, it.anc){
   if(aj.anc){
     return("AJ")

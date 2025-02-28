@@ -281,7 +281,7 @@ formatNewPerson <- function(relation, tmp.ped = NULL, ped.id = NULL,
 #' pedigree.
 #' @returns a modified `tmp.ped` where the pair of `twins` have a unique number in 
 #' the `Twins` column.
-#' @details `PanelPRO` does not currently support triplets or other higher order 
+#' @details `Fam3PRO` does not currently support triplets or other higher order 
 #' monozygotic relationships.
 labelTwins <- function(tmp.ped, twins){
   if(length(twins) != 2){
@@ -472,13 +472,13 @@ popPersonData <- function(tmp.ped,
       cancers.and.ages <- dplyr::filter(cancers.and.ages, !Cancer %in% MALE.CANCERS)
     }
     
-    # iterate through PanelPRO cancers and populate the PanelPRO cancer columns
-    pp.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected","Other")),]
-    if(nrow(pp.cans.df) > 0){
-      for(row in 1:nrow(pp.cans.df)){
-        c.short <- c(CANCER.CHOICES$short, "CBC")[which(c(CANCER.CHOICES$long, "Contralateral") == pp.cans.df$Cancer[row])]
+    # iterate through Fam3PRO cancers and populate the Fam3PRO cancer columns
+    f3p.cans.df <- cancers.and.ages[which(!cancers.and.ages$Cancer %in% c("No cancer selected","Other")),]
+    if(nrow(f3p.cans.df) > 0){
+      for(row in 1:nrow(f3p.cans.df)){
+        c.short <- c(CANCER.CHOICES$short, "CBC")[which(c(CANCER.CHOICES$long, "Contralateral") == f3p.cans.df$Cancer[row])]
         tmp.ped[which(tmp.ped$ID == id), paste0("isAff", c.short)] <- 1
-        tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- pp.cans.df$Age[row]
+        tmp.ped[which(tmp.ped$ID == id), paste0("Age", c.short)] <- f3p.cans.df$Age[row]
       }
     }
     
@@ -502,10 +502,10 @@ popPersonData <- function(tmp.ped,
     
     # reset cancer specific tumor marker values if the relevant cancers are not in the cancer hx
     if(tmp.ped$isAffBC[which(tmp.ped$ID == id)] == 0){
-      tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$BC$MARKERS] <- NA
+      tmp.ped[which(tmp.ped$ID == id), Fam3PRO:::MARKER_TESTING$BC$MARKERS] <- NA
     }
     if(tmp.ped$isAffCOL[which(tmp.ped$ID == id)] == 0){
-      tmp.ped[which(tmp.ped$ID == id), PanelPRO:::MARKER_TESTING$COL$MARKERS] <- NA
+      tmp.ped[which(tmp.ped$ID == id), Fam3PRO:::MARKER_TESTING$COL$MARKERS] <- NA
     }
     
     # reset additional CBC risk columns if the this condition is not met: has BC but does not have CBC
@@ -539,8 +539,8 @@ popPersonData <- function(tmp.ped,
   if(any(!is.null(mark.vec))){
     
     # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), c(PanelPRO:::MARKER_TESTING$BC$MARKERS, 
-                                       PanelPRO:::MARKER_TESTING$COL$MARKERS)] <- NA
+    tmp.ped[which(tmp.ped$ID == id), c(Fam3PRO:::MARKER_TESTING$BC$MARKERS, 
+                                       Fam3PRO:::MARKER_TESTING$COL$MARKERS)] <- NA
     
     # populate new values
     for(m in 1:length(mark.vec)){
@@ -574,7 +574,7 @@ popPersonData <- function(tmp.ped,
   if(!is.null(gene.results)){
     
     # clear existing values
-    tmp.ped[which(tmp.ped$ID == id), PanelPRO:::GENE_TYPES] <- NA
+    tmp.ped[which(tmp.ped$ID == id), Fam3PRO:::GENE_TYPES] <- NA
     tmp.ped[which(tmp.ped$ID == id), "panelNames"] <- "none"
     tmp.ped[which(tmp.ped$ID == id), "genesJSON"] <- NA
     
@@ -630,28 +630,28 @@ popPersonData <- function(tmp.ped,
       # enter results in the pedigree
       tmp.ped$genesJSON[which(tmp.ped$ID == id)] <- paste0("[", paste0(all.jsons, collapse = ","), "]")
       
-      ## populate PanelPRO gene columns, PLP is 1, all other results are 0
-      pp.genes.df <- gene.results[which(gene.results$Gene %in% PanelPRO:::GENE_TYPES),]
-      if(nrow(pp.genes.df) > 0){
+      ## populate Fam3PRO gene columns, PLP is 1, all other results are 0
+      f3p.genes.df <- gene.results[which(gene.results$Gene %in% Fam3PRO:::GENE_TYPES),]
+      if(nrow(f3p.genes.df) > 0){
 
         # only consider PLP genes
-        plp.pp.genes.df <- dplyr::filter(pp.genes.df, Result == "PLP")
+        plp.f3p.genes.df <- dplyr::filter(f3p.genes.df, Result == "PLP")
         
-        # initialize list of unique P/LP PanelPRO genes
-        pp.mark.pos <- as.character()
+        # initialize list of unique P/LP Fam3PRO genes
+        f3p.mark.pos <- as.character()
         
         # iterate through the unique genes P/LP genes in the data frame
-        u.plp <- unique(plp.pp.genes.df$Gene)
+        u.plp <- unique(plp.f3p.genes.df$Gene)
         for(ug in u.plp){
           
           # start by assuming the gene should not be marked as positive
           add.ug <- FALSE
           
           ### check for P/LP genes that have nucleotides, proteins, or zygosity 
-          ### not handled by PanelPRO, assume missing values are compatible with the PanelPRO
+          ### not handled by Fam3PRO, assume missing values are compatible with the Fam3PRO
           special.plp.cases <- c("CHEK2", "NBN", "CDKN2A", "MUTYH")
           if(ug %in% special.plp.cases){
-            sc.df <- dplyr::filter(plp.pp.genes.df, Gene == ug)
+            sc.df <- dplyr::filter(plp.f3p.genes.df, Gene == ug)
             if(ug == "CHEK2" & (any(sc.df$Nucleotide == nucCHEK2plp) | any(sc.df$Nucleotide == ""))){
               add.ug <- TRUE
             } else if(ug == "NBN" & (any(sc.df$Nucleotide == nucNBNplp) | any(sc.df$Nucleotide == ""))){
@@ -668,20 +668,20 @@ popPersonData <- function(tmp.ped,
           }
           
           # add qualified gene to the list of positive genes
-          if(add.ug){ pp.mark.pos <- c(pp.mark.pos, ug) }
+          if(add.ug){ f3p.mark.pos <- c(f3p.mark.pos, ug) }
         }
         
         # mark genes as positive in the pedigree
-        if(length(pp.mark.pos) > 0){
-          tmp.ped[which(tmp.ped$ID == id), pp.mark.pos] <- 1
+        if(length(f3p.mark.pos) > 0){
+          tmp.ped[which(tmp.ped$ID == id), f3p.mark.pos] <- 1
         }
         
         # mark the remaining genes in the panel as negative
-        pp.mark.neg <- setdiff(intersect(gene.results$Gene, PanelPRO:::GENE_TYPES) , pp.mark.pos)
-        if(length(pp.mark.neg) > 0){
-          tmp.ped[which(tmp.ped$ID == id), pp.mark.neg] <- 0
+        f3p.mark.neg <- setdiff(intersect(gene.results$Gene, Fam3PRO:::GENE_TYPES) , f3p.mark.pos)
+        if(length(f3p.mark.neg) > 0){
+          tmp.ped[which(tmp.ped$ID == id), f3p.mark.neg] <- 0
         }
-      } # end of if statement for if there were PanelPRO genes in the panel
+      } # end of if statement for if there were Fam3PRO genes in the panel
     } # end of if statement for if a panel was selected
   } # end of section for adding gene information to the pedigree
   
@@ -694,9 +694,9 @@ popPersonData <- function(tmp.ped,
                             starts_with("isAff"), starts_with("Age"),
                             AntiEstrogen, HRPreneoplasia), 
                   ~as.numeric(.))) %>%
-    mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-                                   PanelPRO:::MARKER_TESTING$COL$MARKERS,
-                                   PanelPRO:::GENE_TYPES)),
+    mutate(across(.cols = any_of(c(Fam3PRO:::MARKER_TESTING$BC$MARKERS,
+                                   Fam3PRO:::MARKER_TESTING$COL$MARKERS,
+                                   Fam3PRO:::GENE_TYPES)),
                   ~as.numeric(.))) %>%
     mutate(across(.cols = c(PedigreeID, name, side, relationship, race, Ancestry, 
                             NPPrace, NPPeth, cancersJSON, FirstBCType, BreastDensity, 
@@ -905,7 +905,7 @@ updateRelInputs <- function(rel.info, ss, user, conn){
   death.val <- ifelse(rel.info$isDead == 1, TRUE, FALSE)
   updateCheckboxInput(ss, "isDead", value = death.val)
   
-  # Non-PanelPRO races, ethnicity, and ancestries
+  # Non-Fam3PRO races, ethnicity, and ancestries
   updateSelectInput(ss, "race", selected = rel.info$NPPrace)
   updateSelectInput(ss, "eth", selected = rel.info$NPPeth)
   updateCheckboxInput(ss, "ancAJ", value = rel.info$NPPAJ)
@@ -919,7 +919,7 @@ updateRelInputs <- function(rel.info, ss, user, conn){
   }
   
   ## Tumor Markers 
-  marks <- c(PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS)
+  marks <- c(Fam3PRO:::MARKER_TESTING$BC$MARKERS, Fam3PRO:::MARKER_TESTING$COL$MARKERS)
   for(m in marks){
     mval <- ifelse(is.na(rel.info[1,m]), "Not Tested",
                    ifelse(rel.info[1,m] == 1, "Positive",
@@ -975,7 +975,7 @@ validateRelNums <- function(num.rels){
 #' @param conn a database connection
 #' @param username self explainatory
 #' @returns either an error message if the pedigree could not be conformed to the 
-#' PPI format or a pedigree data.frame compatible with PPI
+#' F3PI format or a pedigree data.frame compatible with F3PI
 checkUploadPed <- function(uped, pedID = NULL, conn, username){
   
   ## pedigreeID
@@ -1024,7 +1024,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   
   # check for 1 and only 1 proband
   if(sum(as.numeric(uped$isProband), na.rm = T) != 1){
-    return("To be compatible with PPI, there must be one and only 1 proband as indicated by the isProband column.")
+    return("To be compatible with F3PI, there must be one and only 1 proband as indicated by the isProband column.")
   }
   
   ## optional columns (create dummy columns if missing)
@@ -1056,10 +1056,10 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   
   # check for missing columns with a default value of NA
   def.na.cols <- c("name", "side", "relationship",
-                   paste0("Age", PanelPRO:::CANCER_NAME_MAP$short), "cancersJSON",
+                   paste0("Age", Fam3PRO:::CANCER_NAME_MAP$short), "cancersJSON",
                    cbcrisk.cols,
-                   PanelPRO:::MARKER_TESTING$BC$MARKERS, PanelPRO:::MARKER_TESTING$COL$MARKERS,
-                   PanelPRO:::GENE_TYPES, "genesJSON")
+                   Fam3PRO:::MARKER_TESTING$BC$MARKERS, Fam3PRO:::MARKER_TESTING$COL$MARKERS,
+                   Fam3PRO:::GENE_TYPES, "genesJSON")
   miss.def.na.cols <- def.na.cols[which(!def.na.cols %in% cnames)]
   if(length(miss.def.na.cols) > 0){
     for(mc in miss.def.na.cols){
@@ -1068,7 +1068,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   }
   
   # check for missing columns with a default value of 0
-  def.0.cols <- c(paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short))
+  def.0.cols <- c(paste0("isAff", Fam3PRO:::CANCER_NAME_MAP$short))
   miss.def.0.cols <- def.0.cols[which(!def.0.cols %in% cnames)]
   if(length(miss.def.0.cols) > 0){
     for(mc in miss.def.0.cols){
@@ -1082,7 +1082,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   }
   
   # surgical hx columns
-  # check if surgeries are listed in the original PanelPRO version format with just two columns vs 
+  # check if surgeries are listed in the original Fam3PRO version format with just two columns vs 
   # the newer six column format
   old.surg.cols <- c("riskmod", "interAge")
   surgs <- c("Mast", "Hyst", "Ooph")
@@ -1093,7 +1093,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
                      (new.surg.cols[2] %in% cnames & new.surg.age.cols[2] %in% cnames) |
                      (new.surg.cols[3] %in% cnames & new.surg.age.cols[3] %in% cnames)
   if(old.surg.format & new.surg.format){
-    return("Pedigree contains the old and new PanelPRO formatting for prophylactic surgery columns.")
+    return("Pedigree contains the old and new Fam3PRO formatting for prophylactic surgery columns.")
   } else if(!old.surg.format){
     miss.new.surg.cols <- new.surg.cols[!new.surg.cols %in% cnames]
     if(length(miss.new.surg.cols) > 0){
@@ -1110,8 +1110,8 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   }
   
   ### check column codings
-  ## PanelPRO columns - run checkFam
-  cped <- try(PanelPRO::checkFam(uped, impute.missing.ages = F, ignore.proband.germ = T))
+  ## Fam3PRO columns - run checkFam
+  cped <- try(Fam3PRO::checkFam(uped, impute.missing.ages = F, ignore.proband.germ = T))
   if(is.data.frame(cped$ped_list$`1`)){
     
     # remove unneeded columns and recode as needed
@@ -1130,7 +1130,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
     return(cped[1])
   }
   
-  ## PPI specific columns
+  ## F3PI specific columns
   # name
   # If name is blank, just name the proband and label everyone else by number
   if(all(is.na(uped$name))){
@@ -1155,16 +1155,16 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   }
   
   # cancersJSON
-  # if the column is blank, but there are PanelPRO cancers reported
+  # if the column is blank, but there are Fam3PRO cancers reported
   if(all(is.na(uped$cancersJSON)) & 
-     sum(uped[, paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)]) > 0){
+     sum(uped[, paste0("isAff", Fam3PRO:::CANCER_NAME_MAP$short)]) > 0){
     
-    # create the JSON from the PanelPRO cancer columns
+    # create the JSON from the Fam3PRO cancer columns
     cJSON <- NULL
     for(rw in 1:nrow(uped)){
-      for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+      for(cn in Fam3PRO:::CANCER_NAME_MAP$short){
         if(uped[rw, paste0("isAff", cn)] == 1){
-          c.long.name <- PanelPRO:::CANCER_NAME_MAP$long[which(PanelPRO:::CANCER_NAME_MAP$short == cn)]
+          c.long.name <- Fam3PRO:::CANCER_NAME_MAP$long[which(Fam3PRO:::CANCER_NAME_MAP$short == cn)]
           c.age <- uped[rw, paste0("Age", cn)]
           if(is.null(cJSON)){
             cJSON <- data.frame(cancer = c.long.name, age = c.age, other = "UnkType", ID = uped$ID[rw])
@@ -1216,9 +1216,9 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
       return("The cancerJSON column is improperly formatted.")
     }
     
-    # check PanelPRO cancer names
-    if(any(!all.can.df$cancer %in% c(PanelPRO:::CANCER_NAME_MAP$long, "Other"))){
-      return("The are cancers names in the 'cancer' field of the cancersJSON column which are not either a PanelPRO cancer or the word 'Other'.")
+    # check Fam3PRO cancer names
+    if(any(!all.can.df$cancer %in% c(Fam3PRO:::CANCER_NAME_MAP$long, "Other"))){
+      return("The are cancers names in the 'cancer' field of the cancersJSON column which are not either a Fam3PRO cancer or the word 'Other'.")
     }
     
     # check cancer ages
@@ -1228,47 +1228,47 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
       return("The cancersJSON column contains age values which cannot be converted to numeric values.")
     }
     if(any(all.can.df$age > 89)){
-      return("The cancersJSON column contains ages above 89. The PPI privacy policy does not allow this. Please make all ages above 89, 89.")
+      return("The cancersJSON column contains ages above 89. The F3PI privacy policy does not allow this. Please make all ages above 89, 89.")
     }
     if(any(all.can.df$age < 1)){
       return("The cancerJSON columns contains ages below 1.")
     }
     
     # check other cancer names
-    if(any(!all.can.df$other %in% c("UnkType", non.pp.cancers))){
-      return("The cancersJSON column contains cancer names in the 'other' field which are not recognized by PPI.")
+    if(any(!all.can.df$other %in% c("UnkType", non.f3p.cancers))){
+      return("The cancersJSON column contains cancer names in the 'other' field which are not recognized by F3PI.")
     }
     
-    # verify PanelPRO cancer columns match the JSON
-    all.pp.can.df <- filter(all.can.df, cancer %in% PanelPRO:::CANCER_NAME_MAP$long)
-    if(nrow(all.pp.can.df) > 0){
+    # verify Fam3PRO cancer columns match the JSON
+    all.f3p.can.df <- filter(all.can.df, cancer %in% Fam3PRO:::CANCER_NAME_MAP$long)
+    if(nrow(all.f3p.can.df) > 0){
       
-      # check all PanelPRO cancer data in the JSON are in the PanelPRO cancer columns
-      for(rw in 1:nrow(all.pp.can.df)){
-        short.c.name <- PanelPRO:::CANCER_NAME_MAP$short[which(PanelPRO:::CANCER_NAME_MAP$long == all.pp.can.df$cancer[rw])]
-        if(uped[which(uped$ID == all.pp.can.df$ID[rw]), paste0("isAff", short.c.name)] != 1){
-          return("The cancersJSON column data from the 'cancer' field of the JSON does not match the data in the PanelPRO cancer 'isAffX' columns.")
+      # check all Fam3PRO cancer data in the JSON are in the Fam3PRO cancer columns
+      for(rw in 1:nrow(all.f3p.can.df)){
+        short.c.name <- Fam3PRO:::CANCER_NAME_MAP$short[which(Fam3PRO:::CANCER_NAME_MAP$long == all.f3p.can.df$cancer[rw])]
+        if(uped[which(uped$ID == all.f3p.can.df$ID[rw]), paste0("isAff", short.c.name)] != 1){
+          return("The cancersJSON column data from the 'cancer' field of the JSON does not match the data in the Fam3PRO cancer 'isAffX' columns.")
         }
-        if(uped[which(uped$ID == all.pp.can.df$ID[rw]), paste0("Age", short.c.name)] != all.pp.can.df$age[rw]){
-          return("The cancersJSON column data from the 'age' field of the JSON does not match the data in the PanelPRO cancer 'AgeX' columns.")
+        if(uped[which(uped$ID == all.f3p.can.df$ID[rw]), paste0("Age", short.c.name)] != all.f3p.can.df$age[rw]){
+          return("The cancersJSON column data from the 'age' field of the JSON does not match the data in the Fam3PRO cancer 'AgeX' columns.")
         }
       }
       
-      # check that all PanelPRO cancer columns data are in the JSON
-      all.pp.can.df <- 
-        mutate(all.pp.can.df, 
-               cancer = PanelPRO:::CANCER_NAME_MAP$short[which(PanelPRO:::CANCER_NAME_MAP$long == cancer)])
+      # check that all Fam3PRO cancer columns data are in the JSON
+      all.f3p.can.df <- 
+        mutate(all.f3p.can.df, 
+               cancer = Fam3PRO:::CANCER_NAME_MAP$short[which(Fam3PRO:::CANCER_NAME_MAP$long == cancer)])
       for(rw in 1:nrow(uped)){
-        if(sum(uped[, paste0("isAff", PanelPRO:::CANCER_NAME_MAP$short)]) > 0){
-          for(cn in PanelPRO:::CANCER_NAME_MAP$short){
-            num.cn.matches <- nrow(all.pp.can.df[which(all.pp.can.df$ID == uped$ID[rw] & 
-                                                         all.pp.can.df$cancer == cn), ])
+        if(sum(uped[, paste0("isAff", Fam3PRO:::CANCER_NAME_MAP$short)]) > 0){
+          for(cn in Fam3PRO:::CANCER_NAME_MAP$short){
+            num.cn.matches <- nrow(all.f3p.can.df[which(all.f3p.can.df$ID == uped$ID[rw] & 
+                                                         all.f3p.can.df$cancer == cn), ])
             if(uped[rw, paste0("isAff", cn)] == 1 & num.cn.matches != 1){
-              return("The PanelPRO 'isAffX' cancer columns do not match the data in the cancersJSON column.")
+              return("The Fam3PRO 'isAffX' cancer columns do not match the data in the cancersJSON column.")
             } else {
-              if(uped[rw, paste0("Age", cn)] != all.pp.can.df$age[which(all.pp.can.df$ID == uped$ID[rw] & 
-                                                                        all.pp.can.df$cancer == cn)]){
-                return("The PanelPRO 'AgeX' cancer columns do not match the data in the cancersJSON column.")
+              if(uped[rw, paste0("Age", cn)] != all.f3p.can.df$age[which(all.f3p.can.df$ID == uped$ID[rw] & 
+                                                                        all.f3p.can.df$cancer == cn)]){
+                return("The Fam3PRO 'AgeX' cancer columns do not match the data in the cancersJSON column.")
               }
             }
           }
@@ -1279,28 +1279,28 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   
   # genesJSON
   # scenarios
-  # 1: There are PanelPRO gene columns with data but the corresponding values in 
+  # 1: There are Fam3PRO gene columns with data but the corresponding values in 
   #    genesJSON and panelNames: panel names are missing, cannot create genesJSON 
-  #    and PPI cannot use any gene results.
-  # 2: There are PanelPRO gene columns with data but the corresponding values in 
+  #    and F3PI cannot use any gene results.
+  # 2: There are Fam3PRO gene columns with data but the corresponding values in 
   #    genesJSON are empty but there is data in panelNames, however at least one 
   #    relative in the pedigree has multiple panels in panelNames: cannot determine 
   #    which genes were assigned to which panels therefore cannot create genesJSON 
-  #    and PPI cannot use any 
+  #    and F3PI cannot use any 
   #    gene results.
-  # 3: There are PanelPRO gene columns with data but the corresponding values in 
+  # 3: There are Fam3PRO gene columns with data but the corresponding values in 
   #    genesJSON are empty but there is data in panelNames, and any relative with 
   #    genetic testing has one and only one panel in panelNames: assume that all 
   #    genetic testing results were from the one panel listed for that individual,
-  #    create genesJSON and PPI can use these results
+  #    create genesJSON and F3PI can use these results
   # 4: There is data in the genesJSON column: check that this data matches the 
-  #    panelNames column and PanelPRO gene columns. If those columns are blank 
+  #    panelNames column and Fam3PRO gene columns. If those columns are blank 
   #    the populate them from genesJSON. If any part does not match, send an error.
   # Conclusion: the simplest would be to inform the user to only upload a genesJSON 
   # column which would then be used to populate the other gene columns
   
-  # clear data from PanelPRO gene columns and panelNames
-  for(gn in PanelPRO:::GENE_TYPES){
+  # clear data from Fam3PRO gene columns and panelNames
+  for(gn in Fam3PRO:::GENE_TYPES){
     uped[[gn]] <- NA
   }
   uped$panelNames <- "none"
@@ -1321,14 +1321,14 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
       # populate panelNames
       uped$panelNames[rw] <- paste0(unique(gene.df$panel), collapse = ", ")
       
-      # mark all tested PanelPRO genes as having a "negative" result to start
-      pp.genes <- gene.df$gene[which(gene.df$gene %in% PanelPRO:::GENE_TYPES)]
-      if(length(pp.genes) > 0){
-        uped[rw, pp.genes] <- 0
+      # mark all tested Fam3PRO genes as having a "negative" result to start
+      f3p.genes <- gene.df$gene[which(gene.df$gene %in% Fam3PRO:::GENE_TYPES)]
+      if(length(f3p.genes) > 0){
+        uped[rw, f3p.genes] <- 0
       }
       
       # mark all P/LP genes as positive
-      plp.genes <- filter(gene.df, gene %in% pp.genes & result == "PLP")
+      plp.genes <- filter(gene.df, gene %in% f3p.genes & result == "PLP")
       if(nrow(plp.genes) > 0){
         for(plp.rw in 1:nrow(plp.genes)){
           uped[rw, plp.genes$gene[plp.rw]] <- 1
@@ -1345,7 +1345,7 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
   # if(ped.pans != ""){
   #   ped.pans <- str_split(ped.pans, pattern = ", ")[[1]]
   #   if(any(!ped.pans %in% db.pans)){
-  #     return("The panelNames column contains panels which are not registered in the PPI database.")
+  #     return("The panelNames column contains panels which are not registered in the F3PI database.")
   #   }
   # }
   # 
@@ -1366,9 +1366,9 @@ checkUploadPed <- function(uped, pedID = NULL, conn, username){
                             starts_with("isAff"), starts_with("Age"),
                             AntiEstrogen, HRPreneoplasia), 
                   ~as.numeric(.))) %>%
-    mutate(across(.cols = any_of(c(PanelPRO:::MARKER_TESTING$BC$MARKERS,
-                                   PanelPRO:::MARKER_TESTING$COL$MARKERS,
-                                   PanelPRO:::GENE_TYPES)),
+    mutate(across(.cols = any_of(c(Fam3PRO:::MARKER_TESTING$BC$MARKERS,
+                                   Fam3PRO:::MARKER_TESTING$COL$MARKERS,
+                                   Fam3PRO:::GENE_TYPES)),
                   ~as.numeric(.))) %>%
     mutate(across(.cols = c(PedigreeID, name, side, relationship, race, Ancestry, 
                             NPPrace, NPPeth, cancersJSON, FirstBCType, BreastDensity, 
@@ -1442,7 +1442,7 @@ prepPedJSON <- function(pjs.ped){
   
   # code cancers with unknown affection ages as age 0
   for(rw in 1:nrow(pjs.ped)){
-    for(cn in PanelPRO:::CANCER_NAME_MAP$short){
+    for(cn in Fam3PRO:::CANCER_NAME_MAP$short){
       if(is.na(pjs.ped[rw, paste0("Age", cn)]) & pjs.ped[rw, paste0("isAff", cn)] == 1){
         pjs.ped[rw, paste0("Age", cn)] <- 0
       }
@@ -1462,8 +1462,8 @@ prepPedJSON <- function(pjs.ped){
     mutate(isProband = as.logical(isProband)) %>%
     mutate(isProband = ifelse(!isProband, NA, isProband)) %>%
     rename_with(.fn = ~ paste0(gsub(pattern = " ", replacement = "_", 
-                                     PanelPRO:::CANCER_NAME_MAP$long[
-                                       which(PanelPRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
+                                     Fam3PRO:::CANCER_NAME_MAP$long[
+                                       which(Fam3PRO:::CANCER_NAME_MAP$short == sub("Age", "", .x))
                                        ]),
                                "_cancer_diagnosis_age"
                         ),
@@ -1580,7 +1580,7 @@ CountGs <- function(t.pjs, rl){
 #' and the partner is being added but the child has not been added yet. This is 
 #' the version of the pjs pedigree data frame which contains the either both new 
 #' parents or both the partner and the child and is required for the 
-#' function `PanelPRO:::.secondDegreeRelatives()` to work properly.
+#' function `Fam3PRO:::.secondDegreeRelatives()` to work properly.
 #' @returns a list of length two:
 #' - `pjs_updated`: an updated copy of the pedigree data frame from pedigreeJS with 
 #' modified values `name`, `display_name`, `status` for the new relative
@@ -1593,7 +1593,7 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
   # replace missing death status with alive code (0)
   pjs$status[which(pjs$name == target.rel)] <- as.character(0)
   
-  # default an unknown sex to male, for compatibility with PPI
+  # default an unknown sex to male, for compatibility with F3PI
   target.rel.sx <- pjs$sex[which(pjs$name == target.rel)]
   if(target.rel.sx == "U"){
     pjs$sex[which(pjs$name == target.rel)] <- "M"
@@ -1647,10 +1647,10 @@ addPJSrel <- function(pjs, r.ped, target.rel, type, partner.of = NULL, pjs.full 
       sd <- r.ped$side[which(r.ped$ID == as.numeric(partner.of))]
     }
     
-    # if not a partner, use PanelPRO functions to check if the person is a 1st or 2nd degree relative
+    # if not a partner, use Fam3PRO functions to check if the person is a 1st or 2nd degree relative
   } else {
-    fdr.idxs <- PanelPRO:::.firstDegreeRelative(rel.ped, which(pjs$proband == TRUE))
-    sdr.idxs <- PanelPRO:::.secondDegreeRelative(rel.ped, which(pjs$proband == TRUE))
+    fdr.idxs <- Fam3PRO:::.firstDegreeRelative(rel.ped, which(pjs$proband == TRUE))
+    sdr.idxs <- Fam3PRO:::.secondDegreeRelative(rel.ped, which(pjs$proband == TRUE))
     
     is1degree <- FALSE
     if(target.rel.idx %in% fdr.idxs$index){ # first degree (FDR)

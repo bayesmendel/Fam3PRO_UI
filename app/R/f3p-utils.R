@@ -1,9 +1,9 @@
-#' Mutation probability and future cancer risk plots for the PanelPRO Interface (PPI)
+#' Mutation probability and future cancer risk plots for the Fam3PRO Interface (F3PI)
 #'
 #' Visualizes the carrier probabilities and future risk estimates returned by 
-#' the PanelPRO function for the probands. A modified version of PanelPRO::visRisk().
+#' the Fam3PRO function for the probands. A modified version of Fam3PRO::visRisk().
 #' 
-#' @param pp_output A list of results returned by PanelPRO. 
+#' @param f3p_output A list of results returned by Fam3PRO 
 #' @param markdown A logical value specifying whether the output requested is 
 #' in an R Markdown file. If this is set to `TRUE`, then the height and width 
 #' of the final plot will not be resizable. For use in the RStudio console, set 
@@ -22,37 +22,37 @@
 #' is `450`. 
 #' @param width The width of the final plot (per proband) in px. The default is 
 #' `700`. 
-#' @param race string containing the proband's PanelPRO race category
+#' @param race string containing the proband's Fam3PRO race category
 #' @param sex binary, 0 if female and 1 if male
 #' @param cur.age numeric value, age of the proband
 #' @param net logical value, if TRUE net penetrances are used, otherwise crude penetrances are used
-#' @param missAgeIters number of iterations allowed for age imputation for PanelPRO as defined by 
-#' PanelPRO argument `iterations`.
+#' @param missAgeIters number of iterations allowed for age imputation for Fam3PRO as defined by 
+#' Fam3PRO argument `iterations`.
 #' @return A series of interactive Plotly plots. 
 #' @examples
-#' # run PanelPRO main function
-#' output <- PanelPRO(test_fam_2, 
+#' # run Fam3PRO main function
+#' output <- Fam3PRO(test_fam_2, 
 #'                    cancers = c("Endometrial", "Pancreas", "Small Intestine"),
 #'                    genes = c("PALB2", "BRCA2"),
 #'                    parallel = FALSE)
 #' # Render plots
 #' visRisk(output)
-visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE, 
+visRiskF3PI <- function(f3p_output, markdown = NULL, return_obj = FALSE, 
                        prob_threshold = 0.01, show_fr_ci = FALSE,
                        height = 450, width = 700, race, sex, cur.age, net,
-                       missAgeIters) {
+                       missAgeIters){
   
   # Get the number of probands in the output
-  nProbands <- length(pp_output$posterior.prob)
+  nProbands <- length(f3p_output$posterior.prob)
   
   # Get the IDs of the probands
-  probandIDs <- names(pp_output$posterior.prob)
+  probandIDs <- names(f3p_output$posterior.prob)
   
   # Verify that there are the same number of probands in the future.risk part
-  stopifnot(nProbands == length(pp_output$future.risk))
+  stopifnot(nProbands == length(f3p_output$future.risk))
   
   # Get the cancer names
-  cancers <- names(pp_output$future.risk[[1]])
+  cancers <- names(f3p_output$future.risk[[1]])
   
   # Initialize list of figures
   figs <- list()
@@ -64,30 +64,30 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     omit.plots <- "none"
     
     # Check that the selected proband isn't dead, such that future risk is NA
-    if (any(grepl("dead", pp_output$future.risk[[i]]))) {
+    if (any(grepl("dead", f3p_output$future.risk[[i]]))) {
       rlang::inform(paste0("Proband ID: ", probandIDs[i], 
                            " is dead. Not outputting plots for this person."),
                     class = "DeadProband")
       omit.plots <- "fr"
       
       # Check that the selected proband's age doesn't exceed MAXAGE
-    } else if (any(grepl("maximum age support", pp_output$future.risk[[i]]))) {
+    } else if (any(grepl("maximum age support", f3p_output$future.risk[[i]]))) {
       rlang::inform(paste0("Proband ID: ", probandIDs[i],
                            " has current age equal to or above the", 
-                           "maximum age supported, ", PanelPRO:::MAXAGE,
+                           "maximum age supported, ", Fam3PRO:::MAXAGE,
                            ". Not outputting plots for this person."))
       omit.plots <- "fr"
   
       # Check that the selected proband has carrier probability results
     } else if (any(grepl("No carrier probabilities were requested by the model specification.", 
-                         pp_output$posterior.prob[[i]]))) {
+                         f3p_output$posterior.prob[[i]]))) {
       rlang::inform(paste0("Proband ID: ", probandIDs[i], 
                            " has no carrier probability estimates because there are no genes in the model. Not outputting plots for this person."))
       omit.plots <- "both"
 
       # Check that the selected proband has future risk results
     } else if (any(grepl("No future risk estimates were requested by the model specification.", 
-                         pp_output$future.risk[[i]]))) {
+                         f3p_output$future.risk[[i]]))) {
       rlang::inform(paste0("Proband ID: ", probandIDs[i], 
                            " has no future risk estimates because there are no cancers in the model. Not outputting future risk plots for this person."))
       omit.plots <- "fr"
@@ -98,8 +98,8 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     # Put future risk data together
     if(omit.plots != "both" & omit.plots != "fr"){
       future_risk_data <- cbind(
-        cancer = rep(cancers, sapply(pp_output$future.risk[[i]], nrow)),
-        do.call(rbind, pp_output$future.risk[[i]])
+        cancer = rep(cancers, sapply(f3p_output$future.risk[[i]], nrow)),
+        do.call(rbind, f3p_output$future.risk[[i]])
       )
       
       # Use capitalized name
@@ -111,7 +111,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       ## get average person risks
       nc.pens <-
         as.data.frame(
-          PanelPRO::PanelPRODatabase$Penetrance[, # Cancer
+          Fam3PRO::Fam3PRODatabase$Penetrance[, # Cancer
                                                 "SEER", # Gene
                                                 ifelse(is.na(race), "All_Races", race), #Race
                                                 ifelse(sex == 0, "Female", "Male"), #Sex
@@ -131,7 +131,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
         mutate(across(.cols = c(Survival, estimate), ~as.numeric(.)))
       for(c in unique(nc.pens$Cancer)){
         tmp.pens <- nc.pens[which(nc.pens$Cancer == c),]
-        for(a in (cur.age+1):(PanelPRO:::MAXAGE)){
+        for(a in (cur.age+1):(Fam3PRO:::MAXAGE)){
           nc.pens$estimate[which(nc.pens$Cancer == c & nc.pens$ByAge == a)] <-
             sum(tmp.pens$Penetrance[(cur.age+1):a]) / nc.pens$Survival[cur.age]
         }
@@ -260,7 +260,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       }
       
       # Set up Plotly layout for future risk plot
-      pp1.zoom <- plotly::layout(gg1.zoom,
+      f3p1.zoom <- plotly::layout(gg1.zoom,
                                   yaxis = list(
                                     title = "Cumulative cancer risk",
                                     titlefont = list(size = 16)
@@ -273,7 +273,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                   margin = 1,
                                   annotations = upper_plot_title
       )
-      pp1.full <- plotly::layout(gg1.full,
+      f3p1.full <- plotly::layout(gg1.full,
                                   yaxis = list(
                                     title = "Cumulative cancer risk",
                                     titlefont = list(size = 16)
@@ -288,7 +288,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       )
       
       # for stand-alone cancer risk plot, add same annotations as the other plot
-      pp1a.zoom <- pp1.zoom %>% plotly::add_annotations(text = 
+      f3p1a.zoom <- f3p1.zoom %>% plotly::add_annotations(text = 
         "      Variability in estimates may arise from an imputation process for missing ages. 
         The range of estimates is indicated by error bars or (lower, upper) estimates. 
         
@@ -308,7 +308,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                                       "zoomIn2d","zoomOut2d"),
                            displaylogo = FALSE)
       
-      pp1a.full <- pp1.full %>% plotly::add_annotations(text = 
+      f3p1a.full <- f3p1.full %>% plotly::add_annotations(text = 
         "      Variability in estimates may arise from an imputation process for missing ages. 
         The range of estimates is indicated by error bars or (lower, upper) estimates. 
         
@@ -330,24 +330,24 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       ) %>% plotly::layout(yaxis = list(range = list(0,1)))
       
     } else {
-      pp1a.zoom <- NULL
-      pp1a.full <- NULL
-      p1.zoom <- NULL
-      p1.full <- NULL
+      f3p1a.zoom <- NULL
+      f3p1a.full <- NULL
+      f3p1.zoom <- NULL
+      f3p1.full <- NULL
     }
     
     #### Carrier Probs ####
     
     # Re-order such that non-carrier, 1 at a time ... appears
     if(omit.plots != "both"){
-      current_pp <- pp_output$posterior.prob[[i]]
+      current_f3p <- f3p_output$posterior.prob[[i]]
       
       # get risk of any gene having a P/LP
-      prob.anyPVdf <- filter(current_pp, !grepl(pattern = "\\.|noncarrier", genes))
+      prob.anyPVdf <- filter(current_f3p, !grepl(pattern = "\\.|noncarrier", genes))
       prob.anyPV <- sum(prob.anyPVdf$estimate, na.rm = T)
-      current_pp[nrow(current_pp)+1,] <- rep(NA, 4)
-      current_pp$genes[nrow(current_pp)] <- "Any Gene"
-      current_pp$estimate[nrow(current_pp)] <- prob.anyPV
+      current_f3p[nrow(current_f3p)+1,] <- rep(NA, 4)
+      current_f3p$genes[nrow(current_f3p)] <- "Any Gene"
+      current_f3p$estimate[nrow(current_f3p)] <- prob.anyPV
       
       # lower and upper prediction intervals
       if(!(all(is.na(prob.anyPVdf$lower)) && 
@@ -364,41 +364,43 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
           }
         }
         any.preds <- apply(pred.mat, 1, sum, simplify = T)
-        current_pp$lower[nrow(current_pp)] <- min(any.preds, na.rm = T)
-        current_pp$upper[nrow(current_pp)] <- max(any.preds, na.rm = T)
+        current_f3p$lower[nrow(current_f3p)] <- min(any.preds, na.rm = T)
+        current_f3p$upper[nrow(current_f3p)] <- max(any.preds, na.rm = T)
       } 
       
       
-      current_pp$genes <- factor(current_pp$genes, levels = current_pp$genes)
+      current_f3p$genes <- factor(current_f3p$genes, levels = current_f3p$genes)
       
       # Get the row numbers of the noncarrier, single and multiple gene positions
       # These have no period (full stop) in them
-      nc_position <- grepl("noncarrier", current_pp$genes)
-      single_positions <- !grepl("\\.|noncarrier", current_pp$genes)
+      nc_position <- grepl("noncarrier", current_f3p$genes)
+      single_positions <- !grepl("\\.|noncarrier", current_f3p$genes)
       multiple_positions <- !(nc_position | single_positions)
-      multiple_gene_probs <- current_pp[multiple_positions, ]
+      multiple_gene_probs <- current_f3p[multiple_positions, ]
       
       # Combine the single gene probs and any multiple
       # gene probs which are above the threshold
       probs_to_show <- rbind(
-        current_pp[single_positions, ],
+        current_f3p[single_positions, ],
         multiple_gene_probs[multiple_gene_probs$estimate > prob_threshold, ]
       )
       
       # Reduce full gene names
       probs_to_show$genes <- 
-        as.factor(PanelPRO:::formatGeneNames(as.character(probs_to_show$genes)))
-      
+        as.factor(Fam3PRO:::formatGeneNames(as.character(probs_to_show$genes)))
       # Now plot the single gene carrier probability plots
+      
+      
       p2.zoom <- 
         ggplot2::ggplot(probs_to_show, ggplot2::aes(x = genes, y = estimate)) +
         ggplot2::geom_point() +
         ggplot2::geom_hline(yintercept = 0.025, color = "red", lty = "dashed")
         ggplot2::theme_minimal()
+        
       p2.full <- 
         p2.zoom +
         ggplot2::scale_y_continuous(limits = c(0,1), breaks = seq(0,1,0.2))
-      
+
       # Check whether there were imputations
       pedigree_full <- all(is.na(probs_to_show$lower)) && 
         all(is.na(probs_to_show$upper))
@@ -451,7 +453,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                        plot.caption = element_text(size = 7, hjust = 0))
       
       # Set up Plotly layout for carrier probability plot
-      pp2.zoom <- plotly::layout(gg2.zoom,
+      f3p2.zoom <- plotly::layout(gg2.zoom,
                             yaxis = list(
                               title = "Mutation probability",
                               titlefont = list(size = 14)
@@ -462,7 +464,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                               tickangle = -45),
                             margin = 1
       )
-      pp2.full <- plotly::layout(gg2.full,
+      f3p2.full <- plotly::layout(gg2.full,
                                  yaxis = list(
                                    title = "Mutation probability",
                                    titlefont = list(size = 14)
@@ -475,7 +477,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
       )
       
       # Plot of carrier probability estimates
-      pp2.zoom <- pp2.zoom %>% plotly::add_annotations(text = "Mutation probabilities",
+      f3p2.zoom <- f3p2.zoom %>% plotly::add_annotations(text = "Mutation probabilities",
                                              font = list(size = 18),
                                              xref = "paper",
                                              yref = "paper",
@@ -501,7 +503,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
        font = list(size = 9),
        showarrow = FALSE
       ) %>% plotly::add_annotations(text =
-                                      paste0("Non-carrier probability: ", round(current_pp[nc_position, ]$estimate,
+                                      paste0("Non-carrier probability: ", round(current_f3p[nc_position, ]$estimate,
                                                                                 digits = 3)),
                                     xref = "paper",
                                     yref = "paper",
@@ -529,7 +531,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                                       "toggleSpikelines"),
                            displaylogo = FALSE)
       
-      pp2.full <- pp2.full %>% plotly::add_annotations(text = "Mutation probabilities",
+      f3p2.full <- f3p2.full %>% plotly::add_annotations(text = "Mutation probabilities",
                                                        font = list(size = 18),
                                                        xref = "paper",
                                                        yref = "paper",
@@ -555,7 +557,7 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
         font = list(size = 9),
         showarrow = FALSE
       ) %>% plotly::add_annotations(text =
-                                      paste0("Non-carrier probability: ", round(current_pp[nc_position, ]$estimate,
+                                      paste0("Non-carrier probability: ", round(current_f3p[nc_position, ]$estimate,
                                                                                 digits = 3)),
                                     xref = "paper",
                                     yref = "paper",
@@ -582,12 +584,12 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                                       "hoverCompareCartesian",
                                                       "toggleSpikelines"),
                            displaylogo = FALSE)
-      
+
       # Add in the confidence intervals if needed
       if (!pedigree_full) {
-        pp2.zoom <- pp2.zoom %>% plotly::add_annotations(text = 
-                                                 paste0("(", round(current_pp[nc_position, ]$lower, digits = 3), ", ",
-                                                        round(current_pp[nc_position, ]$upper, digits = 3), ")"),
+        f3p2.zoom <- f3p2.zoom %>% plotly::add_annotations(text = 
+                                                 paste0("(", round(current_f3p[nc_position, ]$lower, digits = 3), ", ",
+                                                        round(current_f3p[nc_position, ]$upper, digits = 3), ")"),
                                                xref = "paper",
                                                yref = "paper",
                                                yanchor = "bottom",
@@ -598,9 +600,9 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
                                                font = list(size = 10),
                                                showarrow = FALSE
         )
-        pp2.full <- pp2.full %>% plotly::add_annotations(text = 
-                                                           paste0("(", round(current_pp[nc_position, ]$lower, digits = 3), ", ",
-                                                                  round(current_pp[nc_position, ]$upper, digits = 3), ")"),
+        f3p2.full <- f3p2.full %>% plotly::add_annotations(text = 
+                                                           paste0("(", round(current_f3p[nc_position, ]$lower, digits = 3), ", ",
+                                                                  round(current_f3p[nc_position, ]$upper, digits = 3), ")"),
                                                          xref = "paper",
                                                          yref = "paper",
                                                          yanchor = "bottom",
@@ -616,13 +618,13 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
     } else {
       p2.zoom <- NULL
       p2.full <- NULL
-      pp2.zoom <- NULL
-      pp2.full <- NULL
+      f3p2.zoom <- NULL
+      f3p2.full <- NULL
     }
     
     # Final Plotly output
     if(omit.plots != "both" & omit.plots != "fr"){
-      fig <- plotly::layout(plotly::subplot(pp1.zoom, pp2.zoom, nrows = 2, 
+      fig <- plotly::layout(plotly::subplot(f3p1.zoom, f3p2.zoom, nrows = 2, 
                                             titleY = TRUE, titleX = TRUE, 
                                             margin = 0.2,
                                             heights = c(0.5, 0.5)),
@@ -647,10 +649,10 @@ visRiskPPI <- function(pp_output, markdown = NULL, return_obj = FALSE,
   if (return_obj == TRUE) {
     return(list(
       both = figs,             # plotly contains both carrier probs and cancer risks with zoomed y-axis
-      cp.zoom = pp2.zoom,      # plotly carrier probs zoomed y-axis
-      cp.full = pp2.full,      # plotly carrier probs full y-axis
-      fr.zoom = pp1a.zoom,     # plotly cancer risk zoomed y-axis
-      fr.full = pp1a.full,     # plotly cancer risk full y-axis
+      cp.zoom = f3p2.zoom,      # plotly carrier probs zoomed y-axis
+      cp.full = f3p2.full,      # plotly carrier probs full y-axis
+      fr.zoom = f3p1a.zoom,     # plotly cancer risk zoomed y-axis
+      fr.full = f3p1a.full,     # plotly cancer risk full y-axis
       cpStatic.zoom = p2.zoom, # ggplot carrier prob zoomed y-axis
       cpStatic.full = p2.full, # ggplot carrier prob full y-axis
       frStatic.zoom = p1.zoom.fap, # ggplot cancer risks facetted by cancer type and zoomed y-axis
@@ -681,13 +683,13 @@ make.ggline <- function(data, cancer, cancer.colors, age, grows){
   ptType <- 19
 
   # x-axis ticks for line graphs
-  x.ticks <- seq(age, PanelPRO:::MAXAGE, 10)
-  if(PanelPRO:::MAXAGE - as.numeric(age) <= 5){
-    x.ticks <- seq(age, PanelPRO:::MAXAGE, 1)
-  } else if(PanelPRO:::MAXAGE - as.numeric(age) < 15){
-    x.ticks <- seq(age, PanelPRO:::MAXAGE, 2)
-  } else if(PanelPRO:::MAXAGE - as.numeric(age) < 30){
-    x.ticks <- seq(age, PanelPRO:::MAXAGE, 5)
+  x.ticks <- seq(age, Fam3PRO:::MAXAGE, 10)
+  if(Fam3PRO:::MAXAGE - as.numeric(age) <= 5){
+    x.ticks <- seq(age, Fam3PRO:::MAXAGE, 1)
+  } else if(Fam3PRO:::MAXAGE - as.numeric(age) < 15){
+    x.ticks <- seq(age, Fam3PRO:::MAXAGE, 2)
+  } else if(Fam3PRO:::MAXAGE - as.numeric(age) < 30){
+    x.ticks <- seq(age, Fam3PRO:::MAXAGE, 5)
   }
 
   # axis text size
@@ -725,16 +727,18 @@ make.ggline <- function(data, cancer, cancer.colors, age, grows){
 }
 
 
-#' Evaluate PanelPRO and Handle Errors and Warnings
+#' Evaluate Fam3PRO and Handle Errors and Warnings
 #' 
-#' Arguments are the same as the PanelPRO function but fewer
-#' @returns either the typical PanelPRO result or a warning or error message
-eval_PanelPRO <- function(pedigree,
+#' Arguments are the same as the Fam3PRO function but fewer
+#' @returns either the typical Fam3PRO result or a warning or error message
+eval_Fam3PRO <- function(pedigree,
                           model_spec = NULL,
                           genes = NULL,
                           cancers = NULL,
                           max.mut,
                           age.by,
+                          use.mult.variants,
+                          breakloop,
                           unknown.race,
                           unknown.ancestry,
                           allow.intervention,
@@ -745,13 +749,15 @@ eval_PanelPRO <- function(pedigree,
                           net){
   tryCatch(
     
-    # try to run PanelPRO
+    # try to run Fam3PRO
     {
       if(!is.null(model_spec)){
-        out <- PanelPRO(pedigree = pedigree,
+        out <- Fam3PRO(pedigree = pedigree,
                         model_spec = model_spec,
                         max.mut = max.mut,
                         age.by = age.by,
+                        use.mult.variants = use.mult.variants,
+                        breakloop = breakloop,
                         unknown.race = unknown.race,
                         unknown.ancestry = unknown.ancestry,
                         allow.intervention = allow.intervention,
@@ -761,11 +767,13 @@ eval_PanelPRO <- function(pedigree,
                         random.seed = random.seed,
                         net = net)
       } else if(!is.null(genes) & !is.null(cancers)){
-        out <- PanelPRO(pedigree = pedigree,
+        out <- Fam3PRO(pedigree = pedigree,
                         genes = genes,
                         cancers = cancers,
                         max.mut = max.mut,
                         age.by = age.by,
+                        use.mult.variants = use.mult.variants,
+                        breakloop = breakloop,
                         unknown.race = unknown.race,
                         unknown.ancestry = unknown.ancestry,
                         allow.intervention = allow.intervention,
@@ -789,14 +797,16 @@ eval_PanelPRO <- function(pedigree,
   )
 }
 
-#' Capture PanelPRO console output and send to UI
+#' Capture Fam3PRO console output and send to UI
 #' adapted from: https://gist.github.com/jcheng5/3830244757f8ca25d4b00ce389ea41b3
-ppResultsAndConsole <- function(pedigree,
+f3pResultsAndConsole <- function(pedigree,
                                 model_spec,
                                 genes,
                                 cancers,
                                 max.mut,
                                 age.by,
+                                use.mult.variants,
+                                breakloop,
                                 unknown.race,
                                 unknown.ancestry,
                                 allow.intervention,
@@ -806,13 +816,15 @@ ppResultsAndConsole <- function(pedigree,
                                 random.seed,
                                 net) {
   
-  ## safely run PanelPRO to check for errors and warnings
+  ## safely run Fam3PRO to check for errors and warnings
   # pre-defined model case
   if(model_spec != "Custom"){
-    ppErrorProof <- eval_PanelPRO(pedigree = pedigree,
+    f3pErrorProof <- eval_Fam3PRO(pedigree = pedigree,
                                   model_spec = model_spec,
                                   max.mut = max.mut,
                                   age.by = age.by,
+                                  use.mult.variants = use.mult.variants,
+                                  breakloop = breakloop,
                                   unknown.race = unknown.race,
                                   unknown.ancestry = unknown.ancestry,
                                   allow.intervention = allow.intervention,
@@ -824,11 +836,13 @@ ppResultsAndConsole <- function(pedigree,
     
     # custom model
   } else {
-    ppErrorProof <- eval_PanelPRO(pedigree = pedigree,
+    f3pErrorProof <- eval_Fam3PRO(pedigree = pedigree,
                                   genes = genes,
                                   cancers = cancers,
                                   max.mut = max.mut,
                                   age.by = age.by,
+                                  use.mult.variants = use.mult.variants,
+                                  breakloop = breakloop,
                                   unknown.race = unknown.race,
                                   unknown.ancestry = unknown.ancestry,
                                   allow.intervention = allow.intervention,
@@ -840,19 +854,21 @@ ppResultsAndConsole <- function(pedigree,
   }
   
   ## take different actions depending on if an error was thrown
-  # not an error so re-run to capture PanelPRO results and console output
-  if(!"error" %in% class(ppErrorProof)){
+  # not an error so re-run to capture Fam3PRO results and console output
+  if(!"error" %in% class(f3pErrorProof)){
     
     # different run settings based on if a pre-defined vs custom model was selected
     if(model_spec != "Custom"){
       txt <- 
         capture.output(
           results <- 
-            PanelPRO(
+            Fam3PRO(
               pedigree = pedigree,
               model_spec = model_spec,
               max.mut = max.mut,
               age.by = age.by,
+              use.mult.variants = use.mult.variants,
+              breakloop = breakloop,
               unknown.race = unknown.race,
               unknown.ancestry = unknown.ancestry,
               allow.intervention = allow.intervention,
@@ -868,12 +884,14 @@ ppResultsAndConsole <- function(pedigree,
       txt <- 
         capture.output(
           results <- 
-            PanelPRO(
+            Fam3PRO(
               pedigree = pedigree,
               genes = genes,
               cancers = cancers,
               max.mut = max.mut,
               age.by = age.by,
+              use.mult.variants = use.mult.variants,
+              breakloop = breakloop,
               unknown.race = unknown.race,
               unknown.ancestry = unknown.ancestry,
               allow.intervention = allow.intervention,
@@ -892,14 +910,14 @@ ppResultsAndConsole <- function(pedigree,
     
     # error - return error message
   } else {
-    call <- paste0(deparse(ppErrorProof$call), collapse = "\n")
-    mssg <- paste0(ppErrorProof$message, collapse = "\n")
+    call <- paste0(deparse(f3pErrorProof$call), collapse = "\n")
+    mssg <- paste0(f3pErrorProof$message, collapse = "\n")
     txt <- paste0("Error:\n\ncall:\n", call, "\nmessage:\n", mssg)
     results <- NULL
   }
   
   # change text color based on message type
-  if("error" %in% class(ppErrorProof)){
+  if("error" %in% class(f3pErrorProof)){
     mssg.color <- "red"
   } else {
     mssg.color <- "black"
@@ -907,20 +925,20 @@ ppResultsAndConsole <- function(pedigree,
   
   # persistent console output for one of the results tabs
   removeUI(selector = "#outputContainer") # remove old outputs if they are there
-  insertUI("#ppMessageContainer", 
+  insertUI("#f3pMessageContainer", 
            where = "beforeEnd",
            ui = div(id = "outputContainer", 
                     p(txt, style = paste0("white-space:pre-wrap;color:", mssg.color))))
   
   # create pop-up only if there were warning or errors
-  if(any(c("error", "warning") %in% class(ppErrorProof))){
+  if(any(c("error", "warning") %in% class(f3pErrorProof))){
     
     # change formatting based on message type
-    if("error" %in% class(ppErrorProof)){
-      modal.title <- "PanelPRO Issued an Error"
+    if("error" %in% class(f3pErrorProof)){
+      modal.title <- "Fam3PRO Issued an Error"
       mssg.intro <- "The error message is below:"
     } else {
-      modal.title <- "PanelPRO Issued a Warning"
+      modal.title <- "Fam3PRO Issued a Warning"
       mssg.intro <- "The R console output is below which includes the warning message:"
     }
     
@@ -929,7 +947,7 @@ ppResultsAndConsole <- function(pedigree,
       tagList(p(mssg.intro),
               p(txt, style = paste0("white-space:pre-wrap;color:", mssg.color, ";")),
               p("After closing this pop-up, you can view it again on the 'Console Output' tab."),
-              p("Check the PanelPRO Documentation for more information.")),
+              p("Check the Fam3PRO Documentation for more information.")),
       title = modal.title,
       footer = tagList(modalButton("OK")),
       easyClose = T

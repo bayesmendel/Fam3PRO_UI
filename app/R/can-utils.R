@@ -247,10 +247,10 @@ removeCancer <- function(cr = canReactive$canNums, rel,
   return(cr)
 }
 
-#' Update the selectInput choices for selecting cancer names for PanelPRO cancers 
-#' or for updating the Other cancer choices for the non-PanelPRO cancers in the 
+#' Update the selectInput choices for selecting cancer names for Fam3PRO cancers 
+#' or for updating the Other cancer choices for the non-Fam3PRO cancers in the 
 #' other canUI modules, based on when a cancer is selected in one canUI module
-#' @param type one of c("cancer", "other") to update either the cancer dropdown or the other (non-panelpro) cancer dropdown
+#' @param type one of c("cancer", "other") to update either the cancer dropdown or the other (non-Fam3pro) cancer dropdown
 updateCancerDropdowns <- function(cr = canReactive$canNums,
                                   rel,
                                   inp = input,
