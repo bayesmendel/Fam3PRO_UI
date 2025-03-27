@@ -931,16 +931,17 @@ f3pResultsAndConsole <- function(pedigree,
                     p(txt, style = paste0("white-space:pre-wrap;color:", mssg.color))))
   
   # create pop-up only if there were warning or errors
-  if(any(c("error", "warning") %in% class(f3pErrorProof))){
+  if(any(c("error") %in% class(f3pErrorProof))){   # warnings muted 
     
     # change formatting based on message type
     if("error" %in% class(f3pErrorProof)){
       modal.title <- "Fam3PRO Issued an Error"
       mssg.intro <- "The error message is below:"
-    } else {
-      modal.title <- "Fam3PRO Issued a Warning"
-      mssg.intro <- "The R console output is below which includes the warning message:"
-    }
+      }
+    # } else {
+    #   modal.title <- "Fam3PRO Issued a Warning"
+    #   mssg.intro <- "The R console output is below which includes the warning message:"
+    # }
     
     # create modal
     showModal(modalDialog(

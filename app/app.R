@@ -96,15 +96,28 @@ ui <- fixedPage(
           additional_ui = 
             shiny::tagList(fluidRow(br()),
                            fluidRow(
-                             actionButton(inputId = "signUp",
-                                          label = "Sign up",
-                                          style = "color: black; background-color: white; border-color:grey")),
-                           fluidRow(br()),
+                             # Agree to terms
+                             checkboxInput("agreeTermsLogin", 
+                                           label = tagList(
+                                             "I agree to the", 
+                                             actionLink("termsLink", "Terms and Conditions")
+                                           ),
+                                           value = FALSE)),
                            fluidRow(
-                             actionButton(inputId = "forgotUnPw",
+                             column(
+                               width = 6, 
+                               align = "left",
+                               actionButton(inputId = "signUp",
+                                          label = "Sign up",
+                                          style = "color: black; background-color: white; border-color:grey; fot-size: 90%")),
+                             column(
+                               width = 6, 
+                               align = "right",
+                               actionButton(inputId = "forgotUnPw",
                                           label = "Forgot Username or Password",
-                                          style = "color: black; background-color: white; border-color:grey; padding:4px; font-size:80%"))
-          )
+                                          style = "color: black; background-color: white; border-color:grey; padding:4px%; font-size:90%")) 
+                             )
+                           )
         )
       ), # end log-in tab
        
@@ -156,6 +169,19 @@ ui <- fixedPage(
           conditionalPanel(condition = "output.isCredsError",
             h5(textOutput("CredsError"), style = "color: red")
           ),
+          
+          
+          # Agree to terms
+          checkboxInput("agreeTerms", 
+                        label = "By creating a user account and clicking 'Submit',
+                        I agree to the terms and conditions",
+                        value = FALSE),
+          
+          # Terms and Conditions button
+          actionButton("terms", label = "Terms and Conditions",
+                       icon = icon('book'),
+                       style = "margin-top:5px"),
+          br(),
           
           # submit
           actionButton(inputId = "createNewUser",
@@ -1415,7 +1441,7 @@ ui <- fixedPage(
               # table
               tabPanel(title = "Cancer Risk Table",
                 h4("Future Cancer Risk"),
-                DT::DTOutput("f3pFRTbl", width = "450px")
+                DT::DTOutput("f3pFRTbl", width = "800px")
               ),
               
               ## Carrier Probs
@@ -1426,17 +1452,17 @@ ui <- fixedPage(
                              choices = c("Full (0 to 1)", "Zoomed"),
                              inline = T),
                 conditionalPanel(condition = "input.f3pCPPlotView == 'Zoomed'",
-                  plotly::plotlyOutput("f3pCF3PlotZoom", width = "1000px", height = "500px")
+                  plotly::plotlyOutput("f3pCF3PlotZoom", width = "1200px", height = "750px")
                 ),
                 conditionalPanel(condition = "input.f3pCPPlotView != 'Zoomed'",
-                  plotly::plotlyOutput("f3pCF3PlotFull", width = "1000px", height = "500px")
+                  plotly::plotlyOutput("f3pCF3PlotFull", width = "1200px", height = "750px")
                 )
               ),
               
               # table
               tabPanel(title = "Carrier Prob. Table",
                 h4("Posterior Carrier Probabilities"),
-                DT::DTOutput("f3pCPTbl", width = "500px")
+                DT::DTOutput("f3pCPTbl", width = "800px")
               ),
               
               ## Settings
@@ -6733,6 +6759,34 @@ server <- function(input, output, session) {
     lines <- read_lines(system.file("LICENSE", package="Fam3PRO"))
     paste0(lines[which(lines != "")], collapse = "\n\n")
   })
+  
+  # Enable or disable the Login button based on the checkbox
+  observe({
+    if (isTRUE(input$agreeTermsLogin)) {
+      shinyjs::enable("login-button")
+    } else {
+      shinyjs::disable("login-button")
+    }
+  })
+  
+  # Enable or disable the Submit button based on the checkbox
+  observe({
+    if (isTRUE(input$agreeTerms)) {
+      shinyjs::enable("createNewUser")
+    } else {
+      shinyjs::disable("createNewUser")
+    }
+  })
+  
+  observeEvent(input$termsLink, {
+    showModal(modalDialog(
+      tagList(tagAppendAttributes(textOutput("termsOut"), style = "white-space:pre-wrap;")),
+      title = "Terms and Conditions",
+      footer = modalButton("Close"),
+      easyClose = TRUE
+    ))
+  })
+  
   observeEvent(input$terms, {
     showModal(modalDialog(
       tagList(tagAppendAttributes(textOutput("termsOut"), style="white-space:pre-wrap;")),
