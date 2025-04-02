@@ -177,10 +177,12 @@ ui <- fixedPage(
                         I agree to the terms and conditions",
                         value = FALSE),
           
+          
           # Terms and Conditions button
           actionButton("terms", label = "Terms and Conditions",
                        icon = icon('book'),
                        style = "margin-top:5px"),
+          br(),
           br(),
           
           # submit
