@@ -1,7 +1,7 @@
-# PPI
-PanelPRO Interface (PPI) is a user interface for PanelPRO developed in R Shiny. PPI interactively builds and visualizes pedigrees, customizes and runs the PanelPRO model, and displays the model results. Users can save pedigrees to their user account for future retrieval, modification, and analysis.
+# F3PI
+FamePRO Interface (F3PI) is a user interface for Fam3PRO developed in R Shiny. F3PI interactively builds and visualizes pedigrees, customizes and runs the Fam3PRO model, and displays the model results. Users can save pedigrees to their user account for future retrieval, modification, and analysis.
 
-[Access the site](https://hereditarycancer.dfci.harvard.edu/ppi/)
+[Access the site](https://hereditarycancer.dfci.harvard.edu/Fam3PRO/)
 
 ## User Accounts
 
@@ -21,21 +21,21 @@ Users, including those with manager level permissions, can give any manager leve
   
 ## Branches and Deployment
 
-There are three branches in this repository: main, gb-rossi-panc, and develop. Main and gb-rossi-panc are identical copies of one another but were originally intended to be different versions of the same app. As the project evolved, the need to have two different app versions became obsolete. However, due to this initial approach, each branch was deployed to R Connect as a separate app and therefore, there are two different access URLs. Because the branches are identical, the different URLs take the user to the same app that is connected to the same database file. To make things simpler going forward, I recommend deleting the gb-rossi-panc branch and its corresponding R Connect app and asking the GB Rossi study team to stop using that URL and instead use this generic URL: [https://hereditarycancer.dfci.harvard.edu/ppi/](https://hereditarycancer.dfci.harvard.edu/ppi/). Each branch and its corresponding R Connect information is listed below.
+There are three branches in this repository: main, gb-rossi-panc, and develop. Main and gb-rossi-panc are identical copies of one another but were originally intended to be different versions of the same app. As the project evolved, the need to have two different app versions became obsolete. However, due to this initial approach, each branch was deployed to R Connect as a separate app and therefore, there are two different access URLs. Because the branches are identical, the different URLs take the user to the same app that is connected to the same database file. To make things simpler going forward, I recommend deleting the gb-rossi-panc branch and its corresponding R Connect app and asking the GB Rossi study team to stop using that URL and instead use this generic URL: [https://hereditarycancer.dfci.harvard.edu/F3PI/](https://hereditarycancer.dfci.harvard.edu/F3PI/). Each branch and its corresponding R Connect information is listed below.
 
-1. main: this was intended for general access to PPI for individual researchers and clinicians who are not a part of a specific study, such as the GB Rossi ASIP study. 
+1. main: this was intended for general access to F3PI for individual researchers and clinicians who are not a part of a specific study, such as the GB Rossi ASIP study. 
 
-    + app name: PanelPRO Interface
+    + app name: Fam3PRO Interface
   
-    + URL: [https://hereditarycancer.dfci.harvard.edu/ppi/](https://hereditarycancer.dfci.harvard.edu/ppi/)
+    + URL: [https://hereditarycancer.dfci.harvard.edu/F3PI/](https://hereditarycancer.dfci.harvard.edu/F3PI/)
   
     + Access: link is public, but need a user account
   
     + Lauren Flynn has write access
   
-2. gb-rossi-panc: this is specific the to AISP study and was intended to have its own database in HeidiSQL. At present there is only one database file in HeidiSQL for all versions/branches of the PPI app. 
+2. gb-rossi-panc: this is specific the to AISP study and was intended to have its own database in HeidiSQL. At present there is only one database file in HeidiSQL for all versions/branches of the F3PI app. 
 
-    + app name: PanelPRO Interface GB Rossi Pancreatic Cancer Study
+    + app name: Fam3PRO Interface GB Rossi Pancreatic Cancer Study
   
     + URL: [https://hereditarycancer.dfci.harvard.edu/aisp-pancreatic-cancer-study/](https://hereditarycancer.dfci.harvard.edu/aisp-pancreatic-cancer-study/)
   
@@ -45,7 +45,7 @@ There are three branches in this repository: main, gb-rossi-panc, and develop. M
   
 3. develop: a standard repo develop branch for developing new features. It has its own app URL because during development some features perform differently when deployed to the server than when they are tested locally. When a new feature has been tested locally and is ready to be deployed, it is recommended that it first be deployed to this test version of the app. Once deployed to this version of the app, test your new feature works as intended and then re-deploy it to one of the two production versions of the app listed above. 
 
-    + app name: PanelPRO Interface Development Testing
+    + app name: Fam3PRO Interface Development Testing
   
     + URL: [https://hereditarycancer.dfci.harvard.edu/content/653b1089-6a51-40b9-ad68-6cab2f618def](https://hereditarycancer.dfci.harvard.edu/content/653b1089-6a51-40b9-ad68-6cab2f618def)
   
@@ -79,9 +79,9 @@ All pedigree data for all user accounts can be access through the back-end of th
 
 ## Managing the working pedigree (PED) and pedigreejs
 
-Adding and removing relatives from a pedigree is easier using an interactive drawn family tree than it is using a 2D table. Editing the pedigree via an interactive drawn tree prevents the user from having to worry about breaking family links and manually managing mother/father IDs and sexes. [pedigreejs](https://ccge-boadicea.github.io/pedigreejs/) is a javascript web tool which accomplishes this task however, R is more flexible than pedigreejs and allows for all the detailed information PanelPRO needs to be stored in a strictly formatted data frame. R {shiny} also provides a much more user friendly and visually appealing UI for data entry that pedigreejs. The following approach was used to integrate and leverage the strengths of both pedigreejs, R, and R {shiny}.
+Adding and removing relatives from a pedigree is easier using an interactive drawn family tree than it is using a 2D table. Editing the pedigree via an interactive drawn tree prevents the user from having to worry about breaking family links and manually managing mother/father IDs and sexes. [pedigreejs](https://ccge-boadicea.github.io/pedigreejs/) is a javascript web tool which accomplishes this task however, R is more flexible than pedigreejs and allows for all the detailed information Fam3PRO needs to be stored in a strictly formatted data frame. R {shiny} also provides a much more user friendly and visually appealing UI for data entry that pedigreejs. The following approach was used to integrate and leverage the strengths of both pedigreejs, R, and R {shiny}.
 
-Terminology note: the currently loaded pedigree which the user can modify and analyze is referred to as the "working pedigree." This is the reactive value object named `PED()` and it takes the form of an R data frame. The working pedigree is the centerpiece of the app which all other features revolve around. When the user is ready to run PanelPRO, the working pedigree (`PED()`) is passed to the `pedigree` argument of the `PanelPRO()` function.
+Terminology note: the currently loaded pedigree which the user can modify and analyze is referred to as the "working pedigree." This is the reactive value object named `PED()` and it takes the form of an R data frame. The working pedigree is the centerpiece of the app which all other features revolve around. When the user is ready to run Fam3PRO, the working pedigree (`PED()`) is passed to the `pedigree` argument of the `Fam3PRO()` function.
 
 When a user initializes a new pedigree they are asked to enter a pedigree name, proband sex and proband age. Once this happens, `PED()` is initialized as a 3 person pedigree consisting of the proband, the mother, and the father. This initial working pedigree contains blank or default values for each column in `PED()` except for the ID columns and the Sex column. The proband's age is also populated. Next, the user will work their way through entering the data for the proband. This is accomplished by navigating through six different tabs: Demographics, Cancer Hx, CBC Risk, Tumor Markers, Surgical Hx, and Genes. Each time the user advances to the next tab, the data from the previous tab is used to update the working pedigree. 
 
@@ -89,7 +89,7 @@ Once the proband information has been entered, the user comes to a seventh tab n
 
 At this point, the user must use the pedigreejs interactive tree to add and remove any family members. This functionality also allows for the addition of more distant relatives such as cousins, grandchildren, etc. While pedigreejs is used to manage the tree structure and add/remove relatives, the R {shiny} inputs and modules are used to modify the data for each relative. The same six tabs used to enter the proband's data are re-used to enter any relative's data. To switch which relative the user is entering data for, they just need to select the new relative from the drop-down along the top of the screen. 
 
-For example, when modifying the race information for the proband's mother, the user first needs to select "Mother" in the relative selector drop-down and then navigate to the Demographics tab. Next, the user updates the race using the drop-down menu. This information is not updated in the working pedigree until one of these 4 events occurs: 1) the user changes the selected relative, 2) the user changes to another pedigree editor tab (ie to Cancer Hx), 3) the user changes to another navbar Tab (ie the Home tab or the PanelPRO tab), or 4) the user clicks the "Update and Save Pedigree" button. Every time the working pedigree is updated, a snapshot of `PED()` is saved to the user's SQL table in the database and the previous copy is overwritten. Now because race does not affect the pedigree structure and is not displayed in the interactive family tree, pedigreejs is not informed about this change. However, if the user was to update a current age value, deceased status, or any cancer history, this information is displayed in the interactive family tree and therefore a new JSON copy of the working pedigree is created and passed to pedigreejs via `updatePedJSHandler`. `updatePedJSHandler` tells pedigreejs to redraw the tree with the updated information.
+For example, when modifying the race information for the proband's mother, the user first needs to select "Mother" in the relative selector drop-down and then navigate to the Demographics tab. Next, the user updates the race using the drop-down menu. This information is not updated in the working pedigree until one of these 4 events occurs: 1) the user changes the selected relative, 2) the user changes to another pedigree editor tab (ie to Cancer Hx), 3) the user changes to another navbar Tab (ie the Home tab or the Fam3PRO tab), or 4) the user clicks the "Update and Save Pedigree" button. Every time the working pedigree is updated, a snapshot of `PED()` is saved to the user's SQL table in the database and the previous copy is overwritten. Now because race does not affect the pedigree structure and is not displayed in the interactive family tree, pedigreejs is not informed about this change. However, if the user was to update a current age value, deceased status, or any cancer history, this information is displayed in the interactive family tree and therefore a new JSON copy of the working pedigree is created and passed to pedigreejs via `updatePedJSHandler`. `updatePedJSHandler` tells pedigreejs to redraw the tree with the updated information.
 
 The R server is continually querying the pedigreejs pedigree JSON object via the `getpedigree` function every 1 second to detect if the user has added or deleted any relative using the interactive family tree. The server does this by converting the JSON into a data frame using the {jsonlite} package and comparing the number of rows from that data frame to the number of rows in the working pedigree data frame. If a difference in rows is detected, then `PED()` is updated accordingly. Once `PED()` has been updated, another JSON copy of it is created and passed back to `updatePedJSHandler` to redraw the interactive family tree with either the deleted relative removed or with the new relative(s) added with their standardized IDs and names to match the rest of the family. 
 
@@ -110,7 +110,7 @@ A guide to assist with this can be found on [this Basecamp resource page.](https
 
 The `hereditarycancer@ds.dfci.harvard.edu` account is used to manager Google Analytics for the app. A guide for managing this is found on [this Basecamp resource page.](https://3.basecamp.com/3348350/buckets/710881/messages/5373522902#__recording_5377974815).
 
-The `./app/google-analytics.html` file of the repo is what provides the connection between the deployed app and Google Analytics. On the Google Analytics home page you can see the access statistics by navigating to the app named "panelpro-app".
+The `./app/google-analytics.html` file of the repo is what provides the connection between the deployed app and Google Analytics. On the Google Analytics home page you can see the access statistics by navigating to the app named "Fam3PRO-app".
 
 ## App file structure
 
@@ -124,13 +124,13 @@ Everything in the `./app` directory is deployed to the server. The main file is 
 
 - `mylynch-app-XXXXXX.json`: this provides the "secrets" needed for the app to connect to the `hereditarycancer@ds.dfci.harvard.edu` account. This must be deployed to the server for it to work.
 
-- `non.pp.cancer.list.csv`: a list of non-PanelPRO cancers from the Dana-Farber website.
+- `non.pp.cancer.list.csv`: a list of non-Fam3PRO cancers from the Dana-Farber website.
 
 - `data-dictionary`: a starter directory which hold files for when a user downloads the data dictionary. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
 
 - `download-pedigrees`: a starter directory which hold files for when a user downloads one or more pedigrees. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
 
-- `download-results`: a starter directory which hold files for when a user downloads the PanelPRO results for a specific pedigree. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
+- `download-results`: a starter directory which hold files for when a user downloads the Fam3PRO results for a specific pedigree. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
 
 - `rsconnect`: holds the .dfc files for deploying the app to R Connect. There are three, one for each app name as explained in the "Branches and deployment" section of this README.
 
@@ -150,9 +150,9 @@ Everything in the `./app` directory is deployed to the server. The main file is 
 	
 	+ updatePedJSHandler: all subsequent updates to the pedigreejs tree. Even if the user loads a new pedigree in the same session in which createPedJSHandler has been called, updatePedJSHandler will still be used to create the new tree. 
 	
-  + `pedigreejs-customizations.md`: a file that explains what customizations were made to get pedigreejs to work with PPI. Required as per the pedigreejs license.
+  + `pedigreejs-customizations.md`: a file that explains what customizations were made to get pedigreejs to work with F3PI. Required as per the pedigreejs license.
   
-  + `build/pedigreejs.v2.1.0-rc9-customized-for-PPI-3.js`: the pedigreejs code used in the app with slight modification as described in the above file. 
+  + `build/pedigreejs.v2.1.0-rc9-customized-for-F3PI-3.js`: the pedigreejs code used in the app with slight modification as described in the above file. 
   
   + `build/pedigreejs.v2.1.0-rc9.js`: the original pedigreejs code as a reference (not used in the app though).
   
@@ -174,7 +174,7 @@ Everything in the `./app` directory is deployed to the server. The main file is 
   
   + `ped-utils.R`: utilities that manage the pedigree structure such as creating a new pedigree, adding a new family members, modifying a family member's data. Functions that need to user a combination of cancer history, genetic testing information, demographics, and/or surgical history are also found here.
   
-  + `pp-utils.R`: utilities for running PanelPRO and visualizing its results.
+  + `pp-utils.R`: utilities for running Fam3PRO and visualizing its results.
   
   + `surg-utils.R`: utilities for managing surgical history.
   
@@ -184,11 +184,11 @@ The app is fully functional in its current state with all major features impleme
 
 Historically, the slow connection between HeidiSQL and R Connect was causing the app the crash when loading, copying, deleting, or downloading pedigrees (although modifying a pedigree did not seem to be affected). This is a common problem for shiny apps in general. The problem was exacerbated for manager accounts because manager account first query one of their subordinate tables then a specific pedigree from that table is extracted. I pushed a fix for this on 5/3/23 that forces users to wait until the query operations finish before the user can proceed. I have not received a complaint since then. 
 
-Ideally, users could be able to upload their own pedigrees in a variety of formats however at the moment they must create a pedigree from scratch using PPI. I started coding the function checkUploadPed in the ped-utils.R script to address this however, the feature has not yet been implemented. 
+Ideally, users could be able to upload their own pedigrees in a variety of formats however at the moment they must create a pedigree from scratch using F3PI. I started coding the function checkUploadPed in the ped-utils.R script to address this however, the feature has not yet been implemented. 
 
 Another very useful feature which has not been implemented yet, would be to add nucleotide and variant coding validation from ClinVar via an API.
 
-There is also a way to modify pedigreejs to show P/LP genes by relative however, this is somewhat complicated and requires more modification of the pedigreejs javascript code to be able to handle all of different PanelPRO genes. 
+There is also a way to modify pedigreejs to show P/LP genes by relative however, this is somewhat complicated and requires more modification of the pedigreejs javascript code to be able to handle all of different Fam3PRO genes. 
 
 There are two potential improvements related to pedigreejs:
 
@@ -196,4 +196,4 @@ There are two potential improvements related to pedigreejs:
 
 2. The way in which R is continually scanning for changes to the pedigreejs JSON every 1 second is inefficient and, in the past, has caused the tree display to flicker every 1 second (although I partially fixed this). A better way would be for pedigreejs to inform the R server a relative has been added or deleted however this requires modification of the javascript code.
 
-Loading testing would be great to include if this app is to be published. I began to load test the app using the directory `PanelPRO_ShinyApp\PanelPRO_app_load_test`. The shinyloadtest package unfortunately is not compatible with apps that rely on databases and some of our other complex features like pedigreejs. Instead, I created a test version of the app that only runs the PanelPRO analysis (the most computationally demanding feature). Although not representative of using the real PPI app, it did provide insight into how many simultaneous users could run PanelPRO at the same time using our R Connect server. The answer is around 12 before performance beings to degrade. This is a hardware limitation and we would need to upgrade our server to improve performance. Once the server hardware is optimized and if we still want more capacity we would have to set-up a cluster of R Connect servers to handle increased workload.
+Loading testing would be great to include if this app is to be published. I began to load test the app using the directory `Fam3PRO_ShinyApp\Fam3PRO_app_load_test`. The shinyloadtest package unfortunately is not compatible with apps that rely on databases and some of our other complex features like pedigreejs. Instead, I created a test version of the app that only runs the Fam3PRO analysis (the most computationally demanding feature). Although not representative of using the real F3PI app, it did provide insight into how many simultaneous users could run Fam3PRO at the same time using our R Connect server. The answer is around 12 before performance beings to degrade. This is a hardware limitation and we would need to upgrade our server to improve performance. Once the server hardware is optimized and if we still want more capacity we would have to set-up a cluster of R Connect servers to handle increased workload.
