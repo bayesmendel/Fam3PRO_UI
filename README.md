@@ -63,7 +63,7 @@ Everything in the `./app` directory is deployed to the server. The main file is 
 	
   + `pedigreejs-customizations.md`: a file that explains what customizations were made to get pedigreejs to work with F3PI. Required as per the pedigreejs license.
   
-  + `build/pedigreejs.v2.1.0-rc9-customized-for-F3PI-3.js`: the pedigreejs code used in the app with slight modification as described in the above file. 
+  + `build/pedigreejs.v2.1.0-rc9-customized-for-F3PI-4.js`: the pedigreejs code used in the app with slight modification as described in the above file. 
   
   + `build/pedigreejs.v2.1.0-rc9.js`: the original pedigreejs code as a reference (not used in the app though).
   
