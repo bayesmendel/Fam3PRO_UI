@@ -1,7 +1,7 @@
 # F3PI
 FamePRO Interface (F3PI) is a user interface for Fam3PRO developed in R Shiny. F3PI interactively builds and visualizes pedigrees, customizes and runs the Fam3PRO model, and displays the model results. Users can save pedigrees to their user account for future retrieval, modification, and analysis.
 
-[Access the site](https://hereditarycancer.dfci.harvard.edu/Fam3PRO/)
+[Access the site](https://hereditarycancer.dfci.harvard.edu/fam3pro/)
 
 ## User Accounts
 
