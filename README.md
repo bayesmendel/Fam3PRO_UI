@@ -37,6 +37,10 @@ Everything in the `./app` directory is deployed to the server. The main file is 
 
 - `data-dictionary`: a starter directory which hold files for when a user downloads the data dictionary. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
 
+-  `download-pedigrees`: a starter directory which hold files for when a user downloads one or more pedigrees. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
+
+- `download-results`: a starter directory which hold files for when a user downloads the Fam3PRO results for a specific pedigree. Additional files are added upon download and then auto-deleted because they are specific to the user's session/download. A README is included which explains each permanent and temporary file in the directory.
+
 - `www`: contains all image files, a css style sheet, and all pedigreejs javascript code for the app.
 
 - `www/pedigreejs`: contains the following pedigreejs files:
