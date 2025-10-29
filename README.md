@@ -31,7 +31,7 @@ The R package itself is not publicly displayed in this repo. If you are planning
 
 Everything in the `./app` directory is deployed to the server. The main file is `app.R` which holds the UI and server. The other files and sub-directories in the `./app` are detailed below. `app.R` itself is well commented and has a strict tree structure to aid in development.
 
-- `LICENSE-text.html`: for displaying the contents of the LICENSE for Fam3PRO R package.
+- `Fam3PRO_UI_Usage_License.html`: for displaying the contents of the LICENSE for Fam3PRO UI.
 
 - `non.pp.cancer.list.csv`: a list of non-Fam3PRO cancers from the Dana-Farber website.
 
